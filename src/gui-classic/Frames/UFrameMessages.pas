@@ -4,7 +4,8 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
-  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
+  UNetProtocol;
 
 type
   TFrameMessages = class(TFrame)
@@ -26,11 +27,17 @@ type
     procedure bbSendAMessageClick(Sender: TObject);
   private
     { Private declarations }
+    FMessagesUnreadCount : Integer;
+
   public
     { Public declarations }
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+
+    procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : String);
+
+    property MessagesUnreadCount : integer read FMessagesUnreadCount write FMessagesUnreadCount;
   end;
 
 implementation
@@ -38,7 +45,7 @@ implementation
 {$R *.dfm}
 
 uses
-  UFRMWallet, UNetProtocol;
+  UFRMWallet, USettings, UCrypto;
 
 constructor TFrameMessages.Create(AOwner: TComponent);
 begin
@@ -46,6 +53,8 @@ begin
 
   memoMessages.Lines.Clear;
   memoMessageToSend.Lines.Clear;
+
+  FMessagesUnreadCount := 0;
 end;
 
 destructor TFrameMessages.Destroy;
@@ -102,6 +111,35 @@ begin
 
   Application.MessageBox(PChaR('Message sent to '+inttostr(n)+' nodes'+#10+
     'Message: '+#10+m),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
+end;
+
+procedure TFrameMessages.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: String);
+Var s : String;
+begin
+  inc(FMessagesUnreadCount);
+  if Assigned(NetConnection) then begin
+    s := DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr;
+    memoMessages.Lines.Add(DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr+' Length '+inttostr(Length(MessageData))+' bytes');
+    memoMessages.Lines.Add('RECEIVED> '+MessageData);
+    if TSettings.ShowModalMessages then begin
+      s := DateTimeToStr(now)+' Message from '+NetConnection.ClientRemoteAddr+#10+
+         'Length '+inttostr(length(MessageData))+' bytes'+#10+#10;
+      if TCrypto.IsHumanReadable(TEncoding.ANSI.GetBytes(MessageData)) then begin
+         s := s + MessageData;
+      end else begin
+         s := s +'Value in hexadecimal:'+#10+
+              TCrypto.ToHexaString(TEncoding.ANSI.GetBytes(MessageData));
+      end;
+      Application.MessageBox(PChar(s),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
+    end;
+  end else begin
+    memoMessages.Lines.Add(DateTimeToStr(now)+' Internal message: '+MessageData);
+  end;
+  if FMessagesUnreadCount>1 then
+    FRMWallet.FrameInfo.lblReceivedMessages.Caption := Format('You have received %d messages',[FMessagesUnreadCount])
+  else
+    FRMWallet.FrameInfo.lblReceivedMessages.Caption := 'You have received 1 message';
+  FRMWallet.FrameInfo.lblReceivedMessages.Visible := true;
 end;
 
 end.

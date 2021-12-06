@@ -154,7 +154,6 @@ type
     FBlockChainGrid : TBlockChainGrid;
     FMinerPrivateKeyType : TMinerPrivateKeyType;
     FUpdating : Boolean;
-    FMessagesUnreadCount : Integer;
     FPoolMiningServer : TPoolMiningServer;
     FRPCServer : TRPCServer;
     FMustProcessWalletChanged : Boolean;
@@ -168,7 +167,6 @@ type
     procedure OnWalletChanged(Sender : TObject);
     procedure OnNetConnectionsUpdated(Sender : TObject);
     procedure OnNetNodeServersUpdated(Sender : TObject);
-    Procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : String);
     Procedure OnNodeKeysActivity(Sender : TObject);
     Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
     Procedure OnMiningServerNewBlockFound(Sender : TObject);
@@ -477,7 +475,6 @@ begin
   FRPCServer := Nil;
   FNode := Nil;
   FPoolMiningServer := Nil;
-  FMessagesUnreadCount := 0;
   FrameInfo.lblReceivedMessages.Visible := false;
 
   FUpdating := false;
@@ -495,7 +492,7 @@ begin
   TSettings.OnChanged.Add(UpdateConfigChanged);
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnBlocksChanged := OnNewAccount;
-  FNodeNotifyEvents.OnNodeMessageEvent := OnNodeMessageEvent;
+  FNodeNotifyEvents.OnNodeMessageEvent := FrameMessages.OnNodeMessageEvent;
   FNodeNotifyEvents.OnKeyActivity := OnNodeKeysActivity;
 
   FSelectedAccountsGrid := TAccountsGrid.Create(Self);
@@ -1367,32 +1364,7 @@ begin
   //
 end;
 
-procedure TFRMWallet.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: String);
-Var s : String;
-begin
-  inc(FMessagesUnreadCount);
-  if Assigned(NetConnection) then begin
-    s := DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr;
-    FrameMessages.memoMessages.Lines.Add(DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr+' Length '+inttostr(Length(MessageData))+' bytes');
-    FrameMessages.memoMessages.Lines.Add('RECEIVED> '+MessageData);
-    if TSettings.ShowModalMessages then begin
-      s := DateTimeToStr(now)+' Message from '+NetConnection.ClientRemoteAddr+#10+
-         'Length '+inttostr(length(MessageData))+' bytes'+#10+#10;
-      if TCrypto.IsHumanReadable(TEncoding.ANSI.GetBytes(MessageData)) then begin
-         s := s + MessageData;
-      end else begin
-         s := s +'Value in hexadecimal:'+#10+
-              TCrypto.ToHexaString(TEncoding.ANSI.GetBytes(MessageData));
-      end;
-      Application.MessageBox(PChar(s),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
-    end;
-  end else begin
-    FrameMessages.memoMessages.Lines.Add(DateTimeToStr(now)+' Internal message: '+MessageData);
-  end;
-  if FMessagesUnreadCount>1 then FrameInfo.lblReceivedMessages.Caption := Format('You have received %d messages',[FMessagesUnreadCount])
-  else FrameInfo.lblReceivedMessages.Caption := 'You have received 1 message';
-  FrameInfo.lblReceivedMessages.Visible := true;
-end;
+
 
 procedure TFRMWallet.OnNodeKeysActivity(Sender: TObject);
 begin
@@ -1453,7 +1425,7 @@ begin
   end else FOperationsExplorerGrid.Node := Nil;
   if PageControl.ActivePage=tsMessages then begin
     UpdateAvailableConnections;
-    FMessagesUnreadCount := 0;
+    FrameMessages.MessagesUnreadCount := 0;
     FrameInfo.lblReceivedMessages.Visible := false;
   end;
 end;

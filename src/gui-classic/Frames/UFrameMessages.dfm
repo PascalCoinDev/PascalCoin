@@ -55,8 +55,6 @@ object FrameMessages: TFrameMessages
       ReadOnly = True
       ScrollBars = ssBoth
       TabOrder = 1
-      ExplicitTop = 256
-      ExplicitHeight = 210
     end
   end
   object PanelTop: TPanel
@@ -166,9 +164,6 @@ object FrameMessages: TFrameMessages
         Align = alBottom
         Caption = ' '
         TabOrder = 2
-        ExplicitLeft = 1
-        ExplicitTop = 164
-        ExplicitWidth = 469
         DesignSize = (
           473
           66)
