@@ -27,6 +27,7 @@ type
 
     procedure OnNetConnectionsUpdated(Sender : TObject);
     procedure OnNetBlackListUpdated(Sender : TObject);
+    procedure OnNetNodeServersUpdated(Sender: TObject);
 
     procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated;
 
@@ -64,6 +65,7 @@ begin
 
   TNetData.NetData.OnNetConnectionsUpdated := OnNetConnectionsUpdated;
   TNetData.NetData.OnBlackListUpdated := OnNetBlackListUpdated;
+  TNetData.NetData.OnNodeServersUpdated := OnNetNodeServersUpdated;
 end;
 
 destructor TFrameNodeStats.Destroy;
@@ -115,6 +117,60 @@ begin
     TNetData.NetData.NodeServersAddresses.UnlockList;
   end;
 end;
+
+procedure TFrameNodeStats.OnNetNodeServersUpdated(Sender: TObject);
+Var i : integer;
+ P : PNodeServerAddress;
+ l : TList<Pointer>;
+ strings : TStrings;
+ s : String;
+begin
+  l := TNetData.NetData.NodeServersAddresses.LockList;
+  try
+    strings := memoNetServers.Lines;
+    strings.BeginUpdate;
+    Try
+      strings.Clear;
+      strings.Add('NodeServers Updated: '+DateTimeToStr(now) +' Count: '+inttostr(l.Count));
+      for i := 0 to l.Count - 1 do begin
+        P := l[i];
+        if Not (P^.is_blacklisted) then begin
+          s := Format('Server IP:%s:%d',[P^.ip,P^.port]);
+          if (P^.last_connection_by_me>0) then begin
+            s := s + ' [Server] ';
+          end;
+
+          if Assigned(P.netConnection) then begin
+            If P.last_connection>0 then  s := s+ ' ** ACTIVE **'
+            else s := s+' ** TRYING TO CONNECT **';
+          end;
+          if P.its_myself then begin
+            s := s+' ** NOT VALID ** '+P.BlackListText;
+          end;
+          if P.last_connection>0 then begin
+            s := s + ' Last connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection)));
+          end;
+          if P.last_connection_by_server>0 then begin
+            s := s + ' Last server connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection_by_server)));
+          end;
+          if (P.last_attempt_to_connect>0) then begin
+            s := s + ' Last attempt to connect: '+DateTimeToStr(P^.last_attempt_to_connect);
+          end;
+          if (P.total_failed_attemps_to_connect>0) then begin
+            s := s + ' (Attempts: '+inttostr(P^.total_failed_attemps_to_connect)+')';
+          end;
+
+          strings.Add(s);
+        end;
+      end;
+    Finally
+      strings.EndUpdate;
+    End;
+  finally
+    TNetData.NetData.NodeServersAddresses.UnlockList;
+  end;
+end;
+
 
 procedure TFrameNodeStats.CM_NetConnectionUpdated(var Msg: TMessage);
 Const CT_BooleanToString : Array[Boolean] of String = ('False','True');
