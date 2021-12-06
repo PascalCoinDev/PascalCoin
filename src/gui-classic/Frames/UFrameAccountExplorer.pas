@@ -93,6 +93,7 @@ type
     function DoUpdateAccountsFilter: Boolean;
 
     procedure UpdateAccounts(RefreshData : Boolean);
+    procedure UpdatePrivateKeys;
 
     property AccountsGrid : TAccountsGrid read FAccountsGrid;
 
@@ -107,7 +108,7 @@ implementation
 uses
   UFRMWallet, UConst, UPCOrderedLists, UFRMOperation,
   USettings, UFRMAccountSelect, UAccounts,
-  UPCDataTypes;
+  UPCDataTypes, UWallet, UCrypto;
 
 procedure TFrameAccountExplorer.OnAccountsGridUpdatedData(Sender: TObject);
 begin
@@ -170,7 +171,7 @@ begin
   if InputQuery('Change Key name','Input new name',name) then begin
     FRMWallet.WalletKeys.SetName(i,name);
   end;
-  FRMWallet.UpdatePrivateKeys;
+  UpdatePrivateKeys;
 end;
 
 procedure TFrameAccountExplorer.bbSelectedAccountsOperationClick(Sender: TObject);
@@ -451,6 +452,43 @@ begin
   bbChangeKeyName.Enabled := cbExploreMyAccounts.Checked;
   OnAccountsGridUpdatedData(Nil);
   FRMWallet.UpdateOperations;
+end;
+
+procedure TFrameAccountExplorer.UpdatePrivateKeys;
+Var
+  i,last_i : Integer;
+  wk : TWalletKey;
+  s : AnsiString;
+begin
+  FRMWallet.NodeNotifyEvents.WatchKeys := FRMWallet.WalletKeys.AccountsKeyList;
+  if (cbMyPrivateKeys.ItemIndex>=0) then last_i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex])
+  else last_i := -1;
+  cbMyPrivateKeys.items.BeginUpdate;
+  Try
+    cbMyPrivateKeys.Items.Clear;
+    For i:=0 to FRMWallet.WalletKeys.Count-1 do begin
+      wk := FRMWallet.WalletKeys.Key[i];
+      if (wk.Name='') then begin
+        s := 'Sha256='+TCrypto.ToHexaString( TCrypto.DoSha256( TAccountComp.AccountKey2RawString(wk.AccountKey) ) );
+      end else begin
+        s := wk.Name;
+      end;
+      if Not Assigned(wk.PrivateKey) then begin
+        if Length(wk.CryptedKey)>0 then s:=s+' (**NEED PASSWORD**)'
+        else s:=s+' (**PUBLIC KEY ONLY**)';
+      end;
+      cbMyPrivateKeys.Items.AddObject(s,TObject(i));
+    end;
+    cbMyPrivateKeys.Sorted := true;
+    cbMyPrivateKeys.Sorted := false;
+    cbMyPrivateKeys.Items.InsertObject(0,'(All my private keys)',TObject(-1));
+  Finally
+    cbMyPrivateKeys.Items.EndUpdate;
+  End;
+  last_i := cbMyPrivateKeys.Items.IndexOfObject(TObject(last_i));
+  if last_i<0 then last_i := 0;
+  if cbMyPrivateKeys.Items.Count>last_i then cbMyPrivateKeys.ItemIndex := last_i
+  else if cbMyPrivateKeys.Items.Count>=0 then cbMyPrivateKeys.ItemIndex := 0;
 end;
 
 

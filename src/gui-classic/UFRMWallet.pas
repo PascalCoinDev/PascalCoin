@@ -187,7 +187,6 @@ type
   public
     Procedure CheckIsReady;
 
-    Procedure UpdatePrivateKeys;
     Procedure UpdateOperations;
 
     { Public declarations }
@@ -195,6 +194,8 @@ type
 
     Property WalletKeys : TWalletKeysExt read FWalletKeys;
     Property MinersBlocksFound : Integer read FMinersBlocksFound write SetMinersBlocksFound;
+
+    Property NodeNotifyEvents : TNodeNotifyEvents read FNodeNotifyEvents;
 
     Property Updating : boolean read FUpdating write FUpdating;
 
@@ -380,7 +381,7 @@ begin
       Halt;
     end;
   end;
-  UpdatePrivateKeys;
+  FrameAccountExplorer.UpdatePrivateKeys;
   FrameAccountExplorer.UpdateAccounts(false);
   if TSettings.FirstTime then begin
     TSettings.FirstTime := false;
@@ -525,7 +526,7 @@ begin
   RetranslateComponent(self);
   {$ENDIF}
   //
-  UpdatePrivateKeys;
+  FrameAccountExplorer.UpdatePrivateKeys;
   UpdateBlockChainState;
   UpdateConnectionStatus;
   PageControl.ActivePage := tsOperations;
@@ -730,7 +731,7 @@ end;
 
 procedure TFRMWallet.CM_WalletChanged(var Msg: TMessage);
 begin
-  UpdatePrivateKeys;
+  FrameAccountExplorer.UpdatePrivateKeys;
   FMustProcessWalletChanged := false;
 end;
 
@@ -773,7 +774,7 @@ begin
   PageControl.Visible:=True;
   PageControl.Enabled:=True;
 
-  UpdatePrivateKeys;
+  FrameAccountExplorer.UpdatePrivateKeys;
   //
   LFoundAccounts := 0;
   FNode.Bank.SafeBox.StartThreadSafe;
@@ -1232,7 +1233,7 @@ begin
   Try
     FRM.WalletKeys := FWalletKeys;
     FRM.ShowModal;
-    UpdatePrivateKeys;
+    FrameAccountExplorer.UpdatePrivateKeys;
   Finally
     FRM.Free;
   End;
@@ -1724,41 +1725,7 @@ begin
   FOperationsAccountGrid.AccountNumber := accn;
 end;
 
-procedure TFRMWallet.UpdatePrivateKeys;
-Var i,last_i : Integer;
-  wk : TWalletKey;
-  s : AnsiString;
-begin
-  FNodeNotifyEvents.WatchKeys := FWalletKeys.AccountsKeyList;
-  if (FrameAccountExplorer.cbMyPrivateKeys.ItemIndex>=0) then last_i := PtrInt(FrameAccountExplorer.cbMyPrivateKeys.Items.Objects[FrameAccountExplorer.cbMyPrivateKeys.ItemIndex])
-  else last_i := -1;
-  FrameAccountExplorer.cbMyPrivateKeys.items.BeginUpdate;
-  Try
-    FrameAccountExplorer.cbMyPrivateKeys.Items.Clear;
-    For i:=0 to FWalletKeys.Count-1 do begin
-      wk := FWalletKeys.Key[i];
-      if (wk.Name='') then begin
-        s := 'Sha256='+TCrypto.ToHexaString( TCrypto.DoSha256( TAccountComp.AccountKey2RawString(wk.AccountKey) ) );
-      end else begin
-        s := wk.Name;
-      end;
-      if Not Assigned(wk.PrivateKey) then begin
-        if Length(wk.CryptedKey)>0 then s:=s+' (**NEED PASSWORD**)'
-        else s:=s+' (**PUBLIC KEY ONLY**)';
-      end;
-      FrameAccountExplorer.cbMyPrivateKeys.Items.AddObject(s,TObject(i));
-    end;
-    FrameAccountExplorer.cbMyPrivateKeys.Sorted := true;
-    FrameAccountExplorer.cbMyPrivateKeys.Sorted := false;
-    FrameAccountExplorer.cbMyPrivateKeys.Items.InsertObject(0,'(All my private keys)',TObject(-1));
-  Finally
-    FrameAccountExplorer.cbMyPrivateKeys.Items.EndUpdate;
-  End;
-  last_i := FrameAccountExplorer.cbMyPrivateKeys.Items.IndexOfObject(TObject(last_i));
-  if last_i<0 then last_i := 0;
-  if FrameAccountExplorer.cbMyPrivateKeys.Items.Count>last_i then FrameAccountExplorer.cbMyPrivateKeys.ItemIndex := last_i
-  else if FrameAccountExplorer.cbMyPrivateKeys.Items.Count>=0 then FrameAccountExplorer.cbMyPrivateKeys.ItemIndex := 0;
-end;
+
 
 
 
