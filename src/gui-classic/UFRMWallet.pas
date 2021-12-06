@@ -155,7 +155,6 @@ type
     Procedure OnNewAccount(Sender : TObject);
     Procedure OnReceivedHelloMessage(Sender : TObject);
     Procedure OnNetStatisticsChanged(Sender : TObject);
-    procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : String);
     procedure OnWalletChanged(Sender : TObject);
     Procedure OnNodeKeysActivity(Sender : TObject);
     Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
@@ -464,7 +463,7 @@ begin
     StatusBar.Panels[i].Text := '';
   end;
   FLog := TLog.Create(Self);
-  FLog.OnNewLog := OnNewLog;
+  FLog.OnNewLog := FrameLogs.OnNewLog;
   FLog.SaveTypes := [];
   If Not ForceDirectories(TNode.GetPascalCoinDataFolder) then raise Exception.Create('Cannot create dir: '+TNode.GetPascalCoinDataFolder);
   TSettings.Load;
@@ -1186,23 +1185,6 @@ begin
   end;
 end;
 
-procedure TFRMWallet.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : TThreadID; const sender,logtext: String);
-Var s : AnsiString;
-begin
-  if (logtype=ltdebug) And (Not FrameLogs.cbShowDebugLogs.Checked) then exit;
-  if ThreadID=MainThreadID then s := ' MAIN:' else s:=' TID:';
-  if FrameLogs.MemoLogs.Lines.Count>300 then begin
-    // Limit max lines in logs...
-    FrameLogs.memoLogs.Lines.BeginUpdate;
-    try
-      while FrameLogs.memoLogs.Lines.Count>250 do FrameLogs.memoLogs.Lines.Delete(0);
-    finally
-      FrameLogs.memoLogs.Lines.EndUpdate;
-    end;
-  end;
-  FrameLogs.memoLogs.Lines.Add(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(PtrInt(ThreadID),8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
-  //
-end;
 
 
 
@@ -1297,7 +1279,7 @@ begin
   if (Not tsLogs.TabVisible) then begin
     FLog.OnNewLog := Nil;
     if PageControl.ActivePage = tsLogs then PageControl.ActivePage := tsMyAccounts;
-  end else FLog.OnNewLog := OnNewLog;
+  end else FLog.OnNewLog := FrameLogs.OnNewLog;
   if TSettings.SaveLogFiles then begin
     if TSettings.SaveDebugLogs then FLog.SaveTypes := CT_TLogTypes_ALL
     else FLog.SaveTypes := CT_TLogTypes_DEFAULT;

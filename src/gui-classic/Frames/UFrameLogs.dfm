@@ -13,7 +13,6 @@ object FrameLogs: TFrameLogs
     ScrollBars = ssBoth
     TabOrder = 0
     WordWrap = False
-    ExplicitTop = 32
   end
   object pnlTopLogs: TPanel
     Left = 0
@@ -34,7 +33,7 @@ object FrameLogs: TFrameLogs
       Caption = 'Show Debug Logs'
       TabOrder = 0
     end
-    object Button1: TButton
+    object ButtonCopyLogToClipboard: TButton
       Left = 680
       Top = 4
       Width = 133
@@ -42,7 +41,7 @@ object FrameLogs: TFrameLogs
       Anchors = [akTop, akRight]
       Caption = 'Copy log to clipboard'
       TabOrder = 1
-      OnClick = Button1Click
+      OnClick = ButtonCopyLogToClipboardClick
     end
   end
 end

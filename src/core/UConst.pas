@@ -29,7 +29,7 @@ interface
 type
   PtrInt = NativeInt;
   PtrUInt = NativeUInt;
-  TThreadID = NativeUInt;
+  TThreadID = NativeUInt; // Skybuck: already defined in system under Delphi, could lead to (proto)type mismatches, consider disabling this in Delphi for more safety ?!? ULog.pas is activated by this as well as UFrameLogs.pas
 {$ENDIF}
 
 Const
