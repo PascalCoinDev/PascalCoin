@@ -23,7 +23,7 @@ object FRMWallet: TFRMWallet
     Left = 0
     Top = 0
     Width = 865
-    Height = 104
+    Height = 108
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
@@ -31,31 +31,28 @@ object FRMWallet: TFRMWallet
       Left = 0
       Top = 0
       Width = 865
-      Height = 104
+      Height = 108
       Align = alTop
       TabOrder = 0
       ExplicitWidth = 865
       inherited Panel1: TPanel
-        ExplicitHeight = 104
         inherited Image1: TImage
-          Width = 75
+          Width = 71
           Height = 104
+          ExplicitWidth = 75
+          ExplicitHeight = 104
         end
       end
       inherited Panel2: TPanel
-        ExplicitTop = 0
+        ExplicitLeft = 78
       end
       inherited Panel3: TPanel
-        ExplicitLeft = 315
-        ExplicitTop = 0
-        ExplicitHeight = 104
+        ExplicitLeft = 321
       end
       inherited Panel4: TPanel
-        Width = 310
-        ExplicitLeft = 555
-        ExplicitTop = 0
-        ExplicitWidth = 310
-        ExplicitHeight = 104
+        Width = 301
+        ExplicitLeft = 564
+        ExplicitWidth = 301
       end
     end
   end
@@ -81,9 +78,9 @@ object FRMWallet: TFRMWallet
   end
   object PageControl: TPageControl
     Left = 0
-    Top = 104
+    Top = 108
     Width = 865
-    Height = 453
+    Height = 449
     ActivePage = tsMyAccounts
     Align = alClient
     TabOrder = 2
@@ -94,13 +91,13 @@ object FRMWallet: TFRMWallet
         Left = 0
         Top = 0
         Width = 857
-        Height = 425
+        Height = 421
         Align = alClient
         TabOrder = 0
         ExplicitWidth = 857
-        ExplicitHeight = 425
+        ExplicitHeight = 421
         inherited Splitter1: TSplitter
-          Height = 359
+          Height = 355
           ExplicitHeight = 359
         end
         inherited pnlMyAccountsTop: TPanel
@@ -108,42 +105,42 @@ object FRMWallet: TFRMWallet
           ExplicitWidth = 857
         end
         inherited pnlAccounts: TPanel
-          Height = 359
-          ExplicitHeight = 359
+          Height = 355
+          ExplicitHeight = 355
           inherited dgAccounts: TDrawGrid
-            Height = 325
-            ExplicitHeight = 325
+            Height = 321
+            ExplicitHeight = 321
           end
           inherited pnlAccountsInfo: TPanel
-            Top = 325
-            ExplicitTop = 325
+            Top = 321
+            ExplicitTop = 321
           end
         end
         inherited pcAccountsOptions: TPageControl
           Width = 452
-          Height = 359
+          Height = 355
           ExplicitWidth = 452
-          ExplicitHeight = 359
+          ExplicitHeight = 355
           inherited tsMultiSelectAccounts: TTabSheet
             ExplicitWidth = 444
-            ExplicitHeight = 331
+            ExplicitHeight = 327
             inherited dgSelectedAccounts: TDrawGrid
-              Height = 274
-              ExplicitHeight = 274
+              Height = 270
+              ExplicitHeight = 270
             end
             inherited pnlSelectedAccountsTop: TPanel
               Width = 444
               ExplicitWidth = 444
             end
             inherited pnlSelectedAccountsBottom: TPanel
-              Top = 305
+              Top = 301
               Width = 444
-              ExplicitTop = 305
+              ExplicitTop = 301
               ExplicitWidth = 444
             end
             inherited pnlSelectedAccountsLeft: TPanel
-              Height = 274
-              ExplicitHeight = 274
+              Height = 270
+              ExplicitHeight = 270
             end
           end
         end
@@ -156,17 +153,17 @@ object FRMWallet: TFRMWallet
         Left = 0
         Top = 0
         Width = 857
-        Height = 425
+        Height = 421
         Align = alClient
         TabOrder = 0
         ExplicitWidth = 857
-        ExplicitHeight = 438
+        ExplicitHeight = 421
         inherited dgPendingOperations: TDrawGrid
           Width = 857
-          Height = 339
+          Height = 335
           ExplicitLeft = 0
           ExplicitTop = 86
-          ExplicitHeight = 339
+          ExplicitHeight = 335
         end
         inherited pnlPendingOperations: TPanel
           Width = 857
@@ -184,20 +181,20 @@ object FRMWallet: TFRMWallet
         Left = 0
         Top = 0
         Width = 857
-        Height = 425
+        Height = 421
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 296
-        ExplicitHeight = 46
+        ExplicitWidth = 857
+        ExplicitHeight = 421
         inherited Panel2: TPanel
           Width = 857
-          ExplicitWidth = 296
+          ExplicitWidth = 857
         end
         inherited dgBlockChainExplorer: TDrawGrid
           Width = 857
-          Height = 384
+          Height = 380
           ExplicitWidth = 857
-          ExplicitHeight = 384
+          ExplicitHeight = 380
         end
       end
     end
@@ -208,20 +205,20 @@ object FRMWallet: TFRMWallet
         Left = 0
         Top = 0
         Width = 857
-        Height = 425
+        Height = 421
         Align = alClient
         TabOrder = 0
         ExplicitWidth = 857
-        ExplicitHeight = 438
+        ExplicitHeight = 421
         inherited Panel1: TPanel
           Width = 857
           ExplicitWidth = 857
         end
         inherited dgOperationsExplorer: TDrawGrid
           Width = 857
-          Height = 384
+          Height = 380
           ExplicitWidth = 857
-          ExplicitHeight = 384
+          ExplicitHeight = 380
         end
       end
     end
@@ -232,17 +229,17 @@ object FRMWallet: TFRMWallet
         Left = 0
         Top = 0
         Width = 857
-        Height = 425
+        Height = 421
         Align = alClient
         TabOrder = 0
         ExplicitWidth = 857
-        ExplicitHeight = 438
+        ExplicitHeight = 421
         inherited memoLogs: TMemo
           Width = 857
-          Height = 392
+          Height = 388
           ExplicitTop = 33
           ExplicitWidth = 857
-          ExplicitHeight = 405
+          ExplicitHeight = 388
         end
         inherited pnlTopLogs: TPanel
           Width = 857
@@ -261,50 +258,68 @@ object FRMWallet: TFRMWallet
         Left = 0
         Top = 0
         Width = 857
-        Height = 425
+        Height = 421
         Align = alClient
         TabOrder = 0
         ExplicitWidth = 857
-        ExplicitHeight = 438
+        ExplicitHeight = 421
         inherited Splitter1: TSplitter
           Width = 857
           ExplicitWidth = 857
         end
         inherited Splitter2: TSplitter
-          Top = 259
+          Top = 264
           Width = 857
-          ExplicitTop = 273
+          ExplicitTop = 264
           ExplicitWidth = 857
         end
-        inherited memoNetConnections: TMemo
+        inherited PanelTop: TPanel
           Width = 857
           ExplicitWidth = 857
+          inherited Panel4: TPanel
+            Width = 855
+            ExplicitWidth = 855
+          end
+          inherited memoNetConnections: TMemo
+            Width = 855
+            ExplicitWidth = 855
+            ExplicitHeight = 131
+          end
         end
-        inherited memoNetServers: TMemo
-          Top = 282
+        inherited PanelMiddle: TPanel
           Width = 857
-          ExplicitTop = 295
+          Height = 108
           ExplicitWidth = 857
+          ExplicitHeight = 108
+          inherited Panel1: TPanel
+            Width = 855
+            ExplicitWidth = 855
+          end
+          inherited memoNetBlackLists: TMemo
+            Width = 855
+            Height = 86
+            ExplicitLeft = 1
+            ExplicitTop = 21
+            ExplicitWidth = 855
+            ExplicitHeight = 86
+          end
         end
-        inherited memoNetBlackLists: TMemo
+        inherited PanelBottom: TPanel
+          Top = 267
           Width = 857
-          Height = 99
+          ExplicitTop = 267
           ExplicitWidth = 857
-          ExplicitHeight = 112
-        end
-        inherited Panel1: TPanel
-          Width = 857
-          ExplicitWidth = 857
-        end
-        inherited Panel2: TPanel
-          Width = 857
-          ExplicitWidth = 857
-        end
-        inherited Panel3: TPanel
-          Top = 262
-          Width = 857
-          ExplicitTop = 275
-          ExplicitWidth = 857
+          inherited Panel2: TPanel
+            Width = 855
+            ExplicitWidth = 855
+          end
+          inherited memoNetServers: TMemo
+            Width = 855
+            ExplicitLeft = 1
+            ExplicitTop = 21
+            ExplicitWidth = 855
+            ExplicitHeight = 132
+          end
         end
       end
     end
@@ -315,77 +330,92 @@ object FRMWallet: TFRMWallet
         Left = 0
         Top = 0
         Width = 857
-        Height = 425
+        Height = 421
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 296
-        ExplicitHeight = 46
+        ExplicitWidth = 857
+        ExplicitHeight = 421
         inherited Splitter1: TSplitter
-          Top = 192
+          Top = 168
           Width = 857
           ExplicitTop = 205
           ExplicitWidth = 857
         end
-        inherited memoMessages: TMemo
-          Top = 215
-          Width = 857
-          ExplicitTop = 215
-          ExplicitWidth = 857
-        end
         inherited PanelBottom: TPanel
-          Top = 195
+          Top = 171
           Width = 857
-          ExplicitTop = 208
+          ExplicitTop = 171
           ExplicitWidth = 857
+          inherited Panel1: TPanel
+            Width = 857
+            ExplicitLeft = 0
+            ExplicitTop = 0
+            ExplicitWidth = 857
+          end
+          inherited memoMessages: TMemo
+            Width = 857
+            ExplicitWidth = 857
+          end
         end
         inherited PanelTop: TPanel
           Width = 857
-          Height = 192
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 296
-          ExplicitHeight = 192
+          Height = 168
+          ExplicitWidth = 857
+          ExplicitHeight = 168
           inherited Splitter2: TSplitter
-            Height = 190
+            Height = 168
             ExplicitHeight = 203
           end
           inherited PanelLeft: TPanel
-            Height = 190
-            ExplicitHeight = 190
+            Height = 168
+            ExplicitLeft = 0
+            ExplicitTop = 0
+            ExplicitHeight = 168
             inherited lbNetConnections: TListBox
-              Height = 168
-              ExplicitLeft = 1
-              ExplicitTop = 21
-              ExplicitHeight = 168
+              Height = 148
+              ExplicitLeft = 0
+              ExplicitTop = 20
+              ExplicitWidth = 288
+              ExplicitHeight = 148
+            end
+            inherited Panel5: TPanel
+              ExplicitLeft = 0
+              ExplicitTop = 0
+              ExplicitWidth = 288
             end
           end
           inherited PanelRight: TPanel
-            Width = 564
-            Height = 190
-            ExplicitLeft = 292
-            ExplicitTop = 1
-            ExplicitWidth = 3
-            ExplicitHeight = 190
+            Width = 566
+            Height = 168
+            ExplicitLeft = 291
+            ExplicitTop = 0
+            ExplicitWidth = 566
+            ExplicitHeight = 168
             inherited memoMessageToSend: TMemo
-              Width = 562
-              Height = 102
-              ExplicitLeft = 1
-              ExplicitTop = 21
-              ExplicitWidth = 562
-              ExplicitHeight = 102
+              Width = 566
+              Height = 82
+              ExplicitLeft = 0
+              ExplicitTop = 20
+              ExplicitWidth = 566
+              ExplicitHeight = 82
             end
             inherited Panel6: TPanel
-              Width = 562
-              ExplicitWidth = 562
+              Width = 566
+              ExplicitLeft = 0
+              ExplicitTop = 0
+              ExplicitWidth = 566
             end
             inherited Panel7: TPanel
-              Top = 123
-              Width = 562
-              ExplicitTop = 136
-              ExplicitWidth = 562
+              Top = 102
+              Width = 566
+              ExplicitTop = 102
+              ExplicitWidth = 566
+              DesignSize = (
+                566
+                66)
               inherited bbSendAMessage: TButton
-                Width = 539
-                ExplicitWidth = 539
+                Width = 543
+                ExplicitWidth = 543
               end
             end
           end

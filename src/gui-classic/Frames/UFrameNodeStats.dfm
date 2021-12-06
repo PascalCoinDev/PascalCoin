@@ -6,7 +6,7 @@ object FrameNodeStats: TFrameNodeStats
   TabOrder = 0
   object Splitter1: TSplitter
     Left = 0
-    Top = 137
+    Top = 153
     Width = 711
     Height = 3
     Cursor = crVSplit
@@ -17,7 +17,7 @@ object FrameNodeStats: TFrameNodeStats
   end
   object Splitter2: TSplitter
     Left = 0
-    Top = 292
+    Top = 301
     Width = 711
     Height = 3
     Cursor = crVSplit
@@ -27,65 +27,101 @@ object FrameNodeStats: TFrameNodeStats
     ExplicitTop = 482
     ExplicitWidth = 909
   end
-  object memoNetConnections: TMemo
-    Left = 0
-    Top = 20
-    Width = 711
-    Height = 117
-    Align = alTop
-    ReadOnly = True
-    ScrollBars = ssVertical
-    TabOrder = 0
-    WordWrap = False
-  end
-  object memoNetServers: TMemo
-    Left = 0
-    Top = 315
-    Width = 711
-    Height = 143
-    Align = alBottom
-    ReadOnly = True
-    ScrollBars = ssVertical
-    TabOrder = 1
-    WordWrap = False
-  end
-  object memoNetBlackLists: TMemo
-    Left = 0
-    Top = 160
-    Width = 711
-    Height = 132
-    Align = alClient
-    ReadOnly = True
-    ScrollBars = ssVertical
-    TabOrder = 2
-    WordWrap = False
-  end
-  object Panel1: TPanel
+  object PanelTop: TPanel
     Left = 0
     Top = 0
     Width = 711
-    Height = 20
+    Height = 153
     Align = alTop
-    Caption = 'Active Connections:'
-    TabOrder = 3
+    Caption = ' '
+    TabOrder = 0
+    object Panel4: TPanel
+      Left = 1
+      Top = 1
+      Width = 709
+      Height = 20
+      Align = alTop
+      Caption = 'Active Connections:'
+      TabOrder = 0
+    end
+    object memoNetConnections: TMemo
+      Left = 1
+      Top = 21
+      Width = 709
+      Height = 131
+      Align = alClient
+      ReadOnly = True
+      ScrollBars = ssVertical
+      TabOrder = 1
+      WordWrap = False
+      ExplicitHeight = 148
+    end
   end
-  object Panel2: TPanel
+  object PanelMiddle: TPanel
     Left = 0
-    Top = 140
+    Top = 156
     Width = 711
-    Height = 20
-    Align = alTop
-    Caption = 'Blacklisted Nodes:'
-    TabOrder = 4
+    Height = 145
+    Align = alClient
+    Caption = ' '
+    TabOrder = 1
+    ExplicitHeight = 97
+    object Panel1: TPanel
+      Left = 1
+      Top = 1
+      Width = 709
+      Height = 20
+      Align = alTop
+      Caption = 'Blacklisted Nodes:'
+      TabOrder = 0
+    end
+    object memoNetBlackLists: TMemo
+      Left = 1
+      Top = 21
+      Width = 709
+      Height = 123
+      Align = alClient
+      ReadOnly = True
+      ScrollBars = ssVertical
+      TabOrder = 1
+      WordWrap = False
+      ExplicitLeft = 2
+      ExplicitTop = 22
+      ExplicitHeight = 135
+    end
   end
-  object Panel3: TPanel
+  object PanelBottom: TPanel
     Left = 0
-    Top = 295
+    Top = 304
     Width = 711
-    Height = 20
+    Height = 154
     Align = alBottom
-    Caption = 'Known Node Servers:'
-    TabOrder = 5
-    ExplicitTop = 293
+    Anchors = [akLeft, akTop, akRight]
+    Caption = ' '
+    TabOrder = 2
+    object Panel2: TPanel
+      Left = 1
+      Top = 1
+      Width = 709
+      Height = 20
+      Align = alTop
+      Caption = 'Known Node Servers:'
+      TabOrder = 0
+    end
+    object memoNetServers: TMemo
+      Left = 1
+      Top = 21
+      Width = 709
+      Height = 132
+      Align = alClient
+      ReadOnly = True
+      ScrollBars = ssVertical
+      TabOrder = 1
+      WordWrap = False
+      ExplicitLeft = 0
+      ExplicitTop = 384
+      ExplicitWidth = 711
+      ExplicitHeight = 74
+    end
   end
 end

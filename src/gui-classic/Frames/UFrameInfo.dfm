@@ -2,23 +2,49 @@ object FrameInfo: TFrameInfo
   Left = 0
   Top = 0
   Width = 924
-  Height = 104
+  Height = 108
   TabOrder = 0
+  object Splitter1: TSplitter
+    Left = 75
+    Top = 0
+    Height = 108
+    ResizeStyle = rsUpdate
+    ExplicitLeft = 160
+    ExplicitTop = 48
+    ExplicitHeight = 100
+  end
+  object Splitter2: TSplitter
+    Left = 318
+    Top = 0
+    Height = 108
+    ResizeStyle = rsUpdate
+    ExplicitLeft = 408
+    ExplicitTop = 64
+    ExplicitHeight = 100
+  end
+  object Splitter3: TSplitter
+    Left = 561
+    Top = 0
+    Height = 108
+    ResizeStyle = rsUpdate
+    ExplicitLeft = 560
+    ExplicitHeight = 104
+  end
   object Panel1: TPanel
     Left = 0
     Top = 0
     Width = 75
-    Height = 104
+    Height = 108
     Align = alLeft
+    BevelKind = bkTile
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 0
-    ExplicitHeight = 105
     object Image1: TImage
       Left = 0
       Top = 0
-      Width = 64
-      Height = 64
+      Width = 71
+      Height = 104
       Align = alClient
       AutoSize = True
       Center = True
@@ -122,15 +148,16 @@ object FrameInfo: TFrameInfo
     end
   end
   object Panel2: TPanel
-    Left = 75
+    Left = 78
     Top = 0
     Width = 240
-    Height = 104
+    Height = 108
     Align = alLeft
+    BevelKind = bkTile
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 1
-    ExplicitTop = 1
+    ExplicitLeft = 83
     object lblCurrentBlockCaption: TLabel
       Left = 55
       Top = 7
@@ -228,17 +255,16 @@ object FrameInfo: TFrameInfo
     end
   end
   object Panel3: TPanel
-    Left = 315
+    Left = 321
     Top = 0
     Width = 240
-    Height = 104
+    Height = 108
     Align = alLeft
+    BevelKind = bkSoft
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 2
-    ExplicitLeft = 309
-    ExplicitTop = -1
-    ExplicitHeight = 105
+    ExplicitLeft = 318
     object lblTimeAverage: TLabel
       Left = 104
       Top = 26
@@ -347,17 +373,17 @@ object FrameInfo: TFrameInfo
     end
   end
   object Panel4: TPanel
-    Left = 555
+    Left = 564
     Top = 0
-    Width = 369
-    Height = 104
+    Width = 360
+    Height = 108
     Align = alClient
+    BevelKind = bkTile
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 3
     ExplicitLeft = 561
-    ExplicitTop = -1
-    ExplicitHeight = 105
+    ExplicitWidth = 363
     object lblReceivedMessages: TLabel
       Left = 6
       Top = 36

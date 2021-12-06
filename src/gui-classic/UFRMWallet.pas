@@ -99,10 +99,10 @@ type
     FramePendingOperations: TFramePendingOperations;
     FrameBlockChainExplorer: TFrameBlockChainExplorer;
     FrameOperationsExplorer: TFrameOperationsExplorer;
-    FrameNodeStats: TFrameNodeStats;
     FrameMessages: TFrameMessages;
-    FrameLogs: TFrameLogs;
     FrameInfo: TFrameInfo;
+    FrameNodeStats: TFrameNodeStats;
+    FrameLogs: TFrameLogs;
 
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);

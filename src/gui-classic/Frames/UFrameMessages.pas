@@ -8,7 +8,6 @@ uses
 
 type
   TFrameMessages = class(TFrame)
-    memoMessages: TMemo;
     PanelBottom: TPanel;
     Splitter1: TSplitter;
     PanelTop: TPanel;
@@ -22,6 +21,8 @@ type
     Panel7: TPanel;
     Label14: TLabel;
     bbSendAMessage: TButton;
+    Panel1: TPanel;
+    memoMessages: TMemo;
     procedure bbSendAMessageClick(Sender: TObject);
   private
     { Private declarations }

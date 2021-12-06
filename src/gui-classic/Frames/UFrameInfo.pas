@@ -11,6 +11,7 @@ type
   TFrameInfo = class(TFrame)
     Panel1: TPanel;
     Image1: TImage;
+    Splitter1: TSplitter;
     Panel2: TPanel;
     lblCurrentBlockCaption: TLabel;
     lblCurrentBlock: TLabel;
@@ -20,17 +21,23 @@ type
     lblOperationsPending: TLabel;
     lblMiningStatusCaption: TLabel;
     lblMinersClients: TLabel;
+    lblNodeCaption: TLabel;
     lblNodeStatus: TLabel;
+    Splitter2: TSplitter;
     Panel3: TPanel;
     lblTimeAverage: TLabel;
+    lblTimeAverageCaption: TLabel;
+    lblCurrentAccountsCaption: TLabel;
     lblCurrentAccounts: TLabel;
     lblTimeAverageAux: TLabel;
+    lblBlocksFoundCaption: TLabel;
     lblBlocksFound: TLabel;
+    lblCurrentDifficultyCaption: TLabel;
+    lblCurrentDifficulty: TLabel;
+    Splitter3: TSplitter;
     Panel4: TPanel;
     lblReceivedMessages: TLabel;
     lblBuild: TLabel;
-    lblCurrentDifficultyCaption: TLabel;
-    lblCurrentDifficulty: TLabel;
 
   private
     { Private declarations }

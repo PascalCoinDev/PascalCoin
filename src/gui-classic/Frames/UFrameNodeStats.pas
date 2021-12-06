@@ -8,14 +8,17 @@ uses
 
 type
   TFrameNodeStats = class(TFrame)
-    memoNetConnections: TMemo;
-    memoNetServers: TMemo;
-    memoNetBlackLists: TMemo;
-    Panel1: TPanel;
+    PanelTop: TPanel;
     Splitter1: TSplitter;
-    Panel2: TPanel;
-    Panel3: TPanel;
+    PanelMiddle: TPanel;
+    PanelBottom: TPanel;
     Splitter2: TSplitter;
+    Panel4: TPanel;
+    memoNetConnections: TMemo;
+    Panel1: TPanel;
+    memoNetBlackLists: TMemo;
+    Panel2: TPanel;
+    memoNetServers: TMemo;
   private
     { Private declarations }
   public
