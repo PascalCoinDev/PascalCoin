@@ -5,7 +5,9 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.Grids,
-  Vcl.StdCtrls, Vcl.Buttons, Vcl.ExtCtrls;
+  Vcl.StdCtrls, Vcl.Buttons, Vcl.ExtCtrls,
+  UBaseTypes,
+  UGridUtils;
 
 type
   TFrameAccountExplorer = class(TFrame)
@@ -77,8 +79,22 @@ type
 
   private
     { Private declarations }
+    FAccountsGrid : TAccountsGrid;
+
+    FMinAccountBalance : Int64;
+    FMaxAccountBalance : Int64;
+
+    FLastAccountsGridInvalidateTC : TTickCount;
+
+    procedure OnAccountsGridUpdatedData(Sender : TObject);
+
   public
     { Public declarations }
+    function DoUpdateAccountsFilter: Boolean;
+
+    procedure UpdateAccounts(RefreshData : Boolean);
+
+    property AccountsGrid : TAccountsGrid read FAccountsGrid;
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -90,11 +106,36 @@ implementation
 
 uses
   UFRMWallet, UConst, UPCOrderedLists, UFRMOperation,
-  USettings, UFRMAccountSelect, UBaseTypes, UAccounts;
+  USettings, UFRMAccountSelect, UAccounts,
+  UPCDataTypes;
+
+procedure TFrameAccountExplorer.OnAccountsGridUpdatedData(Sender: TObject);
+begin
+  if FAccountsGrid.IsUpdatingData then begin
+    lblAccountsCount.Caption := '(Calculating)';
+    lblAccountsBalance.Caption := '(Calculating)';
+  end else begin
+    lblAccountsCount.Caption := IntToStr(FAccountsGrid.AccountsCount);
+    lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
+  end;
+end;
 
 constructor TFrameAccountExplorer.Create(AOwner: TComponent);
 begin
   inherited Create( AOwner );
+
+  FMinAccountBalance := 0;
+  FMaxAccountBalance := CT_MaxWalletAmount;
+
+  FLastAccountsGridInvalidateTC := TPlatform.GetTickCount;
+
+  FAccountsGrid := TAccountsGrid.Create(Self);
+  FAccountsGrid.DrawGrid := dgAccounts;
+  FAccountsGrid.AllowMultiSelect := True;
+  FAccountsGrid.OnAccountsGridUpdatedData := OnAccountsGridUpdatedData;
+  FAccountsGrid.AccountsGridDatasource := acds_Node;
+
+
 
   // cannot set properties here that interact with FRMWallet because
   // FRMWallet not yet created.
@@ -115,7 +156,7 @@ end;
 
 procedure TFrameAccountExplorer.bbAccountsRefreshClick(Sender: TObject);
 begin
-  FRMWallet.UpdateAccounts(true);
+  UpdateAccounts(true);
 end;
 
 procedure TFrameAccountExplorer.bbChangeKeyNameClick(Sender: TObject);
@@ -156,18 +197,18 @@ end;
 procedure TFrameAccountExplorer.cbExploreMyAccountsClick(Sender: TObject);
 begin
   cbMyPrivateKeys.Enabled := cbExploreMyAccounts.Checked;
-  FRMWallet.UpdateAccounts(true);
+  UpdateAccounts(true);
   FRMWallet.UpdateOperations;
 end;
 
 procedure TFrameAccountExplorer.cbFilterAccountsClick(Sender: TObject);
 begin
-  If not FRMWallet.DoUpdateAccountsFilter then FRMWallet.UpdateAccounts(true);
+  If not DoUpdateAccountsFilter then UpdateAccounts(true);
 end;
 
 procedure TFrameAccountExplorer.cbMyPrivateKeysChange(Sender: TObject);
 begin
-  FRMWallet.UpdateAccounts(true);
+  UpdateAccounts(true);
 end;
 
 procedure TFrameAccountExplorer.dgAccountsClick(Sender: TObject);
@@ -197,7 +238,7 @@ begin
     ebFindAccountNumber.Font.Color := clDkGray;
   end else if TAccountComp.AccountTxtNumberToAccountNumber(ebFindAccountNumber.Text,an) then begin
     ebFindAccountNumber.Color := clWindow;
-    if FRMWallet.AccountsGrid.MoveRowToAccount(an) then begin
+    if FAccountsGrid.MoveRowToAccount(an) then begin
       ebFindAccountNumber.Font.Color := clWindowText;
     end else begin
       ebFindAccountNumber.Font.Color := clRed;
@@ -209,7 +250,7 @@ begin
       if FRMWallet.Node.Bank.SafeBox.FindAccountsStartingByName(LAccountNameRawValue,LAccNames,1)>0 then begin
         an := LAccNames.GetTag(0);
         ebFindAccountNumber.Color := clWindow;
-        if FRMWallet.AccountsGrid.MoveRowToAccount(an) then begin
+        if FAccountsGrid.MoveRowToAccount(an) then begin
           ebFindAccountNumber.Font.Color := clWindowText;
         end else begin
           ebFindAccountNumber.Font.Color := clRed;
@@ -247,7 +288,7 @@ procedure TFrameAccountExplorer.sbSelectedAccountsAddAllClick(Sender: TObject);
 Var lsource,ltarget : TOrderedCardinalList;
   i : Integer;
 begin
-  lsource := FRMWallet.AccountsGrid.LockAccountsList;
+  lsource := FAccountsGrid.LockAccountsList;
   Try
     ltarget := FRMWallet.SelectedAccountsGrid.LockAccountsList;
     Try
@@ -259,7 +300,7 @@ begin
       FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
     End;
   Finally
-    FRMWallet.AccountsGrid.UnlockAccountsList;
+    FAccountsGrid.UnlockAccountsList;
   End;
 end;
 
@@ -268,7 +309,7 @@ Var l, selected : TOrderedCardinalList;
   an : Int64;
   i : Integer;
 begin
-  an := FRMWallet.AccountsGrid.AccountNumber(dgAccounts.Row);
+  an := FAccountsGrid.AccountNumber(dgAccounts.Row);
   if (an<0) then raise Exception.Create('No account selected');
   if FRMWallet.WalletKeys.IndexOfAccountKey(FRMWallet.Node.Bank.SafeBox.Account(an).accountInfo.accountkey)<0 then
     raise Exception.Create(Format('You cannot add %s account because private key not found in your wallet.'#10+#10+'You''re not the owner!',
@@ -277,7 +318,7 @@ begin
   l := FRMWallet.SelectedAccountsGrid.LockAccountsList;
   selected := TOrderedCardinalList.Create;
   Try
-    FRMWallet.AccountsGrid.SelectedAccounts(selected);
+    FAccountsGrid.SelectedAccounts(selected);
     for i := 0 to selected.Count-1 do begin
       l.Add(selected.Get(i));
     end;
@@ -313,15 +354,104 @@ end;
 
 procedure TFrameAccountExplorer.ebFilterAccountByBalanceMinExit(Sender: TObject);
 begin
-  FRMWallet.DoUpdateAccountsFilter;
+  DoUpdateAccountsFilter;
 end;
 
 procedure TFrameAccountExplorer.ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
   var Key: Char);
 begin
-  if key=#13 then FRMWallet.DoUpdateAccountsFilter;
+  if key=#13 then DoUpdateAccountsFilter;
 end;
 
+function TFrameAccountExplorer.DoUpdateAccountsFilter: Boolean;
+Var m,bmin,bmax:Int64;
+  doupd : Boolean;
+begin
+  if FRMWallet.Updating then exit;
+  FRMWallet.Updating := true;
+  Try
+    If Not TAccountComp.TxtToMoney(ebFilterAccountByBalanceMin.Text,bmin) then bmin := 0;
+    If not TAccountComp.TxtToMoney(ebFilterAccountByBalanceMax.Text,bmax) then bmax := CT_MaxWalletAmount;
+    if (bmax<bmin) or (bmax=0) then bmax := CT_MaxWalletAmount;
+    if bmin>bmax then bmin := 0;
+    doupd := (bmin<>FMinAccountBalance) Or (bmax<>FMaxAccountBalance);
+    if bmin>0 then
+      ebFilterAccountByBalanceMin.Text:=TAccountComp.FormatMoney(bmin)
+    else ebFilterAccountByBalanceMin.Text := '';
+    if bmax<CT_MaxWalletAmount then
+      ebFilterAccountByBalanceMax.Text := TAccountComp.FormatMoney(bmax)
+    else ebFilterAccountByBalanceMax.Text := '';
+    if cbFilterAccounts.Checked then begin
+      FMinAccountBalance := bmin;
+      FMaxAccountBalance := bmax;
+      ebFilterAccountByBalanceMin.ParentFont := true;
+      ebFilterAccountByBalanceMax.ParentFont := true;
+    end else begin
+      FMinAccountBalance := 0;
+      FMaxAccountBalance := CT_MaxWalletAmount;
+      ebFilterAccountByBalanceMin.font.Color := clDkGray;
+      ebFilterAccountByBalanceMax.font.Color := clDkGray;
+    end;
+  Finally
+    FRMWallet.Updating := false;
+  End;
+  if doupd then UpdateAccounts(true);
+  Result := doupd;
+end;
+
+procedure TFrameAccountExplorer.UpdateAccounts(RefreshData : Boolean);
+Var accl : TOrderedCardinalList;
+  l : TOrderedCardinalList;
+  i,j,k : Integer;
+  c  : Cardinal;
+  LApplyfilter : Boolean;
+  acc : TAccount;
+  LFilters : TAccountsGridFilter;
+begin
+  If Not Assigned(FRMWallet.WalletKeys) Then exit;
+  if Not Assigned(FRMWallet.Node) then Exit;
+
+  if Not RefreshData then begin
+    if TPlatform.GetElapsedMilliseconds(FLastAccountsGridInvalidateTC)>1000 then begin
+      FLastAccountsGridInvalidateTC := TPlatform.GetTickCount;
+      dgAccounts.Invalidate;
+    end;
+    exit;
+  end;
+
+  LApplyfilter := (cbFilterAccounts.Checked) and ((FMinAccountBalance>0) Or ((FMaxAccountBalance<CT_MaxWalletAmount) and (FMaxAccountBalance>=0)));
+  if (Not cbExploreMyAccounts.Checked) And (not LApplyfilter) then begin
+    FAccountsGrid.AccountsGridDatasource := acds_Node;
+    FAccountsGrid.UpdateData;
+  end else begin
+    LFilters := FAccountsGrid.AccountsGridFilter;
+    LFilters.MinBalance := FMinAccountBalance;
+    LFilters.MaxBalance := FMaxAccountBalance;
+    if cbExploreMyAccounts.Checked then begin
+      //FNode.Bank.SafeBox.StartThreadSafe;
+      try
+        LFilters.OrderedAccountsKeyList := FRMWallet.WalletKeys.AccountsKeyList;
+        if cbMyPrivateKeys.ItemIndex>0 then begin
+          i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
+          if (i>=0) And (i<FRMWallet.WalletKeys.Count) then begin
+            LFilters.indexAccountsKeyList := FRMWallet.WalletKeys.AccountsKeyList.IndexOfAccountKey(FRMWallet.WalletKeys[i].AccountKey);
+          end;
+        end else LFilters.indexAccountsKeyList := -1;
+      finally
+        //FNode.Bank.SafeBox.EndThreadSave;
+      end;
+    end else begin
+      LFilters.OrderedAccountsKeyList := Nil;
+      LFilters.indexAccountsKeyList := -1;
+    end;
+    FAccountsGrid.AccountsGridFilter := LFilters;
+    FAccountsGrid.AccountsGridDatasource := acds_NodeFiltered;
+  end;
+
+  bbChangeKeyName.Enabled := cbExploreMyAccounts.Checked;
+  OnAccountsGridUpdatedData(Nil);
+  FRMWallet.UpdateOperations;
+end;
 
 
 end.
