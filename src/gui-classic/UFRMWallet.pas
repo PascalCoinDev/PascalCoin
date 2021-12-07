@@ -131,7 +131,6 @@ type
     FBackgroundLabel : TLabel;
     Procedure FinishedLoadingApp;
 //    Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
-    Procedure FillOperationInformation(Const Strings : TStrings; Const OperationResume : TOperationResume);
     Procedure InitMacOSMenu;
   protected
     { Private declarations }
@@ -687,64 +686,6 @@ begin
   end;
 end;
 
-procedure TFRMWallet.FillOperationInformation(const Strings: TStrings;
-  const OperationResume: TOperationResume);
-var i : Integer;
-  jsonObj : TPCJSONObject;
-  LEPASA : TEPasa;
-begin
-  If (not OperationResume.valid) then exit;
-  If OperationResume.Block<FNode.Bank.BlocksCount then
-    if (OperationResume.NOpInsideBlock>=0) then begin
-      Strings.Add(Format('Block: %d/%d',[OperationResume.Block,OperationResume.NOpInsideBlock]))
-    end else begin
-      Strings.Add(Format('Block: %d',[OperationResume.Block]))
-    end
-  else Strings.Add('** Pending operation not included on blockchain **');
-  Strings.Add(Format('%s',[OperationResume.OperationTxt]));
-  If (OperationResume.isMultiOperation) then begin
-    Strings.Add('Multioperation:');
-    For i := 0 to High(OperationResume.Senders) do begin
-      Strings.Add(Format('  Sender (%d/%d): %s %s PASC Payload(%d):%s',[i+1,length(OperationResume.Senders),TAccountComp.AccountNumberToAccountTxtNumber(OperationResume.Senders[i].Account),TAccountComp.FormatMoney(OperationResume.Senders[i].Amount),OperationResume.Senders[i].Payload.payload_type,OperationResume.Senders[i].Payload.payload_raw.ToHexaString]));
-    end;
-    For i := 0 to High(OperationResume.Receivers) do begin
-      Strings.Add(Format('  Receiver (%d/%d): %s %s PASC Payload(%d):%s',[i+1,length(OperationResume.Receivers),TAccountComp.AccountNumberToAccountTxtNumber(OperationResume.Receivers[i].Account),TAccountComp.FormatMoney(OperationResume.Receivers[i].Amount),OperationResume.Receivers[i].Payload.payload_type,OperationResume.Receivers[i].Payload.payload_raw.ToHexaString]));
-    end;
-    For i := 0 to High(OperationResume.Changers) do begin
-      Strings.Add(Format('  Change info (%d/%d): %s [%s]',[i+1,length(OperationResume.Changers),TAccountComp.AccountNumberToAccountTxtNumber(OperationResume.Changers[i].Account),TOpMultiOperation.OpChangeAccountInfoTypesToText(OperationResume.Changers[i].Changes_type)]));
-    end;
-
-  end;
-  Strings.Add(Format('OpType:%d Subtype:%d',[OperationResume.OpType,OperationResume.OpSubtype]));
-  Strings.Add(Format('Operation Hash (ophash): %s',[TCrypto.ToHexaString(OperationResume.OperationHash)]));
-  If (Length(OperationResume.OperationHash_OLD)>0) then begin
-    Strings.Add(Format('Old Operation Hash (old_ophash): %s',[TCrypto.ToHexaString(OperationResume.OperationHash_OLD)]));
-  end;
-  if TEPasaDecoder.TryDecodeEPASA(OperationResume.DestAccount,OperationResume.OriginalPayload,FNode,FWalletKeys,Nil,LEPASA) then begin
-    Strings.Add('EPASA: '+LEPASA.ToString);
-  end else Strings.Add('No EPASA format');
-  Strings.Add(Format('Payload type:%s length:%d',['0x'+IntToHex(OperationResume.OriginalPayload.payload_type,2), length(OperationResume.OriginalPayload.payload_raw)]));
-  if (Length(OperationResume.OriginalPayload.payload_raw)>0) then begin
-    If OperationResume.PrintablePayload<>'' then begin
-      Strings.Add(Format('Payload (human): %s',[OperationResume.PrintablePayload]));
-    end;
-    Strings.Add(Format('Payload (Hexadecimal): %s',[TCrypto.ToHexaString(OperationResume.OriginalPayload.payload_raw)]));
-  end;
-  If OperationResume.Balance>=0 then begin
-    Strings.Add(Format('Final balance: %s',[TAccountComp.FormatMoney(OperationResume.Balance)]));
-  end;
-  jsonObj := TPCJSONObject.Create;
-  Try
-    TPascalCoinJSONComp.FillOperationObject(OperationResume,FNode.Bank.BlocksCount,
-      FNode,FWalletKeys,Nil,
-      jsonObj);
-    Strings.Add('OPERATION JSON:');
-    Strings.Add(jsonObj.ToJSON(False));
-  Finally
-    jsonObj.Free;
-  end;
-end;
-
 procedure TFRMWallet.MiOperationsExplorerClick(Sender: TObject);
 begin
   With TFRMOperationsExplorer.Create(Self) do
@@ -877,7 +818,7 @@ begin
       if accn>=0 then strings.Add('')
       else title := 'Operation info';
       strings.Add('Operation info:');
-      FillOperationInformation(strings,opr);
+      TFRMWalletInformation.FillOperationInformation(strings,opr);
     end else if accn<0 then Raise Exception.Create('No info available');
     F := TFRMMemoText.Create(Self);
     Try

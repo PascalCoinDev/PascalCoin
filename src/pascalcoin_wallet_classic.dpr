@@ -101,7 +101,8 @@ uses
   UFrameInfo in 'gui-classic\Frames\UFrameInfo.pas' {FrameInfo: TFrame},
   UFRMWalletUserMessages in 'gui-classic\UFRMWalletUserMessages.pas',
   UFRMWalletInformation in 'gui-classic\UFRMWalletInformation.pas',
-  UJSONFunctions in 'libraries\pascalcoin\UJSONFunctions.pas';
+  UJSONFunctions in 'libraries\pascalcoin\UJSONFunctions.pas',
+  UEPasaDecoder in 'core\UEPasaDecoder.pas';
 
 {$R *.res}
 

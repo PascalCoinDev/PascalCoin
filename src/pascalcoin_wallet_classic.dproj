@@ -282,6 +282,7 @@
         <DCCReference Include="gui-classic\UFRMWalletUserMessages.pas"/>
         <DCCReference Include="gui-classic\UFRMWalletInformation.pas"/>
         <DCCReference Include="libraries\pascalcoin\UJSONFunctions.pas"/>
+        <DCCReference Include="core\UEPasaDecoder.pas"/>
         <None Include="config.inc"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
