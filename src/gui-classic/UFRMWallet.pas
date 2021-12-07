@@ -1137,6 +1137,7 @@ end;
 procedure TFRMWallet.PageControlChange(Sender: TObject);
 begin
   MiDecodePayload.Enabled := false;
+
   if PageControl.ActivePage=tsMyAccounts then begin
     FrameAccountExplorer.AccountsGrid.Node := FNode;
     MiDecodePayload.Enabled := true;
@@ -1145,16 +1146,28 @@ begin
     FrameAccountExplorer.AccountsGrid.Node := Nil;
     FrameAccountExplorer.SelectedAccountsGrid.Node := Nil;
   end;
+
   if PageControl.ActivePage=tsPendingOperations then begin
     FPendingOperationsGrid.Node := FNode;
     MiDecodePayload.Enabled := true;
-  end else FPendingOperationsGrid.Node := Nil;
-  if PageControl.ActivePage=tsBlockChain then FBlockChainGrid.Node := FNode
-  else FBlockChainGrid.Node := Nil;
+  end else begin
+    FPendingOperationsGrid.Node := Nil;
+  end;
+
+  if PageControl.ActivePage=tsBlockChain then
+  begin
+    FBlockChainGrid.Node := FNode;
+  end else begin
+    FBlockChainGrid.Node := Nil;
+  end;
+
   if PageControl.ActivePage=tsOperations then begin
     FOperationsExplorerGrid.Node := FNode;
     MiDecodePayload.Enabled := true;
-  end else FOperationsExplorerGrid.Node := Nil;
+  end else begin
+    FOperationsExplorerGrid.Node := Nil;
+  end;
+
   if PageControl.ActivePage=tsMessages then begin
     FrameMessages.UpdateAvailableConnections;
     FrameMessages.MessagesUnreadCount := 0;
