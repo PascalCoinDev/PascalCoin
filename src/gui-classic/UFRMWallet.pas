@@ -634,8 +634,9 @@ begin
   // Init
   TNetData.NetData.OnReceivedHelloMessage := OnReceivedHelloMessage;
   TNetData.NetData.OnStatisticsChanged := OnNetStatisticsChanged;
-//  TNetData.NetData.OnNodeServersUpdated := OnNetNodeServersUpdated; // try to move to FrameNodeStats
-//  TNetData.NetData.OnBlackListUpdated := OnNetBlackListUpdated;  // try to move to FrameNodeStats
+  TNetData.NetData.OnNetConnectionsUpdated := FrameNodeStats.OnNetConnectionsUpdated;
+  TNetData.NetData.OnNodeServersUpdated := FrameNodeStats.OnNetNodeServersUpdated;
+  TNetData.NetData.OnBlackListUpdated := FrameNodeStats.OnNetBlackListUpdated;
 
   //
   TimerUpdateStatus.Interval := 1000;

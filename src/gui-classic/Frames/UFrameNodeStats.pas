@@ -25,15 +25,15 @@ type
 
     FMustProcessNetConnectionUpdated : Boolean;
 
-    procedure OnNetConnectionsUpdated(Sender : TObject);
-    procedure OnNetBlackListUpdated(Sender : TObject);
-    procedure OnNetNodeServersUpdated(Sender: TObject);
-
     procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated;
 
 
   public
     { Public declarations }
+
+    procedure OnNetConnectionsUpdated(Sender : TObject);
+    procedure OnNetBlackListUpdated(Sender : TObject);
+    procedure OnNetNodeServersUpdated(Sender: TObject);
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -63,9 +63,14 @@ begin
 
   FMustProcessNetConnectionUpdated := false;
 
+  // Skybuck:
+  // unsafe, must be called by FRMWallet first, otherwise UCrypto not initialised.
+  // or initialize UCrypto before FRMWallet is create.
+{
   TNetData.NetData.OnNetConnectionsUpdated := OnNetConnectionsUpdated;
   TNetData.NetData.OnBlackListUpdated := OnNetBlackListUpdated;
   TNetData.NetData.OnNodeServersUpdated := OnNetNodeServersUpdated;
+}
 end;
 
 destructor TFrameNodeStats.Destroy;
