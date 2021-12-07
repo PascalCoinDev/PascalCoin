@@ -130,7 +130,7 @@ type
     FBackgroundPanel : TPanel;
     FBackgroundLabel : TLabel;
     Procedure FinishedLoadingApp;
-    Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
+//    Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
     Procedure FillOperationInformation(Const Strings : TStrings; Const OperationResume : TOperationResume);
     Procedure InitMacOSMenu;
   protected
@@ -218,7 +218,8 @@ Uses UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
   UFRMAskForAccount,
   UAbstractBTree, UEPasaDecoder,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
-  UCommon, UPCOrderedLists;
+  UCommon, UPCOrderedLists,
+  UFRMWalletInformation;
 
 Type
 
@@ -696,76 +697,6 @@ begin
   end;
 end;
 
-procedure TFRMWallet.FillAccountInformation(const Strings: TStrings;
-  const AccountNumber: Cardinal);
-Var account : TAccount;
-  s : String;
-  LjsonObj : TPCJSONObject;
-begin
-  if AccountNumber<0 then exit;
-  account := FNode.GetMempoolAccount(AccountNumber);
-  if Length(account.name)>0 then s:='Name: '+TEncoding.ANSI.GetString(account.name)
-  else s:='';
-  Strings.Add(Format('Account: %s %s Type:%d',[TAccountComp.AccountNumberToAccountTxtNumber(AccountNumber),s,account.account_type]));
-  Strings.Add('');
-  Strings.Add(Format('Current balance: %s',[TAccountComp.FormatMoney(account.balance)]));
-  Strings.Add('');
-  Strings.Add(Format('Updated on block: %d  (%d blocks ago)',[account.GetLastUpdatedBlock,FNode.Bank.BlocksCount-account.GetLastUpdatedBlock]));
-  Strings.Add(Format('Updated on block as active mode: %d  (%d blocks ago)',[account.updated_on_block_active_mode,FNode.Bank.BlocksCount-account.updated_on_block_active_mode]));
-  Strings.Add(Format('Public key type: %s',[TAccountComp.GetECInfoTxt(account.accountInfo.accountKey.EC_OpenSSL_NID)]));
-  Strings.Add(Format('Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.accountKey)]));
-  if Length(account.account_data)>0 then
-    Strings.Add(Format('Account Data: %s',[account.account_data.ToHexaString]))
-  else Strings.Add(Format('Account Data: (No data)',[]));
-  Strings.Add(Format('Account Seal: %s',[account.account_seal.ToHexaString]));
-  if TAccountComp.IsAccountForSale(account.accountInfo) then begin
-    Strings.Add('');
-    Strings.Add('** Account is for sale: **');
-    Strings.Add(Format('Price: %s',[TAccountComp.FormatMoney(account.accountInfo.price)]));
-    Strings.Add(Format('Seller account (where to pay): %s',[TAccountComp.AccountNumberToAccountTxtNumber(account.accountInfo.account_to_pay)]));
-    if TAccountComp.IsAccountForPrivateSale(account.accountInfo) then begin
-      Strings.Add('');
-      Strings.Add('** Private sale **');
-      Strings.Add(Format('New Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.new_publicKey)]));
-      Strings.Add('');
-      if TAccountComp.IsAccountLocked(account.accountInfo,FNode.Bank.BlocksCount) then begin
-        Strings.Add(Format('PURCHASE IS SECURE UNTIL BLOCK %d (current %d, remains %d)',
-          [account.accountInfo.locked_until_block,FNode.Bank.BlocksCount,account.accountInfo.locked_until_block-FNode.Bank.BlocksCount]));
-      end else begin
-        Strings.Add(Format('PURCHASE IS NOT SECURE (Expired on block %d, current %d)',
-          [account.accountInfo.locked_until_block,FNode.Bank.BlocksCount]));
-      end;
-    end;
-  end else if TAccountComp.IsAccountForSwap(account.accountInfo) then begin
-    Strings.Add('');
-    if TAccountComp.IsAccountForAccountSwap(account.accountInfo) then begin
-      Strings.Add('** Account is for Atomic Account Swap: **');
-      Strings.Add(Format('New Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.new_publicKey)]));
-    end else if TAccountComp.IsAccountForCoinSwap(account.accountInfo) then begin
-      Strings.Add('** Account is for Atomic Coin Swap: **');
-      Strings.Add(Format('Amount to swap: %s',[TAccountComp.FormatMoney(account.accountInfo.price)]));
-      Strings.Add(Format('Counterparty account: %s',[TAccountComp.AccountNumberToAccountTxtNumber(account.accountInfo.account_to_pay)]));
-    end;
-    Strings.Add(Format('Public secret to find: %s',[account.accountInfo.hashed_secret.ToHexaString]));
-    Strings.Add('');
-    if TAccountComp.IsAccountLocked(account.accountInfo,FNode.Bank.BlocksCount) then begin
-      Strings.Add(Format('SWAP IS SECURE UNTIL BLOCK %d (current %d, remains %d)',
-          [account.accountInfo.locked_until_block,FNode.Bank.BlocksCount,account.accountInfo.locked_until_block-FNode.Bank.BlocksCount]));
-    end else begin
-        Strings.Add(Format('SWAP IS NOT SECURE (Expired on block %d, current %d)',
-          [account.accountInfo.locked_until_block,FNode.Bank.BlocksCount]));
-    end;
-  end;
-  LjsonObj := TPCJSONObject.Create;
-  Try
-    TPascalCoinJSONComp.FillAccountObject(account,LjsonObj);
-    Strings.Add('ACCOUNT JSON:');
-    Strings.Add(LjsonObj.ToJSON(False));
-  Finally
-    LjsonObj.Free;
-  end;
-
-end;
 
 procedure TFRMWallet.FillOperationInformation(const Strings: TStrings;
   const OperationResume: TOperationResume);
@@ -934,6 +865,7 @@ Var F : TFRMMemoText;
   i : Integer;
   opr : TOperationResume;
 begin
+
   accn := -1;
   title := '';
   strings := TStringList.Create;
@@ -952,7 +884,7 @@ begin
     end else if PageControl.ActivePage=tsMyAccounts then begin
       accn := FrameAccountExplorer.AccountsGrid.AccountNumber(FrameAccountExplorer.dgAccounts.Row);
       if accn<0 then raise Exception.Create('Select an account');
-      FillAccountInformation(strings,accn);
+      TFRMWalletInformation.FillAccountInformation(strings,accn);
       title := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(accn)+' info';
       i := FOperationsAccountGrid.DrawGrid.Row;
       if (i>0) and (i<=FOperationsAccountGrid.OperationsResume.Count) then begin

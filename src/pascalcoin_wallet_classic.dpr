@@ -99,7 +99,9 @@ uses
   UnitReIntegrate in 'gui-classic\UnitReIntegrate.pas',
   UFRMTestWallet in 'gui-classic\UFRMTestWallet.pas' {FRMTestWallet},
   UFrameInfo in 'gui-classic\Frames\UFrameInfo.pas' {FrameInfo: TFrame},
-  UFRMWalletUserMessages in 'gui-classic\UFRMWalletUserMessages.pas';
+  UFRMWalletUserMessages in 'gui-classic\UFRMWalletUserMessages.pas',
+  UFRMWalletInformation in 'gui-classic\UFRMWalletInformation.pas',
+  UJSONFunctions in 'libraries\pascalcoin\UJSONFunctions.pas';
 
 {$R *.res}
 
