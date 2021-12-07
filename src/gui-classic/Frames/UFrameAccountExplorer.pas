@@ -88,12 +88,13 @@ type
 
     FLastAccountsGridInvalidateTC : TTickCount;
 
+    function DoUpdateAccountsFilter: Boolean;
+
     procedure OnAccountsGridUpdatedData(Sender : TObject);
     Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
 
   public
     { Public declarations }
-    function DoUpdateAccountsFilter: Boolean;
 
     procedure UpdateAccounts(RefreshData : Boolean);
     procedure UpdatePrivateKeys;
