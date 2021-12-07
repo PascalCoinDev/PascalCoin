@@ -220,7 +220,6 @@ Uses UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
   UFRMWalletInformation;
 
 Type
-
   { TThreadActivate }
 
   TThreadActivate = Class(TPCThread)
@@ -302,7 +301,6 @@ procedure TFRMWallet.lblReceivedMessagesClick(Sender: TObject);
 begin
   PageControl.ActivePage := tsMessages;
 end;
-
 
 procedure TFRMWallet.Activate;
 Var ips : AnsiString;
@@ -617,8 +615,6 @@ begin
   end;
 end;
 
-
-
 procedure TFRMWallet.CM_WalletChanged(var Msg: TMessage);
 begin
   FrameAccountExplorer.UpdatePrivateKeys;
@@ -691,7 +687,6 @@ begin
   end;
 end;
 
-
 procedure TFRMWallet.FillOperationInformation(const Strings: TStrings;
   const OperationResume: TOperationResume);
 var i : Integer;
@@ -750,10 +745,6 @@ begin
   end;
 end;
 
-
-
-
-
 procedure TFRMWallet.MiOperationsExplorerClick(Sender: TObject);
 begin
   With TFRMOperationsExplorer.Create(Self) do
@@ -777,7 +768,6 @@ begin
     FRM.Free;
   end;
 end;
-
 
 function TFRMWallet.GetAccountKeyForMiner: TAccountKey;
 Var PK : TECPrivateKey;
@@ -839,7 +829,6 @@ begin
   End;
 end;
 
-
 procedure TFRMWallet.miAboutPascalCoinClick(Sender: TObject);
 begin
   With TFRMAbout.Create(Self) do
@@ -859,7 +848,6 @@ Var F : TFRMMemoText;
   i : Integer;
   opr : TOperationResume;
 begin
-
   accn := -1;
   title := '';
   strings := TStringList.Create;
@@ -934,8 +922,6 @@ begin
     FOperationsAccountGrid.ShowModalDecoder(FWalletKeys,TSettings.AppParams);
   end;
 end;
-
-
 
 procedure TFRMWallet.MiFindaccountClick(Sender: TObject);
 begin
