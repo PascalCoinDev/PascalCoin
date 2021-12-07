@@ -140,7 +140,6 @@ type
     FWalletKeys : TWalletKeysExt;
     FLog : TLog;
     FNodeNotifyEvents : TNodeNotifyEvents;
-    FSelectedAccountsGrid : TAccountsGrid;
     FOperationsAccountGrid : TOperationsGrid;
     FPendingOperationsGrid : TOperationsGrid;
     FOperationsExplorerGrid : TOperationsGrid;
@@ -157,7 +156,6 @@ type
     Procedure OnNetStatisticsChanged(Sender : TObject);
     procedure OnWalletChanged(Sender : TObject);
     Procedure OnNodeKeysActivity(Sender : TObject);
-    Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
     Procedure OnMiningServerNewBlockFound(Sender : TObject);
     Procedure UpdateConnectionStatus;
     Procedure UpdateConfigChanged(Sender:TObject);
@@ -186,7 +184,7 @@ type
     property OperationsExplorerGrid : TOperationsGrid read FOperationsExplorerGrid;
     Property BlockChainGrid : TBlockChainGrid read FBlockChainGrid;
 
-    Property SelectedAccountsGrid : TAccountsGrid read FSelectedAccountsGrid;
+//    Property SelectedAccountsGrid : TAccountsGrid read FSelectedAccountsGrid;
 
     Property PoolMiningServer : TPoolMiningServer read FPoolMiningServer;
 
@@ -345,7 +343,7 @@ begin
     TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data';
     TFileStorage(FNode.Bank.Storage).Initialize;
     // Init Grid
-    FSelectedAccountsGrid.Node := FNode;
+    FrameAccountExplorer.SelectedAccountsGrid.Node := FNode;
     FWalletKeys.OnChanged.Add( OnWalletChanged );
     FrameAccountExplorer.AccountsGrid.Node := FNode;
     FOperationsAccountGrid.Node := FNode;
@@ -474,10 +472,6 @@ begin
   FNodeNotifyEvents.OnNodeMessageEvent := FrameMessages.OnNodeMessageEvent;
   FNodeNotifyEvents.OnKeyActivity := OnNodeKeysActivity;
 
-  FSelectedAccountsGrid := TAccountsGrid.Create(Self);
-  FSelectedAccountsGrid.AccountsGridDatasource := acds_InternalList;
-  FSelectedAccountsGrid.DrawGrid := FrameAccountExplorer.dgSelectedAccounts;
-  FSelectedAccountsGrid.OnUpdated := OnSelectedAccountsGridUpdated;
   FOperationsAccountGrid := TOperationsGrid.Create(Self);
   FOperationsAccountGrid.DrawGrid := FrameAccountExplorer.dgAccountOperations;
   FOperationsAccountGrid.MustShowAlwaysAnAccount := true;
@@ -566,7 +560,7 @@ begin
   FOperationsExplorerGrid.Node := Nil;
   FPendingOperationsGrid.Node := Nil;
   FrameAccountExplorer.AccountsGrid.Node := Nil;
-  FSelectedAccountsGrid.Node := Nil;
+  FrameAccountExplorer.SelectedAccountsGrid.Node := Nil;
   TNetData.NetData.OnReceivedHelloMessage := Nil;
   TNetData.NetData.OnStatisticsChanged := Nil;
   TNetData.NetData.OnNetConnectionsUpdated := Nil;
@@ -1074,17 +1068,10 @@ begin
   FrameAccountExplorer.sbSelectedAccountsDelClick(Sender);
 end;
 
-
-
 procedure TFRMWallet.OnMiningServerNewBlockFound(Sender: TObject);
 begin
   FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
 end;
-
-
-
-
-
 
 procedure TFRMWallet.OnNetStatisticsChanged(Sender: TObject);
 Var NS : TNetStatistics;
@@ -1117,9 +1104,6 @@ begin
   end;
 end;
 
-
-
-
 procedure TFRMWallet.OnNodeKeysActivity(Sender: TObject);
 begin
   DoUpdateAccounts;
@@ -1143,12 +1127,6 @@ begin
   TNode.Node.PeerCache := s;
 end;
 
-procedure TFRMWallet.OnSelectedAccountsGridUpdated(Sender: TObject);
-begin
-  FrameAccountExplorer.lblSelectedAccountsCount.Caption := Inttostr(FSelectedAccountsGrid.AccountsCount);
-  FrameAccountExplorer.lblSelectedAccountsBalance.Caption := TAccountComp.FormatMoney( FSelectedAccountsGrid.AccountsBalance );
-end;
-
 procedure TFRMWallet.OnWalletChanged(Sender: TObject);
 begin
   if FMustProcessWalletChanged then exit;
@@ -1162,10 +1140,10 @@ begin
   if PageControl.ActivePage=tsMyAccounts then begin
     FrameAccountExplorer.AccountsGrid.Node := FNode;
     MiDecodePayload.Enabled := true;
-    FSelectedAccountsGrid.Node := FNode;
+    FrameAccountExplorer.SelectedAccountsGrid.Node := FNode;
   end else begin
     FrameAccountExplorer.AccountsGrid.Node := Nil;
-    FSelectedAccountsGrid.Node := Nil;
+    FrameAccountExplorer.SelectedAccountsGrid.Node := Nil;
   end;
   if PageControl.ActivePage=tsPendingOperations then begin
     FPendingOperationsGrid.Node := FNode;
@@ -1197,10 +1175,6 @@ begin
     end;
   End;
 end;
-
-
-
-
 
 procedure TFRMWallet.UpdateConfigChanged(Sender:TObject);
 Var wa : Boolean;
@@ -1275,18 +1249,12 @@ begin
   end;
 end;
 
-
-
 procedure TFRMWallet.UpdateOperations;
 Var accn : Int64;
 begin
   accn := FrameAccountExplorer.AccountsGrid.AccountNumber(FrameAccountExplorer.dgAccounts.Row);
   FOperationsAccountGrid.AccountNumber := accn;
 end;
-
-
-
-
 
 initialization
   FRMWallet := Nil;

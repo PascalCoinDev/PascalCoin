@@ -80,6 +80,8 @@ type
   private
     { Private declarations }
     FAccountsGrid : TAccountsGrid;
+    FSelectedAccountsGrid : TAccountsGrid;
+
 
     FMinAccountBalance : Int64;
     FMaxAccountBalance : Int64;
@@ -87,6 +89,7 @@ type
     FLastAccountsGridInvalidateTC : TTickCount;
 
     procedure OnAccountsGridUpdatedData(Sender : TObject);
+    Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
 
   public
     { Public declarations }
@@ -96,6 +99,7 @@ type
     procedure UpdatePrivateKeys;
 
     property AccountsGrid : TAccountsGrid read FAccountsGrid;
+    property SelectedAccountsGrid : TAccountsGrid read FSelectedAccountsGrid;
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -121,6 +125,12 @@ begin
   end;
 end;
 
+procedure TFrameAccountExplorer.OnSelectedAccountsGridUpdated(Sender: TObject);
+begin
+  lblSelectedAccountsCount.Caption := Inttostr(FSelectedAccountsGrid.AccountsCount);
+  lblSelectedAccountsBalance.Caption := TAccountComp.FormatMoney( FSelectedAccountsGrid.AccountsBalance );
+end;
+
 constructor TFrameAccountExplorer.Create(AOwner: TComponent);
 begin
   inherited Create( AOwner );
@@ -135,6 +145,11 @@ begin
   FAccountsGrid.AllowMultiSelect := True;
   FAccountsGrid.OnAccountsGridUpdatedData := OnAccountsGridUpdatedData;
   FAccountsGrid.AccountsGridDatasource := acds_Node;
+
+  FSelectedAccountsGrid := TAccountsGrid.Create(Self);
+  FSelectedAccountsGrid.AccountsGridDatasource := acds_InternalList;
+  FSelectedAccountsGrid.DrawGrid := dgSelectedAccounts;
+  FSelectedAccountsGrid.OnUpdated := OnSelectedAccountsGridUpdated;
 
 
 
@@ -178,14 +193,14 @@ procedure TFrameAccountExplorer.bbSelectedAccountsOperationClick(Sender: TObject
 var l : TOrderedCardinalList;
 begin
   FRMWallet.CheckIsReady;
-  if FRMWallet.SelectedAccountsGrid.AccountsCount<=0 then raise Exception.Create('Must select at least 1 account');
+  if FSelectedAccountsGrid.AccountsCount<=0 then raise Exception.Create('Must select at least 1 account');
   With TFRMOperation.Create(Self) do
   Try
-    l := FRMWallet.SelectedAccountsGrid.LockAccountsList;
+    l := FSelectedAccountsGrid.LockAccountsList;
     try
       SenderAccounts.CopyFrom(l);
     finally
-      FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
+      FSelectedAccountsGrid.UnlockAccountsList;
     end;
     DefaultFee := TSettings.DefaultFee;
     WalletKeys := FRMWallet.WalletKeys;
@@ -291,14 +306,14 @@ Var lsource,ltarget : TOrderedCardinalList;
 begin
   lsource := FAccountsGrid.LockAccountsList;
   Try
-    ltarget := FRMWallet.SelectedAccountsGrid.LockAccountsList;
+    ltarget := FSelectedAccountsGrid.LockAccountsList;
     Try
       for i := 0 to lsource.Count-1 do begin
         if FRMWallet.WalletKeys.IndexOfAccountKey(FRMWallet.Node.Bank.SafeBox.Account(lsource.Get(i)).accountInfo.accountKey)<0 then raise Exception.Create(Format('You cannot operate with account %d because private key not found in your wallet',[lsource.Get(i)]));
         ltarget.Add(lsource.Get(i));
       end;
     Finally
-      FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
+      FSelectedAccountsGrid.UnlockAccountsList;
     End;
   Finally
     FAccountsGrid.UnlockAccountsList;
@@ -316,7 +331,7 @@ begin
     raise Exception.Create(Format('You cannot add %s account because private key not found in your wallet.'#10+#10+'You''re not the owner!',
       [TAccountComp.AccountNumberToAccountTxtNumber(an)]));
   // Add
-  l := FRMWallet.SelectedAccountsGrid.LockAccountsList;
+  l := FSelectedAccountsGrid.LockAccountsList;
   selected := TOrderedCardinalList.Create;
   Try
     FAccountsGrid.SelectedAccounts(selected);
@@ -325,18 +340,18 @@ begin
     end;
   Finally
     selected.Free;
-    FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
+    FSelectedAccountsGrid.UnlockAccountsList;
   End;
 end;
 
 procedure TFrameAccountExplorer.sbSelectedAccountsDelAllClick(Sender: TObject);
 Var l : TOrderedCardinalList;
 begin
-  l := FRMWallet.SelectedAccountsGrid.LockAccountsList;
+  l := FSelectedAccountsGrid.LockAccountsList;
   try
     l.Clear;
   finally
-    FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
+    FSelectedAccountsGrid.UnlockAccountsList;
   end;
 end;
 
@@ -344,12 +359,12 @@ procedure TFrameAccountExplorer.sbSelectedAccountsDelClick(Sender: TObject);
 Var an : Int64;
   l : TOrderedCardinalList;
 begin
-  l := FRMWallet.SelectedAccountsGrid.LockAccountsList;
+  l := FSelectedAccountsGrid.LockAccountsList;
   try
-    an := FRMWallet.SelectedAccountsGrid.AccountNumber(dgSelectedAccounts.Row);
+    an := FSelectedAccountsGrid.AccountNumber(dgSelectedAccounts.Row);
     if an>=0 then l.Remove(an);
   finally
-    FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
+    FSelectedAccountsGrid.UnlockAccountsList;
   end;
 end;
 
