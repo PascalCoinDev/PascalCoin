@@ -90,8 +90,6 @@ type
 
     function DoUpdateAccountsFilter: Boolean;
 
-    procedure OnAccountsGridUpdatedData(Sender : TObject);
-    Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
 
   public
     { Public declarations }
@@ -99,8 +97,12 @@ type
     procedure UpdateAccounts(RefreshData : Boolean);
     procedure UpdatePrivateKeys;
 
-    property AccountsGrid : TAccountsGrid read FAccountsGrid;
-    property SelectedAccountsGrid : TAccountsGrid read FSelectedAccountsGrid;
+    procedure OnAccountsGridUpdatedData(Sender : TObject);
+    Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
+
+
+    property AccountsGrid : TAccountsGrid read FAccountsGrid write FAccountsGrid;
+    property SelectedAccountsGrid : TAccountsGrid read FSelectedAccountsGrid write FSelectedAccountsGrid;
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -140,18 +142,6 @@ begin
   FMaxAccountBalance := CT_MaxWalletAmount;
 
   FLastAccountsGridInvalidateTC := TPlatform.GetTickCount;
-
-  FAccountsGrid := TAccountsGrid.Create(Self);
-  FAccountsGrid.DrawGrid := dgAccounts;
-  FAccountsGrid.AllowMultiSelect := True;
-  FAccountsGrid.OnAccountsGridUpdatedData := OnAccountsGridUpdatedData;
-  FAccountsGrid.AccountsGridDatasource := acds_Node;
-
-  FSelectedAccountsGrid := TAccountsGrid.Create(Self);
-  FSelectedAccountsGrid.AccountsGridDatasource := acds_InternalList;
-  FSelectedAccountsGrid.DrawGrid := dgSelectedAccounts;
-  FSelectedAccountsGrid.OnUpdated := OnSelectedAccountsGridUpdated;
-
 
 
   // cannot set properties here that interact with FRMWallet because

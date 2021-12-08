@@ -139,6 +139,8 @@ type
     FWalletKeys : TWalletKeysExt;
     FLog : TLog;
     FNodeNotifyEvents : TNodeNotifyEvents;
+    FAccountsGrid : TAccountsGrid;
+    FSelectedAccountsGrid : TAccountsGrid;
     FOperationsAccountGrid : TOperationsGrid;
     FPendingOperationsGrid : TOperationsGrid;
     FOperationsExplorerGrid : TOperationsGrid;
@@ -468,6 +470,19 @@ begin
   FNodeNotifyEvents.OnBlocksChanged := OnNewAccount;
   FNodeNotifyEvents.OnNodeMessageEvent := FrameMessages.OnNodeMessageEvent;
   FNodeNotifyEvents.OnKeyActivity := OnNodeKeysActivity;
+
+  FAccountsGrid := TAccountsGrid.Create(Self);
+  FAccountsGrid.DrawGrid := FrameAccountExplorer.dgAccounts;
+  FAccountsGrid.AllowMultiSelect := True;
+  FAccountsGrid.OnAccountsGridUpdatedData := FrameAccountExplorer.OnAccountsGridUpdatedData;
+  FAccountsGrid.AccountsGridDatasource := acds_Node;
+  FrameAccountExplorer.AccountsGrid := FAccountsGrid;
+
+  FSelectedAccountsGrid := TAccountsGrid.Create(Self);
+  FSelectedAccountsGrid.AccountsGridDatasource := acds_InternalList;
+  FSelectedAccountsGrid.DrawGrid := FrameAccountExplorer.dgSelectedAccounts;
+  FSelectedAccountsGrid.OnUpdated := FrameAccountExplorer.OnSelectedAccountsGridUpdated;
+  FrameAccountExplorer.SelectedAccountsGrid := FSelectedAccountsGrid;
 
   FOperationsAccountGrid := TOperationsGrid.Create(Self);
   FOperationsAccountGrid.DrawGrid := FrameAccountExplorer.dgAccountOperations;
