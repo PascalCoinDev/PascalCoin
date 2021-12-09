@@ -350,7 +350,10 @@ begin
   New(P);
   P^.Clear;
   P^.data := AData;
-  FAVLCacheMem.Add(P);
+  if Not FAVLCacheMem.Add(P) then begin
+    Dispose(P);
+    Exit;
+  end;
   FAVLCacheMem.DoMark(P,True);
   if (FMaxRegisters > 0) And (FAVLCacheMem.FCount>FMaxRegisters) then begin
     // Dispose cache

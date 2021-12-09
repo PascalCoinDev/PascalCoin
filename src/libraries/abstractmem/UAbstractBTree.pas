@@ -144,9 +144,10 @@ type
     procedure CheckConsistency; virtual;
     property Height : Integer read GetHeight;
     property CircularProtection : Boolean read FCircularProtection write FCircularProtection;
-    procedure Lock;
-    procedure Unlock;
-    function FindExt(const AData: TData; out ADataEqualOrPrecessorFound : TData) : Boolean;
+    procedure Lock; virtual;
+    procedure Unlock; virtual;
+    function FindExt(const AData: TData; out ADataEqualOrPrecessorFound : TData; out ANode : TAbstractBTreeNode; out iPos : Integer) : Boolean; overload;
+    function FindExt(const AData: TData; out ADataEqualOrPrecessorFound : TData) : Boolean; overload;
     function GetNullData : TData; virtual;
   End;
 
@@ -861,32 +862,39 @@ begin
 end;
 
 function TAbstractBTree<TIdentify, TData>.FindExt(const AData: TData; out ADataEqualOrPrecessorFound: TData): Boolean;
-var Lnode : TAbstractBTreeNode;
-  LiPosNode : Integer;
+var LNode : TAbstractBTreeNode;
+  iPos : Integer;
+begin
+  Result := FindExt(AData,ADataEqualOrPrecessorFound,LNode,iPos);
+end;
+
+function TAbstractBTree<TIdentify, TData>.FindExt(const AData: TData; out ADataEqualOrPrecessorFound: TData; out ANode : TAbstractBTreeNode; out iPos : Integer): Boolean;
+var
   LCircularProtectionList : TOrderedList<TIdentify>;
   LPrecessorFound : Boolean;
 begin
   FAbstractBTreeLock.Acquire;
   try
-    ClearNode(Lnode);
-    if Find(AData,Lnode,LiPosNode) then begin
-      ADataEqualOrPrecessorFound := Lnode.data[LiPosNode];
+    ClearNode(ANode);
+    iPos := 0;
+    if Find(AData,ANode,iPos) then begin
+      ADataEqualOrPrecessorFound := ANode.data[iPos];
       Result := True;
     end else begin
       // At this point Lnode is a leaf OR a NIL (no root available at tree)
       // Lnode.Count = 0  -> NIL (no root/tree available)
-      if Lnode.Count=0 then begin
+      if ANode.Count=0 then begin
         ADataEqualOrPrecessorFound := GetNullData;
-      end else if Lnode.Count=LiPosNode then begin
-        dec(LiPosNode);
-        ADataEqualOrPrecessorFound := Lnode.data[LiPosNode];
+      end else if ANode.Count=iPos then begin
+        dec(iPos);
+        ADataEqualOrPrecessorFound := ANode.data[iPos];
       end else begin
         // Will find previous valid value by climbing tree
         LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
         try
           LCircularProtectionList.Clear;
-          LPrecessorFound := FindPrecessorExt(LCircularProtectionList,Lnode,LiPosNode);
-          if LPrecessorFound then ADataEqualOrPrecessorFound := Lnode.data[LiPosNode]
+          LPrecessorFound := FindPrecessorExt(LCircularProtectionList,ANode,iPos);
+          if LPrecessorFound then ADataEqualOrPrecessorFound := ANode.data[iPos]
           else ADataEqualOrPrecessorFound := GetNullData;
         finally
           LCircularProtectionList.Free;

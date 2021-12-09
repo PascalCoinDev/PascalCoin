@@ -5,7 +5,7 @@ unit UCacheMem.Tests;
 {$ENDIF}
 
 interface
- 
+
  uses
    SysUtils,
    {$IFDEF FPC}
@@ -29,7 +29,10 @@ interface
    public
      procedure SetUp; override;
      procedure TearDown; override;
+     procedure TestCacheMem_Randomly(ASeed : Integer; ARounds : Integer; AMaxCacheSize : Int64; AMaxCacheDataBlocks : Int64; ADefaultCacheDataBlocksSize : Int64; AGridCache : Boolean);
+     class function PosData(APosition : Int64) : Byte;
    published
+     procedure TestCacheMem_1;
      procedure TestCacheMem;
      procedure TestCacheMem_64bits;
    end;
@@ -43,8 +46,8 @@ begin
   else if ASize > Length(ABytes) then ASize := Length(ABytes);
 
   for i := 0 to ASize-1 do begin
-    if (ABytes[i] <> ((ALoadedStartPos+i+1) MOD 89)) then begin
-      raise {$IFDEF FPC}Exception{$ELSE}ETestFailure{$ENDIF}.Create(Format('Value at pos %d (item %d) should be %d instead of %d',[ALoadedStartPos+i,i,((ALoadedStartPos+i) MOD 89),ABytes[i]]));
+    if (ABytes[i] <> (PosData(ALoadedStartPos+i))) then begin
+      raise {$IFDEF FPC}Exception{$ELSE}ETestFailure{$ENDIF}.Create(Format('Value at pos %d (item %d) should be %d instead of %d',[ALoadedStartPos+i,i,PosData(ALoadedStartPos+i),ABytes[i]]));
     end;
 
   end;
@@ -56,7 +59,7 @@ var i : Integer;
 begin
   SetLength(FCurrentMem,ASize);
   for i :=0 to High(FCurrentMem) do begin
-    FCurrentMem[i] := ((i+1) MOD 89);
+    FCurrentMem[i] := PosData(i)
   end;
   FReadCount := 0;
   FSaveCount := 0;
@@ -111,6 +114,11 @@ begin
   inc(FSaveCount);
   inc(FSaveBytes,ASize);
   Result := ASize;
+end;
+
+class function TestTCacheMem.PosData(APosition: Int64): Byte;
+begin
+  Result := 10+((APosition+1) MOD 89);
 end;
 
 procedure TestTCacheMem.SetUp;
@@ -177,7 +185,7 @@ begin
     LCMem.GridCache := False;
     LCMem.SaveToCache(LBuff[2],5,2,True);
     LCMem.SaveToCache(LBuff[1],15,1,True);
-    CheckTrue( LCMem.CacheDataBlocks=3, Format('3 Cache blocks: %d',[LCMem.CacheDataBlocks]));
+    CheckTrue( LCMem.CacheDataBlocks=4, Format('3 Cache blocks: %d',[LCMem.CacheDataBlocks]));
     LCMem.Clear;
     LCMem.GridCache := True;
     LCMem.SaveToCache(LBuff[2],5,2,True);
@@ -203,6 +211,8 @@ begin
     LCMem.SaveToCache(LBuff[0], 2*LCMem.DefaultCacheDataBlocksSize , 2,True);
     CheckTrue( LCMem.CacheDataBlocks=3, '3 Cache blocks');
 
+    LCMem.ConsistencyCheck;
+
     CheckTrue( LCMem.LoadData(LBuff[0],1,98) );
     // Incremental round
     i := 1;
@@ -217,6 +227,15 @@ begin
   Finally
     LCMem.Free;
   End;
+end;
+
+procedure TestTCacheMem.TestCacheMem_1;
+Var
+  iPos, nSize, nRounds, i : Integer;
+begin
+  TestCacheMem_Randomly(0,20000,1024*1024*100,5000,0,False);
+  TestCacheMem_Randomly(0,20000,1024*1024*100,5000,500,False);
+  TestCacheMem_Randomly(0,20000,1024*1024*100,5000,50,True);
 end;
 
 procedure TestTCacheMem.TestCacheMem_64bits;
@@ -255,6 +274,59 @@ begin
     End;
     // Check replacing initial position of buffer on Load
     LCMem.Clear;
+  Finally
+    LCMem.Free;
+  End;
+end;
+
+procedure TestTCacheMem.TestCacheMem_Randomly(ASeed, ARounds: Integer;
+  AMaxCacheSize, AMaxCacheDataBlocks, ADefaultCacheDataBlocksSize: Int64;
+  AGridCache: Boolean);
+Var LCMem : TCacheMem;
+  LBuff : TBytes;
+  iPos, nSize, nRounds, i : Integer;
+begin
+  if ASeed>=0 then RandSeed := ASeed;
+
+  LCMem := TCacheMem.Create(OnNeedDataProc,OnSaveDataProc);
+  Try
+    LCMem.MaxCacheSize := AMaxCacheSize;
+    LCMem.MaxCacheDataBlocks := AMaxCacheDataBlocks;
+    LCMem.DefaultCacheDataBlocksSize := ADefaultCacheDataBlocksSize;
+    LCMem.GridCache := AGridCache;
+    //
+    InitCurrentMem(10000000);
+    SetLength(LBuff,Length(FCurrentMem));
+    nRounds := 0;
+    //
+    repeat
+      inc(nRounds);
+      iPos := Random(Length(FCurrentMem) - 1000);
+      nSize := Random( (Length(FCurrentMem)-iPos) DIV 100000 )+1;
+      if (Random(2)=0) then begin
+        Assert(LCMem.LoadData(LBuff[0],iPos,nSize),Format('(Round %d) Cannot load data ad Pos %d size %d',[nRounds,iPos,nSize]));
+        for i := 0 to nSize-1 do begin
+          Assert(LBuff[i]=PosData(i+iPos),Format('(Round %d) Pos data %d (%d + %d) is %d not %d',[nRounds,i+iPos,i,iPos,LBuff[i],PosData(i+iPos)]));
+          LBuff[i] := 0; // For future use
+        end;
+      end else begin
+        // SAVE DATA TEST
+        for i := 0 to nSize-1 do begin
+          LBuff[i]:=PosData(i+iPos);
+        end;
+        LCMem.SaveToCache(LBuff[0],nSize,iPos,Random(2)=0);
+
+        // CHECK this saved data
+        Assert(LCMem.LoadData(LBuff[0],iPos,nSize),Format('(Round %d) Cannot load saved data ad Pos %d size %d',[nRounds,iPos,nSize]));
+        for i := 0 to nSize-1 do begin
+          Assert(LBuff[i]=PosData(i+iPos),Format('(Round %d) Pos saved data %d (%d + %d) is %d not %d',[nRounds,i+iPos,i,iPos,LBuff[i],PosData(i+iPos)]));
+          LBuff[i] := 0; // For future use
+        end;
+      end;
+      // Check
+      if (Random(100)=0) then LCMem.ConsistencyCheck;
+    until (nRounds>ARounds);
+    LCMem.ConsistencyCheck;
   Finally
     LCMem.Free;
   End;
