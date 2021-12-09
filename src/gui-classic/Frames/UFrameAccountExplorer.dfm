@@ -126,6 +126,8 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Height = 21
       Hint = 'Max balance'
       TabOrder = 6
+      OnExit = ebFilterAccountByBalanceMaxExit
+      OnKeyPress = ebFilterAccountByBalanceMaxKeyPress
     end
   end
   object pnlAccounts: TPanel

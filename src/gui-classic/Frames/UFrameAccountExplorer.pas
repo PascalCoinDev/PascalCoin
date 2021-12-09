@@ -76,6 +76,9 @@ type
     procedure ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
       var Key: Char);
     procedure cbFilterAccountsClick(Sender: TObject);
+    procedure ebFilterAccountByBalanceMaxExit(Sender: TObject);
+    procedure ebFilterAccountByBalanceMaxKeyPress(Sender: TObject;
+      var Key: Char);
 
   private
     { Private declarations }
@@ -87,6 +90,9 @@ type
     FMaxAccountBalance : Int64;
 
     FLastAccountsGridInvalidateTC : TTickCount;
+
+    procedure ebFilterAccountByBalanceExitShared( Sender : TObject );
+    procedure ebFilterAccountByBalanceKeyPressShared( Sender : TObject; var Key : Char );
 
     function DoUpdateAccountsFilter: Boolean;
 
@@ -359,15 +365,37 @@ begin
   end;
 end;
 
-procedure TFrameAccountExplorer.ebFilterAccountByBalanceMinExit(Sender: TObject);
+procedure TFrameAccountExplorer.ebFilterAccountByBalanceExitShared( Sender : TObject );
 begin
   DoUpdateAccountsFilter;
+end;
+
+procedure TFrameAccountExplorer.ebFilterAccountByBalanceKeyPressShared( Sender : TObject; var Key : Char );
+begin
+  if key=#13 then DoUpdateAccountsFilter;
+end;
+
+procedure TFrameAccountExplorer.ebFilterAccountByBalanceMinExit(Sender: TObject);
+begin
+  ebFilterAccountByBalanceExitShared( Sender );;
+end;
+
+procedure TFrameAccountExplorer.ebFilterAccountByBalanceMaxExit(
+  Sender: TObject);
+begin
+  ebFilterAccountByBalanceExitShared( Sender );;
 end;
 
 procedure TFrameAccountExplorer.ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
   var Key: Char);
 begin
-  if key=#13 then DoUpdateAccountsFilter;
+  ebFilterAccountByBalanceKeyPressShared( Sender, Key );
+end;
+
+procedure TFrameAccountExplorer.ebFilterAccountByBalanceMaxKeyPress(
+  Sender: TObject; var Key: Char);
+begin
+  ebFilterAccountByBalanceKeyPressShared( Sender, Key );
 end;
 
 function TFrameAccountExplorer.DoUpdateAccountsFilter: Boolean;
