@@ -25,7 +25,7 @@ uses
   {$IFDEF USE_GNUGETTEXT}
   UFRMSelectLanguage in 'gui-classic\UFRMSelectLanguage.pas' {FRMChangeLanguage},
   {$ENDIF }
-  UFRMPascalCoinWalletConfig in 'gui-classic\UFRMPascalCoinWalletConfig.pas' {FRMPascalCoinWalletConfig},
+  UFRMWalletConfig in 'gui-classic\UFRMWalletConfig.pas' {FRMPascalCoinWalletConfig},
   UFRMPayloadDecoder in 'gui-classic\UFRMPayloadDecoder.pas' {FRMPayloadDecoder},
   UFRMRandomOperations in 'gui-classic\UFRMRandomOperations.pas' {FRMRandomOperations},
   UFRMRPCCalls in 'gui-classic\UFRMRPCCalls.pas' {FRMRPCCalls},
@@ -58,8 +58,7 @@ uses
   UOpTransaction in 'core\UOpTransaction.pas',
   {$IFDEF USE_ABSTRACTMEM}
   UPCAbstractMem in 'core\UPCAbstractMem.pas',
-  UPCAbstractMemAccountKeys in 'core\UPCAbstractMemAccountKeys.pas',
-  {$ENDIF}
+  {$ENDIF }
   UPCAbstractMemAccounts in 'core\UPCAbstractMemAccounts.pas',
   UPCAccountsOrdenations in 'core\UPCAccountsOrdenations.pas',
   UPCCryptoLib4Pascal in 'core\UPCCryptoLib4Pascal.pas',
@@ -89,7 +88,21 @@ uses
   UThread in 'core\UThread.pas',
   UTime in 'core\UTime.pas',
   UTxMultiOperation in 'core\UTxMultiOperation.pas',
-  UWallet in 'core\UWallet.pas';
+  UWallet in 'core\UWallet.pas',
+  UFrameAccountExplorer in 'gui-classic\Frames\UFrameAccountExplorer.pas' {FrameAccountExplorer: TFrame},
+  UFramePendingOperations in 'gui-classic\Frames\UFramePendingOperations.pas' {FramePendingOperations: TFrame},
+  UFrameBlockExplorer in 'gui-classic\Frames\UFrameBlockExplorer.pas' {FrameBlockChainExplorer: TFrame},
+  UFrameOperationsExplorer in 'gui-classic\Frames\UFrameOperationsExplorer.pas' {FrameOperationsExplorer: TFrame},
+  UFrameLogs in 'gui-classic\Frames\UFrameLogs.pas' {FrameLogs: TFrame},
+  UFrameNodeStats in 'gui-classic\Frames\UFrameNodeStats.pas' {FrameNodeStats: TFrame},
+  UFrameMessages in 'gui-classic\Frames\UFrameMessages.pas' {FrameMessages: TFrame},
+  UnitReIntegrate in 'gui-classic\UnitReIntegrate.pas',
+  UFRMTestWallet in 'gui-classic\UFRMTestWallet.pas' {FRMTestWallet},
+  UFrameInfo in 'gui-classic\Frames\UFrameInfo.pas' {FrameInfo: TFrame},
+  UFRMWalletUserMessages in 'gui-classic\UFRMWalletUserMessages.pas',
+  UFRMWalletInformation in 'gui-classic\UFRMWalletInformation.pas',
+  UJSONFunctions in 'libraries\pascalcoin\UJSONFunctions.pas',
+  UEPasaDecoder in 'core\UEPasaDecoder.pas';
 
 {$R *.res}
 
@@ -97,6 +110,11 @@ begin
   Application.Initialize;
   {$IFDEF WINDOWS}Application.MainFormOnTaskbar := True;{$ENDIF}
   Application.Title := 'Pascal Coin Wallet, Miner & Explorer';
+
+  {$IFDEF TESTNET}
+  Application.CreateForm(TFRMTestWallet, FRMTestWallet);
+  {$ELSE}
   Application.CreateForm(TFRMWallet, FRMWallet);
+  {$ENDIF}
   Application.Run;
 end.

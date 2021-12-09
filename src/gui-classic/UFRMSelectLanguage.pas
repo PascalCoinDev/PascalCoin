@@ -7,17 +7,19 @@ unit UFRMSelectLanguage;
 interface
 
 uses
-  gnugettext,Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Buttons, StdCtrls;
+  gnugettext,Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Buttons, StdCtrls,
+  Vcl.ExtCtrls;
 
 type
 
    { TFRMChangeLanguage }
 
    TFRMChangeLanguage = class(TForm)
-      bbCancel: TBitBtn;
-      bbOk: TBitBtn;
-      Label1: TLabel;
       lbxAvailableLanguages: TListBox;
+    Panel1: TPanel;
+    Panel2: TPanel;
+    bbOk: TBitBtn;
+    bbCancel: TBitBtn;
       procedure FormCreate(Sender: TObject);
    private
    public
