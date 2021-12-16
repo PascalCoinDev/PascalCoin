@@ -1659,8 +1659,8 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     try
       Bank.StorageClass := TNode.Node.Bank.StorageClass;
       Bank.Orphan := TNode.Node.Bank.Orphan;
-      Bank.Storage.ReadOnly := true;
       Bank.Storage.CopyConfiguration(TNode.Node.Bank.Storage);
+      Bank.Storage.ReadOnly := true;
 
 
       if start_block>=0 then begin
@@ -1671,6 +1671,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
           IsUsingSnapshot := True;
 
           Bank.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
+          Bank.Storage.StorageFilename := '';
           Bank.Storage.ReadOnly := false;
 
         end else begin
@@ -4459,7 +4460,7 @@ begin
         nOpsToSend := Operations.OperationsCount;
       end;
       if FBufferToSendOperations.OperationsCount>0 then begin
-        TLog.NewLog(ltdebug,ClassName,Format('Sending %d Operations to %s (inProc:%d, Received:%d)',[FBufferToSendOperations.OperationsCount,ClientRemoteAddr,nOpsToSend,FBufferReceivedOperationsHash.Count]));
+        {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Sending %d Operations to %s (inProc:%d, Received:%d)',[FBufferToSendOperations.OperationsCount,ClientRemoteAddr,nOpsToSend,FBufferReceivedOperationsHash.Count]));{$ENDIF}
         LStream := TMemoryStream.Create;
         try
           request_id := TNetData.NetData.NewRequestId;
@@ -5166,7 +5167,7 @@ begin
     inc(P^.counter);
     inc(FTotalCounter);
     UpdateMedian(l);
-    TLog.NewLog(ltDebug,ClassName,Format('AddNewIp (%s,%d) - Total:%d/%d Offset:%d',[clientIp,clientTimestamp,l.Count,FTotalCounter,FTimeOffset]));
+    {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,ClassName,Format('AddNewIp (%s,%d) - Total:%d/%d Offset:%d',[clientIp,clientTimestamp,l.Count,FTotalCounter,FTimeOffset]));{$ENDIF}
   finally
     FTimesList.UnlockList;
   end;
@@ -5241,9 +5242,9 @@ begin
       Dec(FTotalCounter);
     end;
     UpdateMedian(l);
-    if (i>=0) then
-      TLog.NewLog(ltDebug,ClassName,Format('RemoveIp (%s) - Total:%d/%d Offset:%d',[clientIp,l.Count,FTotalCounter,FTimeOffset]))
-    else TLog.NewLog(ltError,ClassName,Format('RemoveIp not found (%s) - Total:%d/%d Offset:%d',[clientIp,l.Count,FTotalCounter,FTimeOffset]))
+    if (i>=0) then begin
+      {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,ClassName,Format('RemoveIp (%s) - Total:%d/%d Offset:%d',[clientIp,l.Count,FTotalCounter,FTimeOffset])){$ENDIF}
+    end else TLog.NewLog(ltError,ClassName,Format('RemoveIp not found (%s) - Total:%d/%d Offset:%d',[clientIp,l.Count,FTotalCounter,FTimeOffset]))
   finally
     FTimesList.UnlockList;
   end;
