@@ -43,11 +43,9 @@ Type
   private
     FStorageLock : TPCCriticalSection;
     FBlockChainStream : TFileStream;
-    FPendingBufferOperationsStream : TFileStream;
     FStreamFirstBlockNumber : Int64;
     FStreamLastBlockNumber : Int64;
     FBlockHeadersFirstBytePosition : TArrayOfInt64;
-    FBlockChainFileName : AnsiString;
     Function StreamReadBlockHeader(Stream: TStream; iBlockHeaders : Integer; BlockHeaderFirstBlock, Block: Cardinal; CanSearchBackward : Boolean; var BlockHeader : TBlockHeader): Boolean;
     Function StreamBlockRead(Stream : TStream; iBlockHeaders : Integer; BlockHeaderFirstBlock, Block : Cardinal; Operations : TPCOperationsComp) : Boolean;
     Function StreamBlockSave(Stream : TStream; iBlockHeaders : Integer; BlockHeaderFirstBlock : Cardinal; Operations : TPCOperationsComp) : Boolean;
@@ -55,7 +53,6 @@ Type
     Function GetBlockHeaderFixedSize : Int64;
     Procedure ClearStream;
     Procedure GrowStreamUntilPos(Stream : TStream; newPos : Int64; DeleteDataStartingAtCurrentPos : Boolean);
-    Function GetPendingBufferOperationsStream : TFileStream;
   protected
     procedure SetReadOnly(const Value: Boolean); override;
     Function DoLoadBlockChain(Operations : TPCOperationsComp; Block : Cardinal) : Boolean; override;
@@ -69,8 +66,6 @@ Type
     function GetLastBlockNumber: Int64; override;
     function DoInitialize : Boolean; override;
     Procedure DoEraseStorage; override;
-    Procedure DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree); override;
-    Procedure DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree); override;
   public
     Constructor Create(AOwner : TComponent); Override;
     Destructor Destroy; Override;
@@ -146,7 +141,6 @@ end;
 procedure TFileStorage.ClearStream;
 begin
   FreeAndNil(FBlockChainStream);
-  FreeAndNil(FPendingBufferOperationsStream);
   FStreamFirstBlockNumber := 0;
   FStreamLastBlockNumber := -1;
   SetLength(FBlockHeadersFirstBytePosition,0);
@@ -172,27 +166,6 @@ begin
   Stream.Position := newPos;
 end;
 
-function TFileStorage.GetPendingBufferOperationsStream: TFileStream;
-Var fs : TFileStream;
-  fn : TFileName;
-  fm : Word;
-begin
-  If Not Assigned(FPendingBufferOperationsStream) then begin
-    fn := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'pendingbuffer.ops';
-    If FileExists(fn) then fm := fmOpenReadWrite+fmShareExclusive
-    else fm := fmCreate+fmShareExclusive;
-    Try
-      FPendingBufferOperationsStream := TFileStream.Create(fn,fm);
-    Except
-      On E:Exception do begin
-        TLog.NewLog(ltError,ClassName,'Error opening PendingBufferOperationsStream '+fn+' ('+E.ClassName+'):'+ E.Message);
-        Raise;
-      end;
-    end;
-  end;
-  Result := FPendingBufferOperationsStream;
-end;
-
 procedure TFileStorage.CopyConfiguration(const CopyFrom: TStorage);
 begin
   inherited;
@@ -201,12 +174,10 @@ end;
 constructor TFileStorage.Create(AOwner: TComponent);
 begin
   inherited;
-  FBlockChainFileName := '';
   FBlockChainStream := Nil;
   SetLength(FBlockHeadersFirstBytePosition,0);
   FStreamFirstBlockNumber := 0;
   FStreamLastBlockNumber := -1;
-  FPendingBufferOperationsStream := Nil;
   FStorageLock := TPCCriticalSection.Create('TFileStorage_StorageLock');
 end;
 
@@ -271,43 +242,6 @@ begin
   end;
 end;
 
-procedure TFileStorage.DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
-Var fs : TFileStream;
-begin
-  LockBlockChainStream;
-  Try
-    fs := GetPendingBufferOperationsStream;
-    fs.Position:=0;
-    fs.Size:=0;
-    OperationsHashTree.SaveOperationsHashTreeToStream(fs,true);
-    {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('DoSavePendingBufferOperations operations:%d',[OperationsHashTree.OperationsCount]));{$ENDIF}
-  finally
-    UnlockBlockChainStream;
-  end;
-end;
-
-procedure TFileStorage.DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
-Var fs : TFileStream;
-  errors : String;
-  n : Integer;
-  LCurrentProtocol : Word;
-begin
-  LockBlockChainStream;
-  Try
-    fs := GetPendingBufferOperationsStream;
-    fs.Position:=0;
-    if fs.Size>0 then begin
-      if Assigned(Bank) then LCurrentProtocol := Bank.SafeBox.CurrentProtocol
-      else LCurrentProtocol := CT_BUILD_PROTOCOL;
-      If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,LCurrentProtocol,LCurrentProtocol, Nil,errors) then begin
-        TLog.NewLog(ltInfo,ClassName,Format('DoLoadPendingBufferOperations loaded operations:%d',[OperationsHashTree.OperationsCount]));
-      end else TLog.NewLog(ltError,ClassName,Format('DoLoadPendingBufferOperations ERROR (Protocol %d): loaded operations:%d errors:%s',[LCurrentProtocol,OperationsHashTree.OperationsCount,errors]));
-    end;
-  finally
-    UnlockBlockChainStream;
-  end;
-end;
-
 function TFileStorage.DoLoadBlockChain(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
 Var stream : TStream;
   iBlockHeaders : Integer;
@@ -353,7 +287,7 @@ begin
     try
       db.Bank := Self.Bank;
       db.FStreamFirstBlockNumber := Start_Block;
-      db.FBlockChainFileName := TPCBank.GetStorageFolder(DestOrphan)+PathDelim+'BlockChainStream.blocks';
+      db.FStorageFilename := TPCBank.GetStorageFolder(DestOrphan)+PathDelim+'BlockChainStream.blocks';
       db.LockBlockChainStream;
       try
         db.FIsMovingBlockchain:=True;
@@ -642,10 +576,11 @@ begin
   TPCThread.ProtectEnterCriticalSection(Self,FStorageLock);
   Try
     if Not Assigned(FBlockChainStream) then begin
-      if FBlockChainFileName<>'' then begin
-        fn := FBlockChainFileName
+      if FStorageFilename<>'' then begin
+        fn := FStorageFilename
       end else begin
         fn := TPCBank.GetStorageFolder(Orphan)+PathDelim+'BlockChainStream.blocks';
+        FStorageFilename := fn;
       end;
       exists := FileExists(fn);
       if ReadOnly then begin
@@ -674,7 +609,7 @@ end;
 procedure TFileStorage.SetBlockChainFile(BlockChainFileName: AnsiString);
 begin
   ClearStream;
-  FBlockChainFileName := BlockChainFileName;
+  FStorageFilename := BlockChainFileName;
 end;
 
 procedure TFileStorage.SetReadOnly(const Value: Boolean);
