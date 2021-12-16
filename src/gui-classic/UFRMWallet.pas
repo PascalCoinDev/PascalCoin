@@ -243,10 +243,10 @@ type
     Procedure InitMenuForTesting;
     {$IFDEF TESTNET}
     Procedure Test_RandomOperations(Sender: TObject);
+    Procedure Test_ConnectDisconnect(Sender: TObject);
+    {$ENDIF}
     {$IFDEF TESTING_NO_POW_CHECK}
     Procedure Test_CreateABlock(Sender: TObject);
-    {$ENDIF}
-    Procedure Test_ConnectDisconnect(Sender: TObject);
     {$ENDIF}
     Procedure Test_ShowPublicKeys(Sender: TObject);
     Procedure Test_ShowOperationsInMemory(Sender: TObject);
@@ -452,9 +452,9 @@ begin
     WalletKeys.SafeBox := FNode.Bank.SafeBox;
     // Check Database
     FNode.Bank.StorageClass := TFileStorage;
-    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data';
-    TFileStorage(FNode.Bank.Storage).Initialize;
+    FNode.Bank.Storage.Initialize;
     // Init Grid
+
     FSelectedAccountsGrid.Node := FNode;
     FWalletKeys.OnChanged.Add( OnWalletChanged );
     FAccountsGrid.Node := FNode;
@@ -1421,6 +1421,9 @@ begin
   InitMacOSMenu;
   {$endif}
   PageControl.ActivePageIndex := 0;
+  {$IFDEF DEBUG}
+  System.ReportMemoryLeaksOnShutdown := True; // Delphi memory leaks testing
+  {$ENDIF}
 end;
 
 procedure TFRMWallet.ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
@@ -1663,12 +1666,12 @@ begin
     if PageControl.ActivePage=tsOperations then begin
       i := FOperationsExplorerGrid.DrawGrid.Row;
       if (i>0) and (i<=FOperationsExplorerGrid.OperationsResume.Count) then begin
-        opr := FOperationsExplorerGrid.OperationsResume.OperationResume[i-1];
+        opr := FOperationsExplorerGrid.OperationsResume.Items[i-1];
       end;
     end else if PageControl.ActivePage=tsPendingOperations then begin
       i := FPendingOperationsGrid.DrawGrid.Row;
       if (i>0) and (i<=FPendingOperationsGrid.OperationsResume.Count) then begin
-        opr := FPendingOperationsGrid.OperationsResume.OperationResume[i-1];
+        opr := FPendingOperationsGrid.OperationsResume.Items[i-1];
       end;
     end else if PageControl.ActivePage=tsMyAccounts then begin
       accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
@@ -1677,7 +1680,7 @@ begin
       title := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(accn)+' info';
       i := FOperationsAccountGrid.DrawGrid.Row;
       if (i>0) and (i<=FOperationsAccountGrid.OperationsResume.Count) then begin
-        opr := FOperationsAccountGrid.OperationsResume.OperationResume[i-1];
+        opr := FOperationsAccountGrid.OperationsResume.Items[i-1];
       end;
     end;
     If (opr.valid) then begin

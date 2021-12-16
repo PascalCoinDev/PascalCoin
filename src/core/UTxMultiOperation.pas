@@ -25,7 +25,7 @@ interface
 uses
   Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes, UEPasa,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
-  UPCDataTypes;
+  UPCDataTypes, UOrderedList;
 
 Type
 
@@ -122,7 +122,7 @@ Type
     function CheckSignatures(AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
-    procedure AffectedAccounts(list : TList<Cardinal>); override;
+    procedure AffectedAccounts(list : TOrderedList<Cardinal>); override;
     //
     Function DoSignMultiOperationSigner(current_protocol : Word; SignerAccount : Cardinal; key : TECPrivateKey) : Integer;
     class function OpType : Byte; override;
@@ -763,7 +763,7 @@ begin
   Result := True;
 end;
 
-procedure TOpMultiOperation.AffectedAccounts(list: TList<Cardinal>);
+procedure TOpMultiOperation.AffectedAccounts(list: TOrderedList<Cardinal>);
 Var i : Integer;
   Procedure _doAdd(nAcc : Cardinal);
   Begin

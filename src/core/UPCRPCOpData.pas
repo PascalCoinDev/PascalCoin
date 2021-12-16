@@ -343,7 +343,7 @@ begin
     LResultArray := AJSONResponse.GetAsArray('result');
 
     for i := 0 to LOperationsResumeList.Count-1 do begin
-      TPascalCoinJSONComp.FillOperationObject(LOperationsResumeList.OperationResume[i],ASender.Node.Bank.BlocksCount,
+      TPascalCoinJSONComp.FillOperationObject(LOperationsResumeList.Items[i],ASender.Node.Bank.BlocksCount,
         ASender.Node,ASender.RPCServer.WalletKeys,ASender.RPCServer.PayloadPasswords,
         LResultArray.GetAsObject( LResultArray.Count ));
     end;

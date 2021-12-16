@@ -24,6 +24,8 @@ interface
 
 {$I ./../config.inc}
 
+{$DEFINE RPC_PROTECT_MASSIVE_CALLS}
+
 Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
   UNetProtocol, UOpTransaction, UWallet, UTime, UPCEncryption, UTxMultiOperation,
   UJSONFunctions, classes, blcksock, synsock,
@@ -52,6 +54,7 @@ Const
   CT_RPC_ErrNum_AmbiguousPayload = 1017;
   CT_RPC_ErrNum_InvalidSignature = 1020;
   CT_RPC_ErrNum_NotAllowedCall = 1021;
+  CT_RPC_ErrNum_MaxCalls = 1022;
 
 
 Type
@@ -162,6 +165,7 @@ Type
     class procedure RegisterProcessMethod(Const AMethodName : String; ARPCProcessMethod : TRPCProcessMethod);
     class procedure UnregisterProcessMethod(Const AMethodName : String);
     class function FindRegisteredProcessMethod(Const AMethodName : String) : TRPCProcessMethod;
+    class procedure ProcessMethodCalled(Const AMethodName : String; AStartTickCount : TTickCount);
   end;
 
 implementation
@@ -171,17 +175,27 @@ Uses
   SysUtils, Synautil,
   UEPasaDecoder,
   UPCRPCSend,
+  UOrderedList,
   UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks, UPCRPCFileUtils;
 
 Type
   TRegisteredRPCProcessMethod = Record
     MethodName : String;
     RPCProcessMethod : TRPCProcessMethod;
+    CallsCounter : Integer;
+    ElapsedMilis : Int64;
+    procedure Clear;
   end;
+  PRegisteredRPCProcessMethod = ^TRegisteredRPCProcessMethod;
 
 var _RPCServer : TRPCServer = Nil;
 
-  _RPCProcessMethods : TList<TRegisteredRPCProcessMethod> = Nil;
+  _RPCProcessMethods : TOrderedList<PRegisteredRPCProcessMethod> = Nil;
+
+function TRegisteredRPCProcessMethod_Comparer(const ALeft,ARight : PRegisteredRPCProcessMethod) : Integer;
+begin
+  Result := AnsiCompareText(ALeft.MethodName , ARight.MethodName);
+end;
 
 { TPascalCoinJSONComp }
 
@@ -292,7 +306,7 @@ Begin
   end;
   if OPR.valid then begin
     jsonObject.GetAsVariant('block').Value:=OPR.Block;
-    jsonObject.GetAsVariant('time').Value:=OPR.time;
+    if OPR.time>0 then jsonObject.GetAsVariant('time').Value:=OPR.time;
     jsonObject.GetAsVariant('opblock').Value:=OPR.NOpInsideBlock;
     if (OPR.Block>0) And (OPR.Block<currentNodeBlocksCount) then
       jsonObject.GetAsVariant('maturation').Value := currentNodeBlocksCount - OPR.Block - 1
@@ -1032,19 +1046,40 @@ end;
 
 class function TRPCProcess.FindRegisteredProcessMethod(const AMethodName: String): TRPCProcessMethod;
 var i : Integer;
+  P : PRegisteredRPCProcessMethod;
 begin
   Result := Nil;
   if Not Assigned(_RPCProcessMethods) then Exit;
-  i := 0;
-  while (i<_RPCProcessMethods.Count) and (Not Assigned(Result)) do begin
-    if AnsiSameStr( _RPCProcessMethods.Items[i].MethodName , AMethodName) then begin
-      Result := _RPCProcessMethods.Items[i].RPCProcessMethod;
+  New(P);
+  Try
+    P.Clear;
+    P.MethodName := AMethodName;
+    if _RPCProcessMethods.Find(P,i) then begin
+      Result := _RPCProcessMethods.Get(i).RPCProcessMethod;
     end;
-    inc(i);
-  end;
+  Finally
+    Dispose(P);
+  End;
 end;
 
 procedure TRPCProcess.BCExecute;
+  function ValidMethodName(const AMethod : String) : Boolean;
+  var i : Integer;
+  begin
+    Result := False;
+    for i:=0 to AMethod.Length-1 do begin
+      case AMethod.Chars[i] of
+        'a'..'z',
+        'A'..'Z',
+        '0'..'9',
+        '_','.' : ; // Nothing to do
+        '-' : if i=0 then Exit; // Cannot start with "-"
+      else Exit; // Not a valid char
+      end;
+    end;
+    Result := True;
+  end;
+
 var
   timeout: integer;
   s: string;
@@ -1054,10 +1089,10 @@ var
   resultcode: integer;
   inputdata : TRawBytes;
   js,jsresult : TPCJSONData;
-  jsonobj,jsonresponse : TPCJSONObject;
+  jsonobj,jsonresponse, paramsJSON : TPCJSONObject;
   errNum : Integer; errDesc : String;
   jsonrequesttxt,
-  jsonresponsetxt, methodName, paramsTxt : String;
+  jsonresponsetxt, methodName, paramsTxt, senderIP : String;
   valid : Boolean;
   i : Integer;
   Headers : TStringList;
@@ -1066,6 +1101,7 @@ var
   LOnStartLiveConnectionCount : Integer;
 begin
   LOnStartLiveConnectionCount := FRPCServer.FLiveConnectionsCount;
+  senderIP := '';
   callcounter := _RPCServer.GetNewCallCounter;
   tc := TPlatform.GetTickCount;
   methodName := '';
@@ -1139,9 +1175,27 @@ begin
             errDesc := '';
             try
               methodName := jsonobj.AsString('method','');
-              paramsTxt := jsonobj.GetAsObject('params').ToJSON(false);
+              paramsJSON := jsonobj.GetAsObject('params');
+              senderIP := Trim(jsonObj.AsString('remoteaddr','')); //
+              paramsTxt := paramsJSON.ToJSON(false);
               {$IFDEF HIGHLOG}TLog.NewLog(ltinfo,Classname,FSock.GetRemoteSinIP+':'+inttostr(FSock.GetRemoteSinPort)+' Processing method '+methodName+' params '+paramsTxt);{$ENDIF}
-              Valid := ProcessMethod(methodName,jsonobj.GetAsObject('params'),jsonresponse,errNum,errDesc);
+              valid := True;
+              {$IFDEF RPC_PROTECT_MASSIVE_CALLS}
+              if (senderIP<>'') and (ValidMethodName(methodName)) then begin
+                if TNetData.NetData.IpInfos.Update_And_ReachesLimits(senderIP,'rpcmethod',methodName,0,True,
+                 TArray<TLimitLifetime>.Create(TLimitLifetime.Create(60,50,0),TLimitLifetime.Create(3600,500,0))) then  begin
+                   valid := false;
+                   errNum := CT_RPC_ErrNum_MaxCalls;
+                   errDesc := Format('IP:%s Reached limit %s',[senderIP,methodName]);
+                   jsonresponse.GetAsObject('error').GetAsVariant('code').Value:=errNum;
+                   jsonresponse.GetAsObject('error').GetAsVariant('message').Value:=errDesc;
+                 end;
+              end;
+              {$ENDIF}
+              if valid then begin
+
+              TRPCProcess.ProcessMethodCalled(methodName,tc);
+              Valid := ProcessMethod(methodName,paramsJSON,jsonresponse,errNum,errDesc);
               if not Valid then begin
                 if (errNum<>0) or (errDesc<>'') then begin
                   jsonresponse.GetAsObject('error').GetAsVariant('code').Value:=errNum;
@@ -1150,6 +1204,8 @@ begin
                   jsonresponse.GetAsObject('error').GetAsVariant('code').Value:=CT_RPC_ErrNum_InternalError;
                   jsonresponse.GetAsObject('error').GetAsVariant('message').Value:='Unknown error processing method';
                 end;
+              end;
+
               end;
             Except
               on E:Exception do begin
@@ -1197,8 +1253,14 @@ begin
           FSock.SendString(jsonresponsetxt);
         end;
       end;
-      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),callcounter,'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000))
+      if senderIP<>'' then begin
+        senderIP := FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort) + ' @'+senderIP;
+      end else begin
+        senderIP := FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort);
+      end;
+      _RPCServer.AddRPCLog(senderIP,callcounter,'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000))
         +' '+LOnStartLiveConnectionCount.ToString+'->'+FRPCServer.FLiveConnectionsCount.ToString);
+      TRPCProcess.ProcessMethodCalled(methodName,tc);
     finally
       jsonresponse.free;
       Headers.Free;
@@ -1284,6 +1346,68 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   end;
 
+  Function GetBlockOperation(ABlock, AOpBlock : Integer; jsonObject : TPCJSONObject) : Boolean;
+  var LOpResumeList : TOperationsResumeList;
+    LOperationBlock : TOperationBlock;
+    LOperationsCount : Integer;
+    LOperationsAmount : Int64;
+  begin
+    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    try
+    LOpResumeList := TOperationsResumeList.Create;
+    Try
+      if not FNode.Bank.Storage.GetBlockOperations(ABlock,AOpBlock,1,LOperationBlock,LOperationsCount,LOperationsAmount,LOpResumeList) then begin
+        ErrorNum := CT_RPC_ErrNum_InvalidOperation;
+        ErrorDesc := 'Cannot load Block: '+ABlock.ToString+' OpBlock: '+AOpBlock.ToString;
+        Result := False;
+        Exit;
+      end;
+      if LOpResumeList.Count<>1 then Exit(False);
+      TPascalCoinJSONComp.FillOperationObject(LOpResumeList.Items[0],
+          FNode.Bank.BlocksCount,
+          Node,RPCServer.WalletKeys,RPCServer.PayloadPasswords,
+          jsonObject);
+      Result := True;
+    Finally
+      LOpResumeList.Free;
+    End;
+    finally
+      FNode.OperationSequenceLock.Release;
+    end;
+  end;
+
+
+  Function GetBlockOperations(ABlock, AOpBlockStartIndex, AMaxOperations : Integer; jsonArray : TPCJSONArray) : Boolean;
+  var LOpResumeList : TOperationsResumeList;
+    LOperationBlock : TOperationBlock;
+    LOperationsCount : Integer;
+    LOperationsAmount : Int64;
+    i : Integer;
+  begin
+    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    try
+    LOpResumeList := TOperationsResumeList.Create;
+    Try
+      if not FNode.Bank.Storage.GetBlockOperations(ABlock,AOpBlockStartIndex,AMaxOperations,LOperationBlock,LOperationsCount,LOperationsAmount,LOpResumeList) then begin
+        ErrorNum := CT_RPC_ErrNum_InvalidOperation;
+        ErrorDesc := 'Cannot load Block: '+ABlock.ToString+' OpBlock: '+AOpBlockStartIndex.ToString+' Max: '+AMaxOperations.ToString;
+        Result := False;
+        Exit;
+      end;
+      for i := 0 to LOpResumeList.Count-1 do begin
+        TPascalCoinJSONComp.FillOperationObject(LOpResumeList.Items[i],FNode.Bank.BlocksCount,
+            Node,RPCServer.WalletKeys,RPCServer.PayloadPasswords,
+            jsonArray.GetAsObject(jsonArray.Count));
+      end;
+      Result := True;
+    Finally
+      LOpResumeList.Free;
+    End;
+    finally
+      FNode.OperationSequenceLock.Release;
+    end;
+  end;
+
   Procedure FillOperationResumeToJSONObject(Const OPR : TOperationResume; jsonObject : TPCJSONObject);
   Begin
     TPascalCoinJSONComp.FillOperationObject(OPR,FNode.Bank.BlocksCount,
@@ -1340,7 +1464,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       end;
       if (nCounter<maxReg) then begin
         if (startReg<0) then startReg := 0; // Prevent -1 value
-        FNode.GetStoredOperationsFromAccount(OperationsResume,accountNumber,maxBlocksDepth,startReg,startReg+maxReg-1,forceStartBlock);
+        FNode.Bank.Storage.GetAccountOperations(accountNumber,maxBlocksDepth,startReg,maxReg,forceStartBlock,OperationsResume);
       end;
       for i:=0 to OperationsResume.Count-1 do begin
         Obj := jsonArray.GetAsObject(jsonArray.Count);
@@ -1431,6 +1555,38 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           TNetData.NetData.IpInfos.Unlock;
         End;
       end;
+    end;
+  end;
+
+  Procedure GetMethodsCallsStats;
+  var i : Integer;
+    obj: TPCJSONObject;
+    P : PRegisteredRPCProcessMethod;
+    LCalls, LMilis : Int64;
+  Begin
+    if Not Assigned(_RPCProcessMethods) then Exit;
+    LCalls := 0;
+    LMilis := 0;
+    i := 0;
+    while (i<_RPCProcessMethods.Count) do begin
+      P := _RPCProcessMethods.Get(i);
+      obj := GetResultArray.GetAsObject(GetResultArray.Count);
+      obj.GetAsVariant('method').Value := P.MethodName;
+      obj.GetAsVariant('calls').Value := P.CallsCounter;
+      obj.GetAsVariant('seconds').Value := FormatFloat('0.000',P.ElapsedMilis/1000);
+      if P.CallsCounter>0 then begin
+        obj.GetAsVariant('secs_average').Value := FormatFloat('0.000',(P.ElapsedMilis/1000)/P.CallsCounter);
+      end;
+      inc(LCalls,P.CallsCounter);
+      inc(LMilis,P.ElapsedMilis);
+      inc(i);
+    end;
+    obj := GetResultArray.GetAsObject(GetResultArray.Count);
+    obj.GetAsVariant('method').Value := 'TOTAL';
+    obj.GetAsVariant('calls').Value := LCalls;
+    obj.GetAsVariant('seconds').Value := FormatFloat('0.000',LMilis/1000);
+    if LCalls>0 then begin
+      obj.GetAsVariant('secs_average').Value := FormatFloat('0.000',(LMilis/1000)/LCalls);
     end;
   end;
 
@@ -2552,7 +2708,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   function FindNOperations : Boolean;
   Var oprl : TOperationsResumeList;
     start_block, account, n_operation_min, n_operation_max : Cardinal;
-    sor : TSearchOperationResult;
+    sor : TSearchOpHashResult;
     jsonarr : TPCJSONArray;
     i : Integer;
   begin
@@ -2575,13 +2731,13 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       start_block := params.AsCardinal('start_block',0); // Optional: 0 = Search all
       sor := FNode.FindNOperations(account,start_block,true,n_operation_min,n_operation_max,oprl);
       Case sor of
-        found : Result := True;
-        invalid_params : begin
+        OpHash_found : Result := True;
+        OpHash_invalid_params : begin
             ErrorNum:=CT_RPC_ErrNum_NotFound;
             ErrorDesc:='Not found using block/account/n_operation';
             exit;
           end;
-        blockchain_block_not_found : begin
+        OpHash_block_not_found : begin
             ErrorNum := CT_RPC_ErrNum_InvalidBlock;
             ErrorDesc:='Blockchain file does not contain all blocks to find';
             exit;
@@ -2591,7 +2747,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       jsonarr := jsonresponse.GetAsArray('result');
       if oprl.Count>0 then begin;
         for i:=0 to oprl.Count-1 do begin
-          FillOperationResumeToJSONObject(oprl.OperationResume[i],jsonarr.GetAsObject(jsonarr.Count));
+          FillOperationResumeToJSONObject(oprl.Items[i],jsonarr.GetAsObject(jsonarr.Count));
         end;
       end;
     finally
@@ -3299,81 +3455,15 @@ begin
     // Param "block" contains block. Null = Pending operation
     // Param "opblock" contains operation inside a block: (0..getblock.operations-1)
     // Returns a JSON object with operation values as "Operation resume format"
-    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
-    try
-    c := params.GetAsVariant('block').AsCardinal(CT_MaxBlock);
-    if (c>=0) And (c<FNode.Bank.BlocksCount) then begin
-      pcops := TPCOperationsComp.Create(Nil);
-      try
-        If Not FNode.Bank.LoadOperations(pcops,c) then begin
-          ErrorNum := CT_RPC_ErrNum_InternalError;
-          ErrorDesc := 'Cannot load Block: '+IntToStr(c);
-          Exit;
-        end;
-        i := params.GetAsVariant('opblock').AsInteger(0);
-        if (i<0) Or (i>=pcops.Count) then begin
-          ErrorNum := CT_RPC_ErrNum_InvalidOperation;
-          ErrorDesc := 'Block/Operation not found: '+IntToStr(c)+'/'+IntToStr(i)+' BlockOperations:'+IntToStr(pcops.Count);
-          Exit;
-        end;
-        If TPCOperation.OperationToOperationResume(c,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
-          opr.NOpInsideBlock:=i;
-          opr.time:=pcops.OperationBlock.timestamp;
-          opr.Balance := -1;
-          FillOperationResumeToJSONObject(opr,GetResultObject);
-        end;
-        Result := True;
-      finally
-        pcops.Free;
-      end;
-    end else begin
-      If (c=CT_MaxBlock) then ErrorDesc := 'Need block param'
-      else ErrorDesc := 'Block not found: '+IntToStr(c);
-      ErrorNum := CT_RPC_ErrNum_InvalidBlock;
-    end;
-    finally
-      Node.OperationSequenceLock.Release;
-    end;
+    Result := GetBlockOperation(params.GetAsVariant('block').AsInteger(CT_MaxBlock),
+      params.GetAsVariant('opblock').AsInteger(CT_MaxBlock),GetResultObject);
   end else if (method='getblockoperations') then begin
     // Param "block" contains block
     // Returns a JSON array with items as "Operation resume format"
-    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
-    try
-    c := params.GetAsVariant('block').AsCardinal(CT_MaxBlock);
-    if (c>=0) And (c<FNode.Bank.BlocksCount) then begin
-      pcops := TPCOperationsComp.Create(Nil);
-      try
-        If Not FNode.Bank.LoadOperations(pcops,c) then begin
-          ErrorNum := CT_RPC_ErrNum_InternalError;
-          ErrorDesc := 'Cannot load Block: '+IntToStr(c);
-          Exit;
-        end;
-        jsonarr := GetResultArray;
-        k := params.AsInteger('max',100);
-        j := params.AsInteger('start',0);
-        for i := 0 to pcops.Count - 1 do begin
-          if (i>=j) then begin
-            If TPCOperation.OperationToOperationResume(c,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
-              opr.NOpInsideBlock:=i;
-              opr.time:=pcops.OperationBlock.timestamp;
-              opr.Balance := -1; // Don't include!
-              FillOperationResumeToJSONObject(opr,jsonarr.GetAsObject(jsonarr.Count));
-            end;
-          end;
-          if (k>0) And ((i+1)>=(j+k)) then break;
-        end;
-        Result := True;
-      finally
-        pcops.Free;
-      end;
-    end else begin
-      If (c=CT_MaxBlock) then ErrorDesc := 'Need block param'
-      else ErrorDesc := 'Block not found: '+IntToStr(c);
-      ErrorNum := CT_RPC_ErrNum_InvalidBlock;
-    end;
-    finally
-      FNode.OperationSequenceLock.Release;
-    end;
+    Result := GetBlockOperations(params.GetAsVariant('block').AsInteger(CT_MaxBlock),
+      params.GetAsVariant('start').AsInteger(0),
+      params.GetAsVariant('max').AsInteger(100),
+      GetResultArray);
   end else if (method='getaccountoperations') then begin
     // Returns all the operations affecting an account in "Operation resume format" as an array
     // Param "account" contains account number
@@ -3446,36 +3536,30 @@ begin
       ErrorDesc:='param ophash not found or invalid hexadecimal value "'+params.AsString('ophash','')+'"';
       exit;
     end;
+    if (Length(r1)<>32) then begin
+      ErrorNum:=CT_RPC_ErrNum_InvalidOperation;
+      ErrorDesc:='param ophash with invalid length (Expected 64 chars for a 32bytes hexadecimal) value length = '+IntToStr(Length(r1));
+      exit;
+    end;
     FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
     try
-    pcops := TPCOperationsComp.Create(Nil);
-    try
-      Case FNode.FindOperationExt(pcops,r1,c,i) of
-        found : ;
-        invalid_params : begin
+      Case FNode.FindOperation(r1,opr) of
+        OpHash_found : ;
+        OpHash_invalid_params : begin
             ErrorNum:=CT_RPC_ErrNum_NotFound;
             ErrorDesc:='ophash not found: "'+params.AsString('ophash','')+'"';
             exit;
           end;
-        blockchain_block_not_found : begin
+        OpHash_block_not_found : begin
             ErrorNum := CT_RPC_ErrNum_InternalError;
-            ErrorDesc:='Blockchain block '+IntToStr(c)+' not found to search ophash: "'+params.AsString('ophash','')+'"';
+            ErrorDesc:='Blockchain block not found to search ophash: "'+params.AsString('ophash','')+'"';
             exit;
           end;
       else Raise Exception.Create('ERROR DEV 20171120-4');
       end;
-      If not TPCOperation.OperationToOperationResume(c,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
-        ErrorNum := CT_RPC_ErrNum_InternalError;
-        ErrorDesc := 'Error 20161026-1';
-      end;
-      opr.NOpInsideBlock:=i;
-      opr.time:=pcops.OperationBlock.timestamp;
       opr.Balance := -1; // don't include
       FillOperationResumeToJSONObject(opr,GetResultObject);
       Result := True;
-    finally
-      pcops.Free;
-    end;
     finally
       FNode.OperationSequenceLock.Release;
     end;
@@ -3489,13 +3573,13 @@ begin
     FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
     try
     Case FNode.FindNOperation(params.AsCardinal('block',0),c,params.AsCardinal('n_operation',0),opr) of
-      found : ;
-      invalid_params : begin
+      OpHash_found : ;
+      OpHash_invalid_params : begin
           ErrorNum:=CT_RPC_ErrNum_NotFound;
           ErrorDesc:='Not found using block/account/n_operation';
           exit;
         end;
-      blockchain_block_not_found : begin
+      OpHash_block_not_found : begin
           ErrorNum := CT_RPC_ErrNum_InvalidBlock;
           ErrorDesc:='Blockchain file does not contain all blocks to find';
           exit;
@@ -3973,6 +4057,14 @@ begin
     end;
     Get_node_ip_stats;
     Result := True;
+  end else if (method='methods_stats') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
+    GetMethodsCallsStats;
+    Result := True;
   end else begin
     LRPCProcessMethod := FindRegisteredProcessMethod(method);
     if Assigned(LRPCProcessMethod) then begin
@@ -3984,26 +4076,77 @@ begin
   end;
 end;
 
-class procedure TRPCProcess.RegisterProcessMethod(const AMethodName: String; ARPCProcessMethod: TRPCProcessMethod);
-var LRegistered : TRegisteredRPCProcessMethod;
+class procedure TRPCProcess.ProcessMethodCalled(const AMethodName: String;
+  AStartTickCount: TTickCount);
+var
+  P, PFound : PRegisteredRPCProcessMethod;
+  i : Integer;
 begin
   if Not Assigned(_RPCProcessMethods) then begin
-    _RPCProcessMethods := TList<TRegisteredRPCProcessMethod>.Create;
+    _RPCProcessMethods := TOrderedList<PRegisteredRPCProcessMethod>.Create(False,TRegisteredRPCProcessMethod_Comparer);
   end;
-  if Assigned(FindRegisteredProcessMethod(AMethodName)) then Exit; // Duplicated!
-  LRegistered.MethodName := AMethodName;
-  LRegistered.RPCProcessMethod := ARPCProcessMethod;
-  _RPCProcessMethods.Add(LRegistered);
+  New(P);
+  try
+    P.Clear;
+    P.MethodName := AMethodName;
+    if _RPCProcessMethods.Find(P,i) then begin
+      PFound := _RPCProcessMethods.Get(i);
+    end else begin
+      // Create
+      New(PFound);
+      PFound.Clear;
+      PFound.MethodName := AMethodName;
+      _RPCProcessMethods.Add(PFound);
+    end;
+    if (AStartTickCount>0) then begin
+      inc(PFound.CallsCounter);
+      inc(PFound.ElapsedMilis,Int64(TPlatform.GetElapsedMilliseconds(AStartTickCount)));
+    end;
+  finally
+    Dispose(P);
+  end;
+end;
+
+class procedure TRPCProcess.RegisterProcessMethod(const AMethodName: String; ARPCProcessMethod: TRPCProcessMethod);
+var
+  P, PFound : PRegisteredRPCProcessMethod;
+  i : Integer;
+begin
+  if Not Assigned(_RPCProcessMethods) then begin
+    _RPCProcessMethods := TOrderedList<PRegisteredRPCProcessMethod>.Create(False,TRegisteredRPCProcessMethod_Comparer);
+  end;
+  New(P);
+  try
+    P.Clear;
+    P.MethodName := AMethodName;
+    if _RPCProcessMethods.Find(P,i) then begin
+      PFound := _RPCProcessMethods.Get(i);
+    end else begin
+      // Create
+      New(PFound);
+      PFound.Clear;
+      PFound.MethodName := AMethodName;
+      _RPCProcessMethods.Add(PFound);
+    end;
+    PFound.RPCProcessMethod := ARPCProcessMethod;
+  finally
+    Dispose(P);
+  end;
 end;
 
 class procedure TRPCProcess.UnregisterProcessMethod(const AMethodName: String);
-var i : Integer;
+var
+  P : PRegisteredRPCProcessMethod;
+  i : Integer;
 begin
   if Not Assigned(_RPCProcessMethods) then Exit;
-  for i := _RPCProcessMethods.Count-1 downto 0 do begin
-    if AnsiSameStr(_RPCProcessMethods.Items[i].MethodName , AMethodName) then begin
-      _RPCProcessMethods.Delete(i);
-    end;
+  New(P);
+  try
+    P.Clear;
+    P.MethodName := AMethodName;
+    _RPCProcessMethods.Remove(P);
+  finally
+    Dispose(P);
   end;
 end;
 
@@ -4055,14 +4198,27 @@ end;
 
 procedure DoFinalize;
 var i : Integer;
+  P : PRegisteredRPCProcessMethod;
 begin
   if Assigned(_RPCProcessMethods) then begin
     for i := _RPCProcessMethods.Count-1 downto 0 do begin
+      P := _RPCProcessMethods.Get(i);
       _RPCProcessMethods.Delete(i);
+      Dispose(P);
     end;
   end;
   FreeAndNil(_RPCProcessMethods);
   FreeAndNil(_RPCServer);
+end;
+
+{ TRegisteredRPCProcessMethod }
+
+procedure TRegisteredRPCProcessMethod.Clear;
+begin
+  Self.MethodName := '';
+  Self.RPCProcessMethod := Nil;
+  Self.CallsCounter := 0;
+  Self.ElapsedMilis := 0;
 end;
 
 initialization

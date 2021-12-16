@@ -27,7 +27,7 @@ interface
 
 Uses UCrypto, UBlockChain, Classes, UAccounts, UBaseTypes,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
-  UPCDataTypes, UEPasa;
+  UPCDataTypes, UEPasa, UOrderedList;
 
 Type
   // Operations Type
@@ -91,7 +91,7 @@ Type
   public
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
     function DoOperation(APrevious : TAccountPreviousBlockInfo; ASafeBoxTransaction : TPCSafeBoxTransaction; var AErrors : String) : Boolean; override;
-    procedure AffectedAccounts(list : TList<Cardinal>); override;
+    procedure AffectedAccounts(list : TOrderedList<Cardinal>); override;
     //
     class function OpType : Byte; override;
     function OperationAmount : Int64; override;
@@ -132,7 +132,7 @@ Type
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
-    procedure AffectedAccounts(list : TList<Cardinal>); override;
+    procedure AffectedAccounts(list : TOrderedList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Constructor Create(ACurrentProtocol : Word; account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey; new_account_key : TAccountKey; fee: UInt64; const payload: TOperationPayload);
     Property Data : TOpChangeKeyData read FData;
@@ -171,7 +171,7 @@ Type
     function SignerAccount : Cardinal; override;
     function N_Operation : Cardinal; override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
-    procedure AffectedAccounts(list : TList<Cardinal>); override;
+    procedure AffectedAccounts(list : TOrderedList<Cardinal>); override;
     Constructor Create(ACurrentProtocol : word; account_number, n_operation: Cardinal; fee: UInt64; new_accountkey : TAccountKey);
     Property Data : TOpRecoverFoundsData read FData;
     Function toString : String; Override;
@@ -243,7 +243,7 @@ Type
     function DestinationAccount : Int64; override;
     function SellerAccount : Int64; override;
     function N_Operation : Cardinal; override;
-    procedure AffectedAccounts(list : TList<Cardinal>); override;
+    procedure AffectedAccounts(list : TOrderedList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Property Data : TOpListAccountData read FData;
     Function toString : String; Override;
@@ -297,7 +297,7 @@ Type
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
-    procedure AffectedAccounts(list : TList<Cardinal>); override;
+    procedure AffectedAccounts(list : TOrderedList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Constructor CreateChangeAccountInfo(ACurrentProtocol : word;
       account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey;
@@ -349,7 +349,7 @@ Type
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
-    procedure AffectedAccounts(list : TList<Cardinal>); override;
+    procedure AffectedAccounts(list : TOrderedList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Constructor CreateOpData( ACurrentProtocol : word; account_signer, account_sender, account_target : Cardinal; signer_key:TECPrivateKey; n_operation : Cardinal; dataType, dataSequence : Word; AGUID : TGUID; amount, fee : UInt64; const payload: TOperationPayload);
     Property Data : TOpDataData read FData;
@@ -655,7 +655,7 @@ begin
   Result := FData.n_operation;
 end;
 
-procedure TOpChangeAccountInfo.AffectedAccounts(list: TList<Cardinal>);
+procedure TOpChangeAccountInfo.AffectedAccounts(list: TOrderedList<Cardinal>);
 begin
   list.Add(FData.account_signer);
   if (FData.account_target<>FData.account_signer) then list.Add(FData.account_target);
@@ -774,7 +774,7 @@ end;
 
 { TOpTransaction }
 
-procedure TOpTransaction.AffectedAccounts(list: TList<Cardinal>);
+procedure TOpTransaction.AffectedAccounts(list: TOrderedList<Cardinal>);
 begin
   list.Add(FData.sender);
   list.Add(FData.target);
@@ -1392,7 +1392,7 @@ end;
 
 { TOpChangeKey }
 
-procedure TOpChangeKey.AffectedAccounts(list: TList<Cardinal>);
+procedure TOpChangeKey.AffectedAccounts(list: TOrderedList<Cardinal>);
 begin
   list.Add(FData.account_signer);
   if (FData.account_target<>FData.account_signer) then list.Add(FData.account_target);
@@ -1739,7 +1739,7 @@ end;
 
 { TOpRecoverFounds }
 
-procedure TOpRecoverFounds.AffectedAccounts(list: TList<Cardinal>);
+procedure TOpRecoverFounds.AffectedAccounts(list: TOrderedList<Cardinal>);
 begin
   list.Add(FData.account);
 end;
@@ -1930,7 +1930,7 @@ end;
 
 { TOpListAccount }
 
-procedure TOpListAccount.AffectedAccounts(list: TList<Cardinal>);
+procedure TOpListAccount.AffectedAccounts(list: TOrderedList<Cardinal>);
 begin
   list.Add(FData.account_signer);
   if FData.account_signer<>FData.account_target then
@@ -2817,7 +2817,7 @@ begin
   Result := FData.n_operation;
 end;
 
-procedure TOpData.AffectedAccounts(list: TList<Cardinal>);
+procedure TOpData.AffectedAccounts(list: TOrderedList<Cardinal>);
 begin
   list.Add(FData.account_signer);
   if (FData.account_signer<>FData.account_sender) then begin

@@ -138,10 +138,7 @@ end;
 
 procedure TFRMPayloadDecoder.DoFind(Const OpHash : String);
 Var
-  r,md160 : TRawBytes;
-  pcops : TPCOperationsComp;
-  nBlock,nAccount,nN_Operation : Cardinal;
-  opbi : Integer;
+  r : TRawBytes;
   opr : TOperationResume;
   strings : TStrings;
   FRM : TFRMMemoText;
@@ -156,46 +153,13 @@ begin
     if (Length(r)=0) then begin
       raise Exception.Create('Value is not an hexadecimal string');
     end;
-    // Build 2.1.4 new decoder option: Check if OpHash is a posible double spend
-    If not TPCOperation.DecodeOperationHash(r,nBlock,nAccount,nN_Operation,md160) then begin
-      raise Exception.Create('Value is not a valid OPHASH because can''t extract Block/Account/N_Operation info');
-    end;
-    Case TNode.Node.FindNOperation(nBlock,nAccount,nN_Operation,opr) of
-      invalid_params : raise Exception.Create(Format('Not a valid OpHash searching at Block:%d Account:%d N_Operation:%d',[nBlock,nAccount,nN_Operation]));
-      blockchain_block_not_found : raise Exception.Create('Your blockchain file does not contain all blocks to find');
-      found : ;
+    case TNode.Node.FindOperation(r,opr) of
+      OpHash_invalid_params : raise Exception.Create(Format('Not a valid OpHash %s',[OpHash]));
+      OpHash_block_not_found : raise Exception.Create('Your blockchain file does not contain all blocks to find');
+      OpHash_found : ;
     else raise Exception.Create('ERROR DEV 20171120-6');
     end;
-    If (TPCOperation.EqualOperationHashes(opr.OperationHash,r)) Or
-       (TPCOperation.EqualOperationHashes(opr.OperationHash_OLD,r)) then begin
-      // Found!
-      OpResume := opr;
-    end else begin
-      // Not found!
-      strings := TStringList.Create;
-      try
-        strings.Add('Posible double spend detected!');
-        strings.Add(Format('OpHash: %s',[OpHash]));
-        strings.Add(Format('Decode OpHash info: Block:%d Account:%s N_Operation:%d',[nBlock,TAccountComp.AccountNumberToAccountTxtNumber(nAccount),nN_Operation]));
-        strings.Add('');
-        strings.Add('Real OpHash found in PascalCoin Blockchain:');
-        strings.Add(Format('OpHash: %s',[TCrypto.ToHexaString(opr.OperationHash)]));
-        strings.Add(Format('Decode OpHash info: Block:%d Account:%s N_Operation:%d',[opr.Block,TAccountComp.AccountNumberToAccountTxtNumber(opr.SignerAccount),opr.n_operation]));
-        If (opr.Block=0) then begin
-          strings.Add('* Note: This is a pending operation not included on Blockchain');
-        end;
-        OpResume := opr; // Do show operation resume!
-        FRM := TFRMMemoText.Create(Self);
-        try
-          FRM.InitData('Posible double spend detected',strings.Text);
-          FRM.ShowModal;
-        finally
-          FRM.Free;
-        end;
-      finally
-        strings.Free;
-      end;
-    end;
+    OpResume := opr;
   Except
     OpResume := CT_TOperationResume_NUL;
     try

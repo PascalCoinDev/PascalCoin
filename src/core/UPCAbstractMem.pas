@@ -514,8 +514,7 @@ begin
     FAbstractMem := TMem.Create(0,AReadOnly);
   end;
   if FAbstractMem is TFileMem then begin
-    TFileMem(FAbstractMem).MaxCacheSize := FMaxMemUsage;
-    TFileMem(FAbstractMem).MaxCacheDataBlocks := 200000;
+    TFileMem(FAbstractMem).SetCachePerformance(True,1024,FMaxMemUsage,200000);
   end;
 
   DoInit(LIsNewStructure);
@@ -746,8 +745,7 @@ procedure TPCAbstractMem.SetMaxMemUsage(const Value: Integer);
 begin
   FMaxMemUsage := Value;
   if FAbstractMem is TFileMem then begin
-    TFileMem(FAbstractMem).MaxCacheSize := FMaxMemUsage;
-    TFileMem(FAbstractMem).MaxCacheDataBlocks := 200000;
+    TFileMem(FAbstractMem).SetCachePerformance(True,1024,FMaxMemUsage,200000);
   end;
 end;
 
@@ -801,8 +799,7 @@ begin
     FAbstractMem := TMem.Create(0,LReadOnly);
   end;
   if FAbstractMem is TFileMem then begin
-    TFileMem(FAbstractMem).MaxCacheSize := FMaxMemUsage;
-    TFileMem(FAbstractMem).MaxCacheDataBlocks := 200000;
+    TFileMem(FAbstractMem).SetCachePerformance(True,1024,FMaxMemUsage,200000);
   end;
   DoInit(Ltmp);
 end;
@@ -980,7 +977,7 @@ begin
   Lani.accountName := AName;
   Lani.accountNumber := AAccountNumber;
   if Not AddData(Lani) then begin
-    if Not FindData(Lani,Lposition) then
+    if Not FindDataPos(Lani,Lposition) then
       raise EPCAbstractMem.Create(Format('Fatal error Cannot add account(%d) name %s',[AAccountNumber,AName]))
     else raise EPCAbstractMem.Create(Format('Cannot add account(%d) name %s because used by %d with %s',[AAccountNumber,AName,
       Lani.accountNumber,Lani.accountName]));
@@ -1012,7 +1009,7 @@ var Lani : TAccountNameInfo;
 begin
   Lani.accountName := AName;
   Lani.accountNumber := 0;
-  Result := FindData(Lani,AAbstractMemPosition);
+  Result := FindDataPos(Lani,AAbstractMemPosition);
 end;
 
 { TPCAbstractMemListBlocks }
