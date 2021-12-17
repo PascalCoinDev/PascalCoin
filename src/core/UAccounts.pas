@@ -4916,11 +4916,11 @@ begin
 
         If (iDeleted<0) then begin
           If (iAdded<0) then begin
-            {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Deleted from PREVIOUS snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
+            {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Deleted from PREVIOUS snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name.ToPrintable,account_number]));{$ENDIF}
             FDeletedNamesSincePreviousSafebox.Add(blockAccount.accounts[iAccount].name,account_number); // Very important to store account_number in order to restore a snapshot!
           end else begin
             // Was added, so delete from added
-            {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Deleted from current snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
+            {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Deleted from current snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name.ToPrintable,account_number]));{$ENDIF}
             FAddedNamesSincePreviousSafebox.Delete(iAdded);
           end;
         end else begin
@@ -4951,17 +4951,17 @@ begin
         If (iDeleted>=0) Then begin
           if (FDeletedNamesSincePreviousSafebox.GetTag(iDeleted)=account_number) then begin
             // Is restoring to initial position, delete from deleted
-            {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Adding equal to PREVIOUS (DELETING FROM DELETED) snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
+            {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Adding equal to PREVIOUS (DELETING FROM DELETED) snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name.ToPrintable,account_number]));{$ENDIF}
             FDeletedNamesSincePreviousSafebox.Delete(iDeleted);
             if iAdded>=0 then FAddedNamesSincePreviousSafebox.Remove(blockAccount.accounts[iAccount].name);
           end else begin
             // Was deleted, but now adding to a new account
-            {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Adding again name:%s to new account account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
+            {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Adding again name:%s to new account account:%d',[blockAccount.accounts[iAccount].name.ToPrintable,account_number]));{$ENDIF}
             FAddedNamesSincePreviousSafebox.Add(blockAccount.accounts[iAccount].name,account_number);
           end;
         end else begin
           // Was not deleted, Add it
-          {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Adding first time at this snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
+          {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Adding first time at this snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name.ToPrintable,account_number]));{$ENDIF}
           FAddedNamesSincePreviousSafebox.Add(blockAccount.accounts[iAccount].name,account_number);
         end;
       end;
