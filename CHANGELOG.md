@@ -5,6 +5,7 @@
 - Improvements on TStorage to allow usage of AbstractMem library
 - AbstractMem library v1.6 with improvements on speed and allowing 64bits offsets for files +4Gb
 - Daemon:
+  - Usage of Fast Memory Manager for FPC x86_64 on Linux as part of mORMot framework. Copyright (C) 2021 Arnaud Bouchez
   - log files separated by date: pascalcoin.log -> pascalcoin_YYYY-MM-DD.log
   - RPC log files separated by date: pascalcoin_rpc.log -> pascalcoin_rpc_YYYY-MM-DD.log
   - Peers cache stored on a separated file at DATAFOLDER with name "peers_cache.ini" instead of "pascacoin_daemon.ini"
