@@ -44,7 +44,7 @@ Const
   CT_INI_IDENT_MINER_MAX_CONNECTIONS = 'RPC_SERVERMINER_MAX_CONNECTIONS';
   CT_INI_IDENT_MINER_MAX_OPERATIONS_PER_BLOCK = 'RPC_SERVERMINER_MAX_OPERATIONS_PER_BLOCK';
   CT_INI_IDENT_MINER_MAX_ZERO_FEE_OPERATIONS  = 'RPC_SERVERMINER_MAX_ZERO_FEE_OPERATIONS';
-  CT_INI_IDENT_LOWMEMORY = 'LOWMEMORY';
+  CT_INI_IDENT_LOWMEMORY = 'LOWMEMORY';  // TODO: Not used currently...
   CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT = 'MINPENDINGBLOCKSTODOWNLOADCHECKPOINT';
   CT_INI_IDENT_PEERCACHE = 'PEERCACHE';
   CT_INI_IDENT_DATA_FOLDER = 'DATAFOLDER';
@@ -61,12 +61,16 @@ Type
 
   TPCDaemonThread = Class(TPCThread)
   private
+    FRPC : TRPCServer;
     FIniFile : TIniFile;
+    FPeerCache : TIniFile;
     FMaxBlockToRead: Int64;
     FLastNodesCacheUpdatedTS : TTickCount;
+    FLogsDate : TDate;
     function GetDataFolder : String;
     procedure OnNetDataReceivedHelloMessage(Sender : TObject);
     procedure OnInitSafeboxProgressNotify(sender : TObject; const message : String; curPos, totalCount : Int64);
+    procedure UpdateLogFilenames;
   protected
     Procedure BCExecute; override;
   public
@@ -139,7 +143,7 @@ begin
     if (s<>'') then s := s+';';
     s := s + LNsarr[i].ip+':'+IntToStr( LNsarr[i].port );
   end;
-  FIniFile.WriteString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_PEERCACHE,s);
+  FPeerCache.WriteString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_PEERCACHE,s);
   TNode.Node.PeerCache := s;
 end;
 
@@ -149,11 +153,25 @@ begin
   TLog.NewLog(ltdebug,ClassName,Format('Progress (%d/%d): %s',[curPos,totalCount,message]));
 end;
 
+procedure TPCDaemonThread.UpdateLogFilenames;
+var LDateStr : String;
+begin
+  LDateStr := FormatDateTime('yyyy-mm-dd',FLogsDate);
+  // Need to update filenames:
+  if (Assigned(_FLOG)) and (FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_SAVELOGS,true)) then begin
+    // Update LOG
+    _FLog.FileName:=GetDataFolder+PathDelim+'pascalcoin_'+LDateStr+'.log';
+  end;
+  //
+  If (Assigned(FRPC)) and (FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,true)) then begin
+    FRPC.LogFileName:= GetDataFolder+PathDelim+'pascalcoin_rpc_'+LDateStr+'.log';
+  end;
+end;
+
 procedure TPCDaemonThread.BCExecute;
 var
   FNode : TNode;
   FWalletKeys : TWalletKeysExt;
-  FRPC : TRPCServer;
   FMinerServer : TPoolMiningServer;
 
   Procedure InitRPCServer;
@@ -174,12 +192,12 @@ var
     TLog.NewLog(ltInfo,ClassName,'RPC server is active on port '+IntToStr(port));
     If FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,true) then begin
       FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,true);
-      FRPC.LogFileName:= GetDataFolder+PathDelim+'pascalcoin_rpc.log';
       TLog.NewLog(ltInfo,ClassName,'Activating RPC logs on file '+FRPC.LogFileName);
     end else begin
       FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,false);
       TLog.NewLog(ltInfo,ClassName,'RPC logs not enabled on IniFile value '+CT_INI_IDENT_RPC_SAVELOGS+'=0');
     end;
+    UpdateLogFilenames;
   end;
 
   Procedure InitRPCMinerServer;
@@ -243,6 +261,15 @@ var
       TLog.NewLog(ltinfo,ClassName,'RPC Miner Server NOT ACTIVE (Ini file is '+CT_INI_IDENT_RPC_SERVERMINER_PORT+'=0)');
     end;
   end;
+
+  procedure CheckUpdateLogFilenames;
+  begin
+    if (Not SameStr( FormatDateTime('yyyymmdd',FLogsDate) , FormatDateTime('yyyymmdd',Now()) )) then begin
+      FLogsDate := Now();
+      UpdateLogFilenames
+    end;
+  end;
+
   {$IFDEF USE_ABSTRACTMEM}
   var LMaxMemMb : Integer;
     LUseCacheOnMemLists : Boolean;
@@ -280,12 +307,12 @@ begin
       Try
         // Check Database
         FNode.Bank.StorageClass := TFileStorage;
-        TFileStorage(FNode.Bank.Storage).DatabaseFolder := GetDataFolder+PathDelim+'Data';
-        TFileStorage(FNode.Bank.Storage).LowMemoryUsage := FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_LOWMEMORY,False);
         // By default daemon will not download checkpoint except if specified on INI file
         TNetData.NetData.MinFutureBlocksToDownloadNewSafebox := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT,0);
         TNetData.NetData.OnReceivedHelloMessage:=@OnNetDataReceivedHelloMessage;
-        FNode.PeerCache:=  FIniFile.ReadString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_PEERCACHE,'');
+        if Assigned(FPeerCache) then begin
+          FNode.PeerCache:=  FPeerCache.ReadString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_PEERCACHE,'');
+        end;
         // Reading database
         FNode.InitSafeboxAndOperations(MaxBlockToRead,@OnInitSafeboxProgressNotify);
         FWalletKeys.SafeBox := FNode.Node.Bank.SafeBox;
@@ -300,8 +327,13 @@ begin
         Try
           TPCTNetDataExtraMessages.InitNetDataExtraMessages(FNode,TNetData.NetData,FWalletKeys);
           Repeat
-            Sleep(100);
+            Sleep(500);
+            CheckUpdateLogFilenames;
           Until (Terminated) or (Application.Terminated);
+
+          FNode.NetServer.Active := false;
+          TNetData.NetData.NetConnectionsActive:=false;
+
         finally
           FreeAndNil(FMinerServer);
         end;
@@ -324,14 +356,24 @@ end;
 constructor TPCDaemonThread.Create;
 begin
   inherited Create(True);
+  FRPC := Nil;
+  FLogsDate := Now();
   FLastNodesCacheUpdatedTS := TPlatform.GetTickCount;
   FIniFile := TIniFile.Create(ExtractFileDir(Application.ExeName)+PathDelim+'pascalcoin_daemon.ini');
   If FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_SAVELOGS,true) then begin
     _FLog.SaveTypes:=CT_TLogTypes_ALL;
-    _FLog.FileName:=TNode.GetPascalCoinDataFolder+PathDelim+'pascalcoin_'+FormatDateTime('yyyymmddhhnn',Now)+'.log';
     FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_SAVELOGS,true);
+    UpdateLogFilenames;
   end else begin
     FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_SAVELOGS,false);
+  end;
+  Try
+    FPeerCache := TIniFile.Create(GetDataFolder+PathDelim+'peers_cache.ini');
+  Except
+    on E:Exception do begin
+      FPeerCache := Nil;
+      TLog.NewLog(lterror,ClassName,'Peercache file error '+E.ClassName+':'+E.Message);
+    end;
   end;
   FMaxBlockToRead:=$FFFFFFFF;
   TLog.NewLog(ltinfo,ClassName,'Create');
@@ -339,6 +381,8 @@ end;
 
 destructor TPCDaemonThread.Destroy;
 begin
+  FreeAndNil(FRPC);
+  FreeAndNil(FPeerCache);
   FreeAndNil(FIniFile);
   inherited Destroy;
 end;
@@ -429,6 +473,7 @@ procedure TPCDaemonMapper.DoOnDestroy;
 begin
   inherited DoOnDestroy;
   If Assigned(FLog) then begin
+    _FLog := Nil;
     FLog.OnInThreadNewLog:=Nil;
     FreeAndNil(FLog);
   end;

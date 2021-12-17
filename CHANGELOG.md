@@ -1,5 +1,14 @@
 # Changelog
 
+## Build 5.7 - PENDING
+- Improvements on TMemPool save to file to protect continued saving process
+- Improvements on TStorage to allow usage of AbstractMem library
+- AbstractMem library v1.6 with improvements on speed and allowing 64bits offsets for files +4Gb
+- Daemon:
+  - log files separated by date: pascalcoin.log -> pascalcoin_YYYY-MM-DD.log
+  - RPC log files separated by date: pascalcoin_rpc.log -> pascalcoin_rpc_YYYY-MM-DD.log
+  - Peers cache stored on a separated file at DATAFOLDER with name "peers_cache.ini" instead of "pascacoin_daemon.ini"
+
 ## Build 5.6 - 2021-11-02
 ** MINERS SHOULD UPDATE AS SOON AS POSSIBLE **
 - Assigned OP_RECOVER automatically to miner using miner AccountKey
