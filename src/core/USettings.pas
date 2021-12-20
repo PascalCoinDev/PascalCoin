@@ -264,6 +264,7 @@ class function TSettings.GetDefaultFee : Int64;
 begin
   CheckLoaded;
   Result := FAppParams.ParamByName[CT_PARAM_DefaultFee].GetAsInt64(0);
+  if (Not CT_AllowPropagate0feeOperations) and (Result<=0) then Result := 1;
 end;
 
 class procedure TSettings.SetDefaultFee(AInt64: Int64);

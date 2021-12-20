@@ -2719,6 +2719,7 @@ var c,i : Integer;
     operations : TOperationsHashTree;
     errors : String;
   DoDisconnect : Boolean;
+  Lopc,Lprc : Integer;
 begin
   DoDisconnect := true;
   operations := TOperationsHashTree.Create;
@@ -2727,30 +2728,9 @@ begin
       errors := 'Not autosend';
       exit;
     end;
-    if (NetProtocolVersion.protocol_available>=10) then begin
-      if Not operations.LoadOperationsHashTreeFromStream(DataBuffer,False,TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,errors) then Exit;
-    end else begin
-      // TODO:
-      // After V5 Activation all this code can be deleted, not used anymore
-      if DataBuffer.Size<4 then begin
-        errors := 'Invalid databuffer size';
-        exit;
-      end;
-      DataBuffer.Read(c,4);
-      for i := 1 to c do begin
-        errors := 'Invalid operation '+inttostr(i)+'/'+inttostr(c);
-        if not DataBuffer.Read(optype,1)=1 then exit;
-        opclass := TPCOperationsComp.GetOperationClassByOpType(optype);
-        if Not Assigned(opclass) then exit;
-        op := opclass.Create(TNode.Node.Bank.SafeBox.CurrentProtocol);
-        Try
-          op.LoadFromNettransfer(DataBuffer);
-          operations.AddOperationToHashTree(op);
-        Finally
-          op.Free;
-        End;
-      end;
-    end;
+    if Not operations.LoadOperationsHashTreeFromStream(DataBuffer,False,
+      TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,
+      CT_AllowPropagate0feeOperations,Lopc,Lprc,errors) then Exit;
     DoDisconnect := false;
   finally
     try
@@ -3333,7 +3313,7 @@ Var dataSend, dataReceived : TMemoryStream;
   headerData : TNetHeaderData;
   opht : TOperationsHashTree;
   errors : String;
-  i : Integer;
+  i,Lopc,Lprc : Integer;
 begin
   {$IFDEF PRODUCTION}
   If FNetProtocolVersion.protocol_available<=6 then Exit; // Note: GetPendingOperations started on protocol_available=7
@@ -3380,7 +3360,10 @@ begin
       //
       opht := TOperationsHashTree.Create;
       try
-        If Not opht.LoadOperationsHashTreeFromStream(dataReceived,False,FRemoteOperationBlock.protocol_version,FRemoteOperationBlock.protocol_version,Nil,errors) then begin
+        If Not opht.LoadOperationsHashTreeFromStream(dataReceived,False,
+          FRemoteOperationBlock.protocol_version,FRemoteOperationBlock.protocol_version,Nil,
+          CT_AllowPropagate0feeOperations,Lopc,Lprc,errors)
+        then begin
           DisconnectInvalidClient(False,'Invalid operations hash tree stream: '+errors);
           Exit;
         end;

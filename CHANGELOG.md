@@ -1,6 +1,8 @@
 # Changelog
 
 ## Build 5.7 - PENDING
+- This version will not propagate 0-Fee operations, but will allow 0-Fee operations to the blockchain (CT_AllowPropagate0feeOperations=False)
+  - A wallet that wants to execute 0-Fee operations will need to connect to a miner/pool/node running a 5.6 version or solomine
 - Improvements on TMemPool save to file to protect continued saving process
 - Improvements on TStorage to allow usage of AbstractMem library
 - AbstractMem library v1.6 with improvements on speed and allowing 64bits offsets for files +4Gb

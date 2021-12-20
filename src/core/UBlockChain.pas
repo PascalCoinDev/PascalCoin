@@ -350,7 +350,8 @@ Type
     Property TotalAmount : Int64 read FTotalAmount;
     Property TotalFee : Int64 read FTotalFee;
     function SaveOperationsHashTreeToStream(AStream: TStream; ASaveToStorage : Boolean): Boolean;
-    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean;
+    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean; overload;
+    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; AAllow0FeeOperations : Boolean; var AOperationsCount, AProcessedCount : Integer; var AErrors : String): Boolean; overload;
     function IndexOfOperation(op : TPCOperation) : Integer;
     function CountOperationsBySameSignerWithoutFee(account_number : Cardinal) : Integer;
     Procedure Delete(index : Integer);
@@ -3056,7 +3057,11 @@ begin
   Index := L;
 end;
 
-function TOperationsHashTree.LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean;
+function TOperationsHashTree.LoadOperationsHashTreeFromStream(AStream: TStream;
+  ALoadingFromStorage: Boolean; ASetOperationsToProtocolVersion,
+  ALoadFromStorageVersion: Word;
+  APreviousUpdatedBlocks: TAccountPreviousBlockInfo;
+  AAllow0FeeOperations: Boolean; var AOperationsCount, AProcessedCount : Integer; var AErrors: String): Boolean;
 Var c, i: Cardinal;
   LOpTypeWord : Word;
   LOpProtocolVersion : Word;
@@ -3065,7 +3070,10 @@ Var c, i: Cardinal;
   LOpClass: TPCOperationClass;
   LLastNE : TNotifyEvent;
 begin
-  Result := false;
+  Result := False;
+  AErrors := '';
+  AOperationsCount := 0;
+  AProcessedCount := 0;
   //
   If AStream.Read(c, 4)<4 then begin
     AErrors := 'Cannot read operations count';
@@ -3114,6 +3122,7 @@ begin
         AErrors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c) + ' optype not valid:' + InttoHex(LOpTypeWord, 2);
         Exit;
       end;
+      inc(AOperationsCount);
       LOperation := LOpClass.Create(LOpProtocolVersion);
       Try
         if ALoadingFromStorage then begin
@@ -3125,7 +3134,12 @@ begin
           AErrors := 'Invalid operation load from stream ' + inttostr(i) + '/' + inttostr(c)+' Class:'+LOpClass.ClassName;
           Exit;
         end;
-        AddOperationToHashTree(LOperation);
+        if (AAllow0FeeOperations) or (LOperation.OperationFee>0) then begin
+          AddOperationToHashTree(LOperation);
+          inc(AProcessedCount);
+        end else begin
+          {$IF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Not added a 0fee operation: %s',[LOperation.ToString]));{$ENDIF}
+        end;
       Finally
         FreeAndNil(LOperation);
       end;
@@ -3135,7 +3149,13 @@ begin
   end;
   If Assigned(FOnChanged) then FOnChanged(Self);
   AErrors := '';
-  Result := true;
+  Result := True;
+end;
+
+function TOperationsHashTree.LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean;
+var Lopc,Lprc : Integer;
+begin
+  Result := LoadOperationsHashTreeFromStream(AStream,ALoadingFromStorage,ASetOperationsToProtocolVersion,ALoadFromStorageVersion,APreviousUpdatedBlocks,True,Lopc,Lprc,AErrors);
 end;
 
 procedure TOperationsHashTree.MarkVerifiedECDSASignatures(operationsHashTreeToMark: TOperationsHashTree);
