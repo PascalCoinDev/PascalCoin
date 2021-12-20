@@ -393,6 +393,7 @@ end;
 function TOpChangeAccountInfo.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
 var LAccount : TAccount;
 begin
+  if (FData.account_signer<0) or (FData.account_signer>=ASafeBoxTransaction.FreezedSafeBox.AccountsCount) then Exit(False); // Preventing exception
   LAccount := ASafeBoxTransaction.Account(FData.account_signer);
   Result := IsValidECDSASignature(LAccount.accountInfo.accountkey,FData.sign);
 end;
@@ -1133,6 +1134,7 @@ end;
 function TOpTransaction.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
 var LAccount : TAccount;
 begin
+  if (FData.sender<0) or (FData.sender>=ASafeBoxTransaction.FreezedSafeBox.AccountsCount) then Exit(False); // Preventing exception
   LAccount := ASafeBoxTransaction.Account(FData.sender);
   Result := IsValidECDSASignature(LAccount.accountInfo.accountkey,FData.sign);
 end;
@@ -1579,6 +1581,7 @@ end;
 function TOpChangeKey.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
 var LAccount : TAccount;
 begin
+  if (FData.account_signer<0) or (FData.account_signer>=ASafeBoxTransaction.FreezedSafeBox.AccountsCount) then Exit(False); // Preventing exception
   LAccount := ASafeBoxTransaction.Account(FData.account_signer);
   Result := IsValidECDSASignature(LAccount.accountInfo.accountkey,FData.sign);
 end;
@@ -2163,6 +2166,7 @@ end;
 function TOpListAccount.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
 var LAccount : TAccount;
 begin
+  if (FData.account_signer<0) or (FData.account_signer>=ASafeBoxTransaction.FreezedSafeBox.AccountsCount) then Exit(False); // Preventing exception
   LAccount := ASafeBoxTransaction.Account(FData.account_signer);
   Result := IsValidECDSASignature(LAccount.accountInfo.accountkey,FData.sign);
 end;
@@ -2574,6 +2578,7 @@ end;
 function TOpData.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
 var LAccount : TAccount;
 begin
+  if (FData.account_signer<0) or (FData.account_signer>=ASafeBoxTransaction.FreezedSafeBox.AccountsCount) then Exit(False); // Preventing exception
   LAccount := ASafeBoxTransaction.Account(FData.account_signer);
   Result := IsValidECDSASignature(LAccount.accountInfo.accountkey,FData.sign);
 end;

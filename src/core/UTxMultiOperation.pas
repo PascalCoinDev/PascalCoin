@@ -504,6 +504,7 @@ begin
     ophtosign := GetDigestToSign;
     // Tx verification
     For i:=Low(FData.txSenders) to High(FData.txSenders) do begin
+      if (FData.txSenders[i].Account<0) or (FData.txSenders[i].Account>=AccountTransaction.FreezedSafeBox.AccountsCount) then Exit(False); // Preventing exception
       acc := AccountTransaction.Account(FData.txSenders[i].Account);
       If (length(FData.txSenders[i].Signature.r)>0) And
          (length(FData.txSenders[i].Signature.s)>0) then begin
@@ -523,6 +524,7 @@ begin
     end;
     // Change verification
     For i:=Low(FData.changesInfo) to High(FData.changesInfo) do begin
+      if (FData.changesInfo[i].Account<0) or (FData.changesInfo[i].Account>=AccountTransaction.FreezedSafeBox.AccountsCount) then Exit(False); // Preventing exception
       acc := AccountTransaction.Account(FData.changesInfo[i].Account);
       If (length(FData.changesInfo[i].Signature.r)>0) And
          (length(FData.changesInfo[i].Signature.s)>0) then begin
