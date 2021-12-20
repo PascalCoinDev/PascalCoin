@@ -55,3 +55,4 @@ dunit.ini
 /src/*.tvsconfig
 src/libssl-1_1.dll
 src/libssl-1_1-x64.dll
+*.rsm
