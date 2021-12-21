@@ -3138,7 +3138,7 @@ begin
           AddOperationToHashTree(LOperation);
           inc(AProcessedCount);
         end else begin
-          {$IF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Not added a 0fee operation: %s',[LOperation.ToString]));{$ENDIF}
+          {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Not added a 0fee operation: %s',[LOperation.ToString]));{$ENDIF}
         end;
       Finally
         FreeAndNil(LOperation);
