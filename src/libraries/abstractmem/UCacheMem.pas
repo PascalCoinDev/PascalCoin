@@ -464,7 +464,7 @@ end;
 
 function TCacheMem.FreeMem(const AMaxMemSize, AMaxBlocks: Int64) : Boolean;
 var
-  i, LTempCacheDataSize,
+  i, LTempCacheDataSize, LAuxCacheDataSize,
   LFinalMaxMemSize, LMaxPendingRounds : Int64;
   PToRemove, PToNext : PCacheMemData;
   LListToFlush : TOrderedList<PCacheMemData>;
@@ -481,6 +481,7 @@ begin
   LTickCount := TPlatform.GetTickCount;
   LPreviousCacheDataSize := FCacheDataSize;
   LPreviousCacheDataBlocks := FCacheDataBlocks;
+  try
   {$ENDIF}
 
   if (AMaxMemSize<0) then LFinalMaxMemSize := FCacheDataSize
@@ -492,6 +493,7 @@ begin
   LListToFlush := TOrderedList<PCacheMemData>.Create(False,_TCacheMemDataTree_Compare);
   try
     LTempCacheDataSize := FCacheDataSize;
+    LAuxCacheDataSize := 0;
     while (Assigned(PToRemove)) and
       // Both conditions must be true
       ((LTempCacheDataSize > LFinalMaxMemSize) or (LMaxPendingRounds>0))
@@ -500,6 +502,7 @@ begin
       PToNext := PToRemove^.used_next; // Capture now to avoid future PToRemove updates
       Dec(LTempCacheDataSize, Int64(PToRemove^.GetSize));
       if (PToRemove^.pendingToSave) then begin
+        inc(LAuxCacheDataSize,Int64(PToRemove^.GetSize));
         // Add to list to flush
         if LListToFlush.Add(PToRemove)<0 then begin
           raise ECacheMem.Create(Format('Inconsistent error on Freemem cannot add pending to save: %s',[PToRemove.ToString]));
@@ -512,10 +515,14 @@ begin
     // Delete not deleted previously
     for i:=0 to LListToFlush.Count-1 do begin
       PToRemove := LListToFlush.Get(i);
+
+      Dec(LAuxCacheDataSize,Int64(PToRemove^.GetSize));
+
       Delete( PToRemove );
     end;
     //
-    if (Result) and (LTempCacheDataSize <> FCacheDataSize) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected size %d <> obtained %d (save list %d)',[LTempCacheDataSize,FCacheDataSize,LListToFlush.Count]));
+    if (Result) and (LAuxCacheDataSize<>0) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Removed size %d<>0 with CacheDataSize %d (save list %d)',[LAuxCacheDataSize,FCacheDataSize,LListToFlush.Count]));
+    if (Result) and (LTempCacheDataSize > FCacheDataSize) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected Cache size is Higher (%d > obtained %d) (save list %d)',[LTempCacheDataSize,FCacheDataSize,LListToFlush.Count]));
     if (Result) and (LMaxPendingRounds>0) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected Max Blocks %d <> obtained %d',[AMaxBlocks,FCacheDataBlocks]));
   finally
     LListToFlush.Free;
@@ -523,10 +530,12 @@ begin
 
   Result := (Result) And (FCacheDataSize <= AMaxMemSize);
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
+  finally
   Inc(FCacheMemStats.freememCount);
   Inc(FCacheMemStats.freememSize,LPreviousCacheDataSize - FCacheDataSize);
   Inc(FCacheMemStats.freememBlocksCount,LPreviousCacheDataBlocks - FCacheDataBlocks);
   Inc(FCacheMemStats.freememElaspedMillis,TPlatform.GetElapsedMilliseconds(LTickCount));
+  end;
   {$ENDIF}
 end;
 
