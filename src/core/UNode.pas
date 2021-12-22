@@ -692,18 +692,18 @@ class procedure TNode.DecodeIpStringToNodeServerAddressArray(const Ips: String;
     end;
     // Delete invalid chars:
     i := 0;
-    while (i<=High(ips_string)) AND (NOT (ips_string.Chars[i] IN CT_IP_CHARS)) do inc(i);
-    if (i>Low(ips_string)) then ips_string := ips_string.Substring(i,Length(ips_string));
+    while (i<=(ips_string.Length-1)) AND (NOT (ips_string.Chars[i] IN CT_IP_CHARS)) do inc(i);
+    if (i>0) then ips_string := ips_string.Substring(i,ips_string.Length);
     // Capture IP value
     i := 0;
-    while (i<=High(ips_string)) and (ips_string.Chars[i] in CT_IP_CHARS) do inc(i);
+    while (i<=(ips_string.Length-1)) and (ips_string.Chars[i] in CT_IP_CHARS) do inc(i);
     if (i>0) then begin
       nsa.ip := ips_string.Substring(0,i);
       // Capture possible :Port value
-      if (i<=High(ips_string)) and (ips_string.Chars[i]=':') then begin
+      if (i<=(ips_string.Length-1)) and (ips_string.Chars[i]=':') then begin
         inc(i);
         port := '';
-        while (i<=High(ips_string)) and (ips_string.Chars[i] in ['0'..'9']) do begin
+        while (i<=(ips_string.Length-1)) and (ips_string.Chars[i] in ['0'..'9']) do begin
           port := port + ips_string.Chars[i];
           inc(i);
         end;
