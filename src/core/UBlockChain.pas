@@ -4040,6 +4040,7 @@ end;
 
 function TPCOperation.IsValidECDSASignature(const PubKey: TECDSA_Public; const Signature: TECDSA_SIG): Boolean;
 begin
+  {$IFnDEF TESTING_NO_POW_CHECK}
   // Will reuse FHasValidSignature if checked previously and was True
   // Introduced on Build 4.0.2 to increase speed using MEMPOOL verified operations instead of verify again everytime
   if (FHasValidSignature) then begin
@@ -4056,6 +4057,11 @@ begin
     end;
   end;
   Result := FHasValidSignature;
+  {$ELSE}
+  FHasValidSignature := True;
+  FUsedPubkeyForSignature := PubKey;
+  Result := True;
+  {$ENDIF}
 end;
 
 procedure TPCOperation.CopyUsedPubkeySignatureFrom(SourceOperation: TPCOperation);
