@@ -372,8 +372,8 @@ begin
     // Start RPC server
     FRPCServer := TRPCServer.Create;
     FRPCServer.WalletKeys := TWallet.Keys;
-    FRPCServer.Active := TSettings.RpcPortEnabled;
-    FRPCServer.ValidIPs := TSettings.RpcAllowedIPs;
+    FRPCServer.Active := TSettings.JsonRpcPortEnabled;
+    FRPCServer.ValidIPs := TSettings.JsonRpcAllowedIPs;
     TWallet.Keys.SafeBox := FNode.Bank.SafeBox;
 
     // Initialise Database

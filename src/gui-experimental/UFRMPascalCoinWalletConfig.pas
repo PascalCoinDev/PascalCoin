@@ -110,7 +110,7 @@ begin
     i := PtrInt(cbPrivateKeyToMine.Items.Objects[cbPrivateKeyToMine.ItemIndex]);
     if (i<0) Or (i>=TWallet.Keys.Count) then raise Exception.Create('Invalid private key');
     if NOT TWallet.Keys.Key[i].HasPrivateKey then raise Exception.Create('Cannot use key "' + TWallet.Keys.Key[i].Name + '" for mining since it is watch-only');
-    TSettings.MinerSelectedPrivateKey := TAccountComp.AccountKey2RawString(TWallet.Keys.Key[i].AccountKey);
+    TSettings.MinerSelectedPublicKey := TAccountComp.AccountKey2RawString(TWallet.Keys.Key[i].AccountKey);
   end else mpk := mpk_Random;
 
     if cbDownloadNewCheckpoint.Checked then begin
@@ -120,15 +120,15 @@ begin
   end else TSettings.AllowDownloadNewCheckpointIfOlderThan := False;
 
   TSettings.MinerPrivateKeyType := mpk;
-  TSettings.MinerServerRpcActive := cbJSONRPCMinerServerActive.Checked;
-  TSettings.MinerServerRpcPort := udJSONRPCMinerServerPort.Position;
+  TSettings.JsonRpcMinerServerActive := cbJSONRPCMinerServerActive.Checked;
+  TSettings.JsonRpcMinerServerPort := udJSONRPCMinerServerPort.Position;
   TSettings.SaveLogFiles := cbSaveLogFiles.Checked;
   TSettings.ShowLogs := cbShowLogs.Checked;
   TSettings.SaveDebugLogs := cbSaveDebugLogs.Checked;
   TSettings.MinerName := ebMinerName.Text;
   TSettings.ShowModalMessages := cbShowModalMessages.Checked;
-  TSettings.RpcPortEnabled := cbJSONRPCPortEnabled.Checked;
-  TSettings.RpcAllowedIPs := ebJSONRPCAllowedIPs.Text;
+  TSettings.JsonRpcPortEnabled := cbJSONRPCPortEnabled.Checked;
+  TSettings.JsonRpcAllowedIPs := ebJSONRPCAllowedIPs.Text;
   TSettings.Save;
   ModalResult := MrOk;
 end;
@@ -199,7 +199,7 @@ begin
   Try
     udInternetServerPort.Position := TSettings.InternetServerPort;
     ebDefaultFee.Text := TAccountComp.FormatMoney(TSettings.DefaultFee);
-    cbJSONRPCMinerServerActive.Checked := TSettings.MinerServerRpcActive;
+    cbJSONRPCMinerServerActive.Checked := TSettings.JsonRpcMinerServerActive;
     case TSettings.MinerPrivateKeyType of
       mpk_NewEachTime : rbGenerateANewPrivateKeyEachBlock.Checked := true;
       mpk_Random : rbUseARandomKey.Checked := true;
@@ -212,9 +212,9 @@ begin
     cbSaveDebugLogs.Checked := TSettings.SaveDebugLogs;
     ebMinerName.Text := TSettings.MinerName;
     cbShowModalMessages.Checked := TSettings.ShowModalMessages;
-    udJSONRPCMinerServerPort.Position := TSettings.MinerServerRpcPort;
-    cbJSONRPCPortEnabled.Checked := TSettings.RpcPortEnabled;
-    ebJSONRPCAllowedIPs.Text := TSettings.RpcAllowedIPs;
+    udJSONRPCMinerServerPort.Position := TSettings.JsonRpcMinerServerPort;
+    cbJSONRPCPortEnabled.Checked := TSettings.JsonRpcPortEnabled;
+    ebJSONRPCAllowedIPs.Text := TSettings.JsonRpcAllowedIPs;
     cbDownloadNewCheckpoint.Checked := TSettings.AllowDownloadNewCheckpointIfOlderThan;
     ebMinFutureBlocksToDownloadNewSafebox.Text := IntToStr(TSettings.MinFutureBlocksToDownloadNewSafebox);
   Except
@@ -249,7 +249,7 @@ begin
     end;
   end;
   cbPrivateKeyToMine.Sorted := true;
-  raw := TSettings.MinerSelectedPrivateKey;
+  raw := TSettings.MinerSelectedPublicKey;
   iselected := TWallet.Keys.IndexOfAccountKey(TAccountComp.RawString2Accountkey(raw));
   if iselected >= 0 then begin
     iselected :=  cbPrivateKeyToMine.Items.IndexOfObject(TObject(iselected));
