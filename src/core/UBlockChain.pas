@@ -215,9 +215,9 @@ Type
 
   TPCOperation = Class
   private
-    FResentOnBlock: Integer;
+    FResendOnBlock: Integer;
     FDiscoveredOnBlock: Integer;
-    FResentCount: Integer;
+    FResendCount: Integer;
   Protected
     FProtocolVersion : Word;
     FHasValidSignature : Boolean;
@@ -281,8 +281,8 @@ Type
     //
     function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; virtual; abstract;
     property DiscoveredOnBlock : Integer read FDiscoveredOnBlock write FDiscoveredOnBlock;
-    property ResentOnBlock : Integer read FResentOnBlock write FResentOnBlock;
-    property ResentCount : Integer read FResentCount write FResentCount;
+    property ResendOnBlock : Integer read FResendOnBlock write FResendOnBlock;
+    property ResendCount : Integer read FResendCount write FResendCount;
   End;
 
   TPCOperationStorage = Record
@@ -4039,8 +4039,8 @@ begin
   FBufferedSha256 := Nil;
   FBufferedRipeMD160 := Nil;
   FDiscoveredOnBlock := 0;
-  FResentOnBlock := 0;
-  FResentCount := 0;
+  FResendOnBlock := 0;
+  FResendCount := 0;
 end;
 
 procedure TPCOperation.FillOperationResume(Block: Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
