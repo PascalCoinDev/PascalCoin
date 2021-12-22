@@ -24,7 +24,7 @@
 {.$define ABSTRACTMEM_TESTING_MODE}
 // define this if you want some testing mode capabilities
 
-{$define ABSTRACTMEM_ENABLE_STATS}
+{.$define ABSTRACTMEM_ENABLE_STATS}
 // define this to activate some stats on objects usefull for testing
 
 {.$define ABSTRACTMEM_CIRCULAR_SEARCH_PROTECTION}

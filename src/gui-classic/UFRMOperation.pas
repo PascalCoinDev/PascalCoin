@@ -195,7 +195,7 @@ implementation
 
 uses
   {$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}UConst, UOpTransaction, UFRMNewPrivateKeyType, UFRMWalletKeys, UFRMHashLock,
-  UCommon, ULog, UGUIUtils;
+  UCommon, ULog, UGUIUtils, USettings;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -907,8 +907,18 @@ begin
     Result := TAccountComp.TxtToMoney(Trim(ebFee.Text),Fee);
     if not Result then errors := 'Invalid fee value "'+ebFee.Text+'"';
   end else begin
-    Fee := 0;
+    Fee := TSettings.DefaultFee;
     Result := true;
+  end;
+  if (Fee<0) then begin
+    Result := False;
+    errors := 'Invalid fee value "'+ebFee.Text+'"';
+    ebFee.Text := TAccountComp.FormatMoney(TSettings.DefaultFee);
+  end;
+  if (Fee=0) and (Not CT_AllowPropagate0feeOperations) then begin
+    Result := False;
+    errors := '0 fee not allowed';
+    ebFee.Text := TAccountComp.FormatMoney(TSettings.DefaultFee);
   end;
 end;
 

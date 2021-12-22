@@ -3397,13 +3397,13 @@ function TStorage.DoGetAccountOperations(AAccount, AMaxDepth, AStartOperation,
     acc_0_miner_reward, acc_4_dev_reward : Int64;
     acc_4_for_dev : Boolean;
   begin
-    if (act_depth<=0) then exit;
+    if (act_depth=0) then exit;
     opc := TPCOperationsComp.Create(Nil);
     Try
       LAccounts := TList<Cardinal>.Create;
       try
         last_block_number := block_number+1;
-        while (last_block_number>block_number) And (act_depth>0)
+        while (last_block_number>block_number) And (act_depth<>0)
           And (block_number >= (AAccount DIV CT_AccountsPerBlock))
           And (AMaxOperations<>0)
           do begin
@@ -3486,7 +3486,7 @@ Var acc : TAccount;
   lastBalance : Int64;
 begin
   Result := False;
-  if AMaxDepth<0 then Exit;
+  if AMaxDepth=0 then Exit;
   if AAccount>=Bank.SafeBox.AccountsCount then Exit;
   if AMaxOperations=0 then Exit;
   Result := True;

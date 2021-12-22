@@ -132,10 +132,10 @@ Const
 
   CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$05000005{$ENDIF};
 
-  CT_NetProtocol_Version: Word = 12;
+  CT_NetProtocol_Version: Word = 14;
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
-  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}14{$ELSE}14{$ENDIF};
+  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}15{$ELSE}15{$ENDIF};
 
   CT_MaxAccountOperationsPerBlockWithoutFee = 1;
   CT_AllowPropagate0feeOperations = False;
