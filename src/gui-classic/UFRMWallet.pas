@@ -228,7 +228,6 @@ type
     procedure MiAccountInformationClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Test_ShowDiagnosticTool(Sender: TObject);
-    procedure miAskForAccountClick(Sender: TObject);
   private
     FLastNodesCacheUpdatedTS : TDateTime;
     FBackgroundPanel : TPanel;
@@ -332,7 +331,6 @@ Uses UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
   UFRMDiagnosticTool,
   {$ENDIF}
   UPCTNetDataExtraMessages,
-  UFRMAskForAccount,
   UAbstractBTree, UEPasaDecoder,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
   UCommon, UPCOrderedLists;
@@ -902,8 +900,7 @@ begin
     FNode.Bank.SafeBox.EndThreadSave;
   end;
   if LFoundAccounts<1 then begin
-    // Will only ask if no accounts
-    TFRMAskForAccount.AskForAccount(Self,FNode,TNetData.NetData,FWalletKeys,GetAccountKeyForMiner);
+    // TODO: Wallet has no PASA ...
   end;
 end;
 
@@ -1129,13 +1126,6 @@ begin
   miAbout.Add(mi);
 {$ELSE}
 {$ENDIF}
-  mi := TMenuItem.Create(MainMenu);
-  mi.Caption:='-';
-  MiOperations.Add(mi);
-  mi := TMenuItem.Create(MainMenu);
-  mi.Caption:='Ask for Free Account';
-  mi.OnClick:=miAskForAccountClick;
-  MiOperations.Add(mi);
 end;
 
 {$IFDEF TESTING_NO_POW_CHECK}
@@ -1710,11 +1700,6 @@ begin
   PageControlChange(Nil);
   pcAccountsOptions.ActivePage := tsMultiSelectAccounts;
   sbSelectedAccountsAddClick(Sender);
-end;
-
-procedure TFRMWallet.miAskForAccountClick(Sender: TObject);
-begin
-  TFRMAskForAccount.AskForAccount(Self,FNode,TNetData.NetData,FWalletKeys,GetAccountKeyForMiner);
 end;
 
 procedure TFRMWallet.MiCloseClick(Sender: TObject);
