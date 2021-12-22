@@ -214,6 +214,10 @@ Type
   { TPCOperation }
 
   TPCOperation = Class
+  private
+    FResentOnBlock: Integer;
+    FDiscoveredOnBlock: Integer;
+    FResentCount: Integer;
   Protected
     FProtocolVersion : Word;
     FHasValidSignature : Boolean;
@@ -276,6 +280,9 @@ Type
     class function GetOperationFromStreamData(AUseV5EncodeStyle : Boolean; ACurrentProtocol: word; StreamData : TBytes) : TPCOperation;
     //
     function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; virtual; abstract;
+    property DiscoveredOnBlock : Integer read FDiscoveredOnBlock write FDiscoveredOnBlock;
+    property ResentOnBlock : Integer read FResentOnBlock write FResentOnBlock;
+    property ResentCount : Integer read FResentCount write FResentCount;
   End;
 
   TPCOperationStorage = Record
@@ -4031,6 +4038,9 @@ begin
   FUsedPubkeyForSignature:=CT_TECDSA_Public_Nul;
   FBufferedSha256 := Nil;
   FBufferedRipeMD160 := Nil;
+  FDiscoveredOnBlock := 0;
+  FResentOnBlock := 0;
+  FResentCount := 0;
 end;
 
 procedure TPCOperation.FillOperationResume(Block: Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);

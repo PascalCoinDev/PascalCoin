@@ -71,7 +71,6 @@ Type
     FBCBankNotify : TPCBankNotify;
     FPeerCache : String;
     FDisabledsNewBlocksCount : Integer;
-    FSentOperations : TOrderedRawList;
     FBroadcastData : Boolean;
     FUpdateBlockchain: Boolean;
     FMaxPayToKeyPurchasePrice: Int64;
@@ -302,7 +301,7 @@ begin
       if Result then begin
         opsht := TOperationsHashTree.Create;
         Try
-          j := Random(3); // j=0,1 or 2
+          j := Random(5);
           If (Bank.LastBlockFound.OperationBlock.block>j) then
             minBlockResend:=Bank.LastBlockFound.OperationBlock.block - j
           else minBlockResend:=1;
@@ -313,20 +312,18 @@ begin
 
           While (opsht.OperationsCount<maxResend) And (i<LLockedMempool.Count) do begin
             resendOp := LLockedMempool.Operation[i];
-            j := FSentOperations.GetTag(resendOp.Sha256);
-            if (j=0) Or (j<=minBlockResend) then begin
+            j := resendOp.ResendOnBlock;
+            if ((resendOp.ResendCount<2) and ((j<=0) Or (j<=minBlockResend))) then begin
               // Only will "re-send" operations that where received on block <= minBlockResend
               opsht.AddOperationToHashTree(resendOp);
               // Add to sent operations
-              FSentOperations.SetTag(resendOp.Sha256,LLockedMempool.OperationBlock.block); // Set tag new value
-              FSentOperations.Add(LLockedMempool.Operation[i].Sha256,Bank.LastBlockFound.OperationBlock.block);
-            end else begin
-//              {$IFDEF HIGHLOG}TLog.NewLog(ltInfo,ClassName,'Sanitized operation not included to resend (j:'+IntToStr(j)+'>'+inttostr(minBlockResend)+') ('+inttostr(i+1)+'/'+inttostr(FOperations.Count)+'): '+FOperations.Operation[i].ToString);{$ENDIF}
+              resendOp.ResendOnBlock := LLockedMempool.OperationBlock.block;
+              resendOp.ResendCount := resendOp.ResendCount + 1;
             end;
             inc(i);
           end;
-          If LLockedMempool.Count>0 then begin
-            TLog.NewLog(ltinfo,classname,Format('Resending %d operations for new block (Buffer Pending Operations:%d)',[opsht.OperationsCount,LLockedMempool.Count]));
+          If opsht.OperationsCount>0 then begin
+            TLog.NewLog(ltinfo,classname,Format('Resending %d operations for new block (Mempool Pending Operations:%d)',[opsht.OperationsCount,LLockedMempool.Count]));
             {$IFDEF HIGHLOG}
             if opsht.OperationsCount>0 then begin
               for i := 0 to opsht.OperationsCount - 1 do begin
@@ -338,15 +335,6 @@ begin
           Finally
             UnlockMempoolRead;
           End;
-          // Clean sent operations buffer
-          j := 0;
-          for i := FSentOperations.Count-1 downto 0 do begin
-            If (FSentOperations.GetTag(i)<Bank.LastBlockFound.OperationBlock.block-2) then begin
-              FSentOperations.Delete(i);
-              inc(j);
-            end;
-          end;
-          TLog.NewLog(ltdebug,ClassName,'Buffer Sent operations: '+IntToStr(FSentOperations.Count)+' Deleted old operations: '+IntToStr(j));
           // Notify to clients
           {$IFnDEF TESTING_NO_POW_CHECK}
           if FBroadcastData then begin
@@ -528,7 +516,7 @@ begin
             end else begin
               if (LLockedMempool.AddOperation(true,ActOp,e)) then begin
                 inc(Result);
-                FSentOperations.Add(ActOp.Sha256,LLockedMempool.OperationBlock.block);
+                ActOp.DiscoveredOnBlock := LLockedMempool.OperationBlock.block;
                 LValids_operations.AddOperationToHashTree(ActOp);
                 {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,Format('AddOperation %d/%d: %s',[(j+1),LOpsToAdd.Count,ActOp.ToString]));{$ENDIF}
                 if Assigned(OperationsResult) then begin
@@ -647,7 +635,6 @@ end;
 constructor TNode.Create(AOwner: TComponent);
 begin
   FMaxPayToKeyPurchasePrice := 0;
-  FSentOperations := TOrderedRawList.Create;
   FNodeLog := TLog.Create(Self);
   FNodeLog.ProcessGlobalLogs := false;
   RegisterOperationsClass;
@@ -755,8 +742,6 @@ begin
     FreeAndNil(FMemPoolAddingOperationsList);
     step := 'Assigning NIL to node var';
     if _Node=Self then _Node := Nil;
-    Step := 'Destroying SentOperations list';
-    FreeAndNil(FSentOperations);
 
     step := 'Destroying Bank';
     FreeAndNil(FBCBankNotify);
