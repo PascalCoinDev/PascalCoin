@@ -1,6 +1,6 @@
 # Changelog
 
-## Build 5.7 - PENDING
+## Build 5.7 - 2021-12-23
 - This version will not propagate 0-Fee operations, but will allow 0-Fee operations to the blockchain (CT_AllowPropagate0feeOperations=False)
   - A wallet that wants to execute 0-Fee operations will need to connect to a miner/pool/node running a 5.6 version or solomine
 - Removed "Ask for Account (PASA)" feature

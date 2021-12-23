@@ -15,7 +15,7 @@ object FRMAbout: TFRMAbout
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '2.0.2.0'
+  LCLVersion = '2.0.10.0'
   object Image1: TImage
     Left = 15
     Height = 64
@@ -102,9 +102,9 @@ object FRMAbout: TFRMAbout
   end
   object Label1: TLabel
     Left = 90
-    Height = 25
+    Height = 23
     Top = 15
-    Width = 384
+    Width = 420
     Caption = 'Pascal full node Wallet (Classic GUI)'
     Font.Color = clBlack
     Font.Height = -21
@@ -115,9 +115,9 @@ object FRMAbout: TFRMAbout
   end
   object lblBuild: TLabel
     Left = 15
-    Height = 13
+    Height = 12
     Top = 356
-    Width = 30
+    Width = 36
     Caption = 'Build:'
     Font.Color = clWindowText
     Font.Height = -11
@@ -128,9 +128,9 @@ object FRMAbout: TFRMAbout
   end
   object lblProtocolVersion: TLabel
     Left = 15
-    Height = 13
+    Height = 12
     Top = 375
-    Width = 50
+    Width = 57
     Caption = 'Protocol:'
     Font.Color = clWindowText
     Font.Height = -11
@@ -141,17 +141,17 @@ object FRMAbout: TFRMAbout
   end
   object Label2: TLabel
     Left = 90
-    Height = 13
+    Height = 12
     Top = 320
-    Width = 65
+    Width = 74
     Caption = 'Source Code:'
     ParentColor = False
   end
   object Label3: TLabel
     Left = 90
-    Height = 13
+    Height = 12
     Top = 339
-    Width = 135
+    Width = 153
     Caption = 'Check For New Versions:'
     Font.Color = clWindowText
     Font.Height = -11
@@ -163,9 +163,9 @@ object FRMAbout: TFRMAbout
   object Label4: TLabel
     Cursor = crHandPoint
     Left = 170
-    Height = 13
+    Height = 12
     Top = 320
-    Width = 240
+    Width = 260
     Caption = 'https://github.com/PascalCoin/PascalCoin'
     Font.Color = clBlue
     Font.Height = -11
@@ -178,9 +178,9 @@ object FRMAbout: TFRMAbout
   object Label5: TLabel
     Cursor = crHandPoint
     Left = 237
-    Height = 13
+    Height = 12
     Top = 339
-    Width = 253
+    Width = 270
     Caption = 'https://sourceforge.net/projects/pascalcoin'
     Font.Color = clBlue
     Font.Height = -11
@@ -197,7 +197,7 @@ object FRMAbout: TFRMAbout
     Width = 478
     BorderStyle = bsNone
     Lines.Strings = (
-      'Copyright (c) 2016 - 2020 PascalCoin developers'
+      'Copyright (c) 2016 - 2021 PascalCoin developers'
       'Based on Albert Molina original source code'
       ''
       'Pascal (aka Pascal Coin) is P2P cryptocurrency without the need for historical operations. This software comprises a node within the Pascal network.'
