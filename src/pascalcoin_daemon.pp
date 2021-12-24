@@ -5,6 +5,7 @@ program pascalcoin_daemon;
 
 uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
+  mormot.core.fpcx64mm,
   cthreads,
   {$ENDIF}{$ENDIF}
   sysutils,

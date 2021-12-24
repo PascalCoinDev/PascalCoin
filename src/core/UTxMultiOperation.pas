@@ -25,7 +25,7 @@ interface
 uses
   Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes, UEPasa,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
-  UPCDataTypes;
+  UPCDataTypes, UOrderedList;
 
 Type
 
@@ -122,7 +122,7 @@ Type
     function CheckSignatures(AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
-    procedure AffectedAccounts(list : TList<Cardinal>); override;
+    procedure AffectedAccounts(list : TOrderedList<Cardinal>); override;
     //
     Function DoSignMultiOperationSigner(current_protocol : Word; SignerAccount : Cardinal; key : TECPrivateKey) : Integer;
     class function OpType : Byte; override;
@@ -504,6 +504,7 @@ begin
     ophtosign := GetDigestToSign;
     // Tx verification
     For i:=Low(FData.txSenders) to High(FData.txSenders) do begin
+      if (FData.txSenders[i].Account<0) or (FData.txSenders[i].Account>=AccountTransaction.FreezedSafeBox.AccountsCount) then Exit(False); // Preventing exception
       acc := AccountTransaction.Account(FData.txSenders[i].Account);
       If (length(FData.txSenders[i].Signature.r)>0) And
          (length(FData.txSenders[i].Signature.s)>0) then begin
@@ -523,6 +524,7 @@ begin
     end;
     // Change verification
     For i:=Low(FData.changesInfo) to High(FData.changesInfo) do begin
+      if (FData.changesInfo[i].Account<0) or (FData.changesInfo[i].Account>=AccountTransaction.FreezedSafeBox.AccountsCount) then Exit(False); // Preventing exception
       acc := AccountTransaction.Account(FData.changesInfo[i].Account);
       If (length(FData.changesInfo[i].Signature.r)>0) And
          (length(FData.changesInfo[i].Signature.s)>0) then begin
@@ -763,7 +765,7 @@ begin
   Result := True;
 end;
 
-procedure TOpMultiOperation.AffectedAccounts(list: TList<Cardinal>);
+procedure TOpMultiOperation.AffectedAccounts(list: TOrderedList<Cardinal>);
 Var i : Integer;
   Procedure _doAdd(nAcc : Cardinal);
   Begin

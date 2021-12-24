@@ -28,7 +28,7 @@ uses
   Classes,{$IFnDEF FPC}Windows,{$ENDIF}UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   {$IFDEF USE_ABSTRACTMEM}UPCAbstractMem,{$ENDIF}
-  UPCDataTypes, UChunk;
+  UPCDataTypes, UChunk, UOrderedList;
 
 {
 
@@ -113,6 +113,7 @@ uses
 }
 
 Type
+  TSearchOpHashResult = (OpHash_found, OpHash_invalid_params, OpHash_block_not_found);
   // Moved from UOpTransaction to here
   TOpChangeAccountInfoType = (public_key, account_name, account_type, list_for_public_sale, list_for_private_sale, delist, account_data, list_for_account_swap, list_for_coin_swap );
   TOpChangeAccountInfoTypes = Set of TOpChangeAccountInfoType;
@@ -204,19 +205,8 @@ Type
   TPCOperation = Class;
   TPCOperationClass = Class of TPCOperation;
 
-  TOperationsResumeList = Class
-  private
-    FList : TPCThreadList<Pointer>;
-    function GetOperationResume(index: Integer): TOperationResume;
-  public
-    Constructor Create;
-    Destructor Destroy; override;
-    Procedure Add(Const OperationResume : TOperationResume);
-    Function Count : Integer;
-    Procedure Delete(index : Integer);
-    Procedure Clear;
-    Property OperationResume[index : Integer] : TOperationResume read GetOperationResume; default;
-  End;
+
+  TOperationsResumeList = TList<TOperationResume>;
 
   TOpReference = UInt64;
   TOpReferenceArray = Array of TopReference;
@@ -224,6 +214,10 @@ Type
   { TPCOperation }
 
   TPCOperation = Class
+  private
+    FResendOnBlock: Integer;
+    FDiscoveredOnBlock: Integer;
+    FResendCount: Integer;
   Protected
     FProtocolVersion : Word;
     FHasValidSignature : Boolean;
@@ -244,7 +238,7 @@ Type
     property ProtocolVersion : Word read FProtocolVersion;
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; virtual;
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors: String): Boolean; virtual; abstract;
-    procedure AffectedAccounts(list : TList<Cardinal>); virtual; abstract;
+    procedure AffectedAccounts(list : TOrderedList<Cardinal>); virtual; abstract;
     class function OpType: Byte; virtual; abstract;
     Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; virtual;
     Function GetDigestToSign : TRawBytes; virtual; abstract;
@@ -275,6 +269,7 @@ Type
     class function OperationHashAsHexa(const operationHash : TRawBytes) : String;
     class function GetOpReferenceAccount(const opReference : TOpReference) : Cardinal;
     class function GetOpReferenceN_Operation(const opReference : TOpReference) : Cardinal;
+    class function CreateOperationFromStream(AStream : TStream; var AOperation : TPCOperation) : Boolean;
     function Sha256 : TRawBytes;
     function RipeMD160 : TRawBytes;
     function GetOpReference : TOpReference;
@@ -285,6 +280,9 @@ Type
     class function GetOperationFromStreamData(AUseV5EncodeStyle : Boolean; ACurrentProtocol: word; StreamData : TBytes) : TPCOperation;
     //
     function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; virtual; abstract;
+    property DiscoveredOnBlock : Integer read FDiscoveredOnBlock write FDiscoveredOnBlock;
+    property ResendOnBlock : Integer read FResendOnBlock write FResendOnBlock;
+    property ResendCount : Integer read FResendCount write FResendCount;
   End;
 
   TPCOperationStorage = Record
@@ -359,7 +357,8 @@ Type
     Property TotalAmount : Int64 read FTotalAmount;
     Property TotalFee : Int64 read FTotalFee;
     function SaveOperationsHashTreeToStream(AStream: TStream; ASaveToStorage : Boolean): Boolean;
-    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean;
+    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean; overload;
+    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; AAllow0FeeOperations : Boolean; var AOperationsCount, AProcessedCount : Integer; var AErrors : String): Boolean; overload;
     function IndexOfOperation(op : TPCOperation) : Integer;
     function CountOperationsBySameSignerWithoutFee(account_number : Cardinal) : Integer;
     Procedure Delete(index : Integer);
@@ -419,6 +418,7 @@ Type
     Procedure Clear(DeleteOperations : Boolean);
     Function Count: Integer;
     Property OperationBlock: TOperationBlock read FOperationBlock;
+    procedure SetOperationBlock(const ANewValues : TOperationBlock); // For testing purposes only
     Class Function OperationBlockToText(const OperationBlock: TOperationBlock) : String;
     Class Function SaveOperationBlockToStream(Const OperationBlock: TOperationBlock; Stream: TStream) : Boolean;
     class Function LoadOperationBlockFromStream(AStream : TStream; var Asoob : Byte; var AOperationBlock : TOperationBlock) : Boolean;
@@ -487,27 +487,35 @@ Type
   private
     FBank : TPCBank;
     FReadOnly: Boolean;
+    FPendingBufferOperationsStream : TFileStream;
     procedure SetBank(const Value: TPCBank);
+    Function GetPendingBufferOperationsStream : TFileStream;
   protected
     FIsMovingBlockchain : Boolean;
+    FStorageFilename: String;
     procedure SetReadOnly(const Value: Boolean); virtual;
     Function DoLoadBlockChain(Operations : TPCOperationsComp; Block : Cardinal) : Boolean; virtual; abstract;
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; virtual; abstract;
-    Function DoMoveBlockChain(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean; virtual; abstract;
+    Function DoMoveBlockChain(StartBlock : Cardinal; Const DestOrphan : TOrphan) : Boolean; virtual; abstract;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); virtual; abstract;
     Function DoBlockExists(Block : Cardinal) : Boolean; virtual; abstract;
     function GetFirstBlockNumber: Int64; virtual; abstract;
     function GetLastBlockNumber: Int64; virtual; abstract;
     function DoInitialize:Boolean; virtual; abstract;
     Procedure DoEraseStorage; virtual; abstract;
-    Procedure DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual; abstract;
-    Procedure DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual; abstract;
+    Procedure DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual;
+    Procedure DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual;
+    Function DoGetBlockInformation(const ABlock : Integer; var AOperationBlock : TOperationBlock; var AOperationsCount : Integer; var AVolume : Int64) : Boolean; virtual;
+    Function DoGetBlockOperations(ABlock, AOpBlockStartIndex, AMaxOperations : Integer; var AOperationBlock : TOperationBlock; var AOperationsCount : Integer; var AVolume : Int64; const AOperationsResumeList:TOperationsResumeList) : Boolean; virtual;
+    Function DoGetAccountOperations(AAccount : Integer; AMaxDepth, AStartOperation, AMaxOperations, ASearchBackwardsStartingAtBlock: Integer; const AOperationsResumeList:TOperationsResumeList): Boolean; virtual;
+    function DoFindOperation(const AOpHash : TBytes; var AOperationResume : TOperationResume) : TSearchOpHashResult; virtual;
   public
     Function LoadBlockChainBlock(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Function SaveBlockChainBlock(Operations : TPCOperationsComp) : Boolean;
     Function MoveBlockChainBlocks(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean;
     Procedure DeleteBlockChainBlocks(StartingDeleteBlock : Cardinal);
     Constructor Create(AOwner : TComponent); Override;
+    Destructor Destroy; override;
     Property ReadOnly : Boolean read FReadOnly write SetReadOnly;
     Property Bank : TPCBank read FBank write SetBank;
     Procedure CopyConfiguration(Const CopyFrom : TStorage); virtual;
@@ -518,6 +526,13 @@ Type
     Procedure SavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
     Procedure LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
     Function BlockExists(Block : Cardinal) : Boolean;
+
+    function Orphan : String;
+    Function GetBlockInformation(ABlock : Integer; var AOperationBlock : TOperationBlock; var AOperationsCount : Integer; var AVolume : Int64) : Boolean;
+    Function GetBlockOperations(ABlock, AOpBlockStartIndex, AMaxOperations : Integer; var AOperationBlock : TOperationBlock; var AOperationsCount : Integer; var AVolume : Int64; const AOperationsResumeList:TOperationsResumeList) : Boolean;
+    Function GetAccountOperations(AAccount : Integer; AMaxDepth, AStartOperation, AMaxOperations, ASearchBackwardsStartingAtBlock: Integer; const AOperationsResumeList:TOperationsResumeList): Boolean;
+    function FindOperation(const AOpHash : TBytes; var AOperationResume : TOperationResume) : TSearchOpHashResult;
+    property StorageFilename : String read FStorageFilename write FStorageFilename;
   End;
 
   TStorageClass = Class of TStorage;
@@ -1057,6 +1072,25 @@ begin
   end;
 end;
 
+Procedure DoCopyFile(sourcefn,destfn : AnsiString);
+var sourceFS, destFS : TFileStream;
+Begin
+  if Not FileExists(sourcefn) then Raise Exception.Create('Source file not found: '+sourcefn);
+  sourceFS := TFileStream.Create(sourcefn,fmOpenRead+fmShareDenyNone);
+  try
+    sourceFS.Position:=0;
+    destFS := TFileStream.Create(destfn,fmCreate+fmShareDenyWrite);
+    try
+      destFS.Size:=0;
+      destFS.CopyFrom(sourceFS,sourceFS.Size);
+    finally
+      destFS.Free;
+    end;
+  finally
+    sourceFS.Free;
+  end;
+end;
+
 function TPCBank.DoSaveBank: Boolean;
 var fs: TFileStream;
     LBankfilename,Laux_newfilename: AnsiString;
@@ -1096,7 +1130,7 @@ begin
       Laux_newfilename := GetStorageFolder('') + PathDelim+'checkpoint_'+ inttostr(BlocksCount)+CT_Safebox_Extension;
       try
         {$IFDEF FPC}
-        DoCopyFile(bankfilename,aux_newfilename);
+        DoCopyFile(LBankfilename,Laux_newfilename);
         {$ELSE}
         CopyFile(PWideChar(LBankfilename),PWideChar(Laux_newfilename),False);
         {$ENDIF}
@@ -1724,7 +1758,7 @@ begin
       FOperationsHashTree.Max0feeOperationsBySigner := -1;
       FOperationBlock.previous_proof_of_work := Nil;
     end;
-    FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
+    FOperationBlock.operations_hash := Copy(FOperationsHashTree.HashTree);
     FOperationBlock.fee := 0;
     FOperationBlock.nonce := 0;
     FOperationBlock.proof_of_work:=Nil;
@@ -2316,6 +2350,11 @@ begin
   Update_And_RecalcPOW(value,FOperationBlock.timestamp,FOperationBlock.block_payload);
 end;
 
+procedure TPCOperationsComp.SetOperationBlock(const ANewValues: TOperationBlock);
+begin
+  FOperationBlock := ANewValues;
+end;
+
 procedure TPCOperationsComp.Settimestamp(const value: Cardinal);
 begin
   Update_And_RecalcPOW(FOperationBlock.nonce,value,FOperationBlock.block_payload);
@@ -2753,13 +2792,13 @@ end;
 function TOperationsHashTree.GetOperationsAffectingAccount(account_number: Cardinal; List: TList<Cardinal>): Integer;
   // This function retrieves operations from HashTree that affeccts to an account_number
 Var l : TList<Pointer>;
-  intl : TList<Cardinal>;
+  intl : TOrderedList<Cardinal>;
   i,j : Integer;
 begin
   List.Clear;
   l := FHashTreeOperations.LockList;
   try
-    intl := TList<Cardinal>.Create;
+    intl := TOrderedList<Cardinal>.Create(False,TComparison_Cardinal);
     try
       for i := 0 to l.Count - 1 do begin
         intl.Clear;
@@ -3025,7 +3064,11 @@ begin
   Index := L;
 end;
 
-function TOperationsHashTree.LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean;
+function TOperationsHashTree.LoadOperationsHashTreeFromStream(AStream: TStream;
+  ALoadingFromStorage: Boolean; ASetOperationsToProtocolVersion,
+  ALoadFromStorageVersion: Word;
+  APreviousUpdatedBlocks: TAccountPreviousBlockInfo;
+  AAllow0FeeOperations: Boolean; var AOperationsCount, AProcessedCount : Integer; var AErrors: String): Boolean;
 Var c, i: Cardinal;
   LOpTypeWord : Word;
   LOpProtocolVersion : Word;
@@ -3034,7 +3077,10 @@ Var c, i: Cardinal;
   LOpClass: TPCOperationClass;
   LLastNE : TNotifyEvent;
 begin
-  Result := false;
+  Result := False;
+  AErrors := '';
+  AOperationsCount := 0;
+  AProcessedCount := 0;
   //
   If AStream.Read(c, 4)<4 then begin
     AErrors := 'Cannot read operations count';
@@ -3083,6 +3129,7 @@ begin
         AErrors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c) + ' optype not valid:' + InttoHex(LOpTypeWord, 2);
         Exit;
       end;
+      inc(AOperationsCount);
       LOperation := LOpClass.Create(LOpProtocolVersion);
       Try
         if ALoadingFromStorage then begin
@@ -3094,7 +3141,12 @@ begin
           AErrors := 'Invalid operation load from stream ' + inttostr(i) + '/' + inttostr(c)+' Class:'+LOpClass.ClassName;
           Exit;
         end;
-        AddOperationToHashTree(LOperation);
+        if (AAllow0FeeOperations) or (LOperation.OperationFee>0) then begin
+          AddOperationToHashTree(LOperation);
+          inc(AProcessedCount);
+        end else begin
+          {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Not added a 0fee operation: %s',[LOperation.ToString]));{$ENDIF}
+        end;
       Finally
         FreeAndNil(LOperation);
       end;
@@ -3104,7 +3156,13 @@ begin
   end;
   If Assigned(FOnChanged) then FOnChanged(Self);
   AErrors := '';
-  Result := true;
+  Result := True;
+end;
+
+function TOperationsHashTree.LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean;
+var Lopc,Lprc : Integer;
+begin
+  Result := LoadOperationsHashTreeFromStream(AStream,ALoadingFromStorage,ASetOperationsToProtocolVersion,ALoadFromStorageVersion,APreviousUpdatedBlocks,True,Lopc,Lprc,AErrors);
 end;
 
 procedure TOperationsHashTree.MarkVerifiedECDSASignatures(operationsHashTreeToMark: TOperationsHashTree);
@@ -3235,6 +3293,7 @@ end;
 
 procedure TStorage.CopyConfiguration(const CopyFrom: TStorage);
 begin
+  ReadOnly := CopyFrom.ReadOnly;
 end;
 
 constructor TStorage.Create(AOwner: TComponent);
@@ -3242,12 +3301,292 @@ begin
   inherited;
   FReadOnly := false;
   FIsMovingBlockchain := False;
+  FPendingBufferOperationsStream := Nil;
+  FStorageFilename := '';
 end;
 
 procedure TStorage.DeleteBlockChainBlocks(StartingDeleteBlock: Cardinal);
 begin
   if ReadOnly then raise Exception.Create('Cannot delete blocks because is ReadOnly');
   DoDeleteBlockChainBlocks(StartingDeleteBlock);
+end;
+
+destructor TStorage.Destroy;
+begin
+  FreeAndNil(FPendingBufferOperationsStream);
+  inherited;
+end;
+
+function TStorage.DoFindOperation(const AOpHash: TBytes; var AOperationResume: TOperationResume): TSearchOpHashResult;
+var LBlock, LAccount, LN_Operation : Cardinal;
+  LMD160,LOpHashValid,LOpHashOld : TBytes;
+  i,LPreviousBlock, LAux_n_op,LInitialBlock : Integer;
+  LOperationsComp : TPCOperationsComp;
+  LOp : TPCOperation;
+begin
+  Result := OpHash_invalid_params;
+  If not TPCOperation.DecodeOperationHash(AOpHash,LBlock,LAccount,LN_Operation,LMD160) then exit;
+  LInitialBlock := LBlock;
+  If (LAccount>=Bank.AccountsCount) then exit; // Invalid account number
+  // If block=0 then we must search in pending operations first
+  if (LBlock=0) then begin
+    // block=0 and not found... start searching at block updated by account updated_block
+    LBlock := Bank.SafeBox.Account(LAccount).GetLastUpdatedBlock;
+  end;
+  if Bank.SafeBox.Account(LAccount).n_operation<LN_Operation then exit; // n_operation is greater than found in safebox
+  if (LBlock=0) or (LBlock>=Bank.BlocksCount) then exit;
+  //
+  // Search in previous blocks
+  LOperationsComp := TPCOperationsComp.Create(Bank);
+  try
+    While (LBlock>0) do begin
+      LPreviousBlock := LBlock;
+      If Not Bank.LoadOperations(LOperationsComp,LBlock) then begin
+        Result := OpHash_block_not_found;
+        exit;
+      end;
+      For i:=LOperationsComp.Count-1 downto 0 do begin
+        LOp := LOperationsComp.Operation[i];
+        if (LOp.IsSignerAccount(LAccount)) then begin
+          LAux_n_op := LOp.GetAccountN_Operation(LAccount);
+          If (LAux_n_op<LN_Operation) then exit; // n_operation is greaten than found
+          If (LAux_n_op=LN_Operation) then begin
+            // Possible candidate or dead
+            TPCOperation.OperationToOperationResume(LBlock,LOp,True,LAccount,AOperationResume);
+            AOperationResume.time := Bank.SafeBox.GetBlockInfo(LBlock).timestamp;
+            AOperationResume.NOpInsideBlock := i;
+            AOperationResume.Balance := -1;
+            LOpHashValid := TPCOperation.OperationHashValid(LOp,LInitialBlock);
+            If (TBaseType.Equals(LOpHashValid,AOpHash)) then begin
+              Result := OpHash_found;
+              exit;
+            end else if (LBlock<CT_Protocol_Upgrade_v2_MinBlock) then begin
+              LOpHashOld := TPCOperation.OperationHash_OLD(LOp,LInitialBlock);
+              if (TBaseType.Equals(LOpHashOld,AOpHash)) then begin
+                Result := OpHash_found;
+                exit;
+              end else exit; // Not found!
+            end else exit; // Not found!
+          end;
+        end;
+      end;
+      LBlock := LOperationsComp.PreviousUpdatedBlocks.GetPreviousUpdatedBlock(LAccount,LBlock);
+      if (LBlock>=LPreviousBlock) then exit; // Error... not found a valid block positioning
+      if (LInitialBlock<>0) then exit; // If not found in specified block, no valid hash
+    end;
+  finally
+    LOperationsComp.Free;
+  end;
+end;
+
+function TStorage.DoGetAccountOperations(AAccount, AMaxDepth, AStartOperation,
+  AMaxOperations, ASearchBackwardsStartingAtBlock: Integer;
+  const AOperationsResumeList:TOperationsResumeList): Boolean;
+  // Optimization:
+  // For better performance, will only include at "OperationsResume" values betweeen "startOperation" and "endOperation"
+
+  // New use case: Will allow to start in an unknown block when first_block_is_unknows
+  Procedure DoGetFromBlock(block_number : Integer; last_balance : Int64; act_depth : Integer; nOpsCounter : Integer; first_block_is_unknown : Boolean);
+  var opc : TPCOperationsComp;
+    op : TPCOperation;
+    OPR : TOperationResume;
+    LAccounts : TList<Cardinal>;
+    i : Integer;
+    last_block_number : Integer;
+    found_in_block : Boolean;
+    acc_0_miner_reward, acc_4_dev_reward : Int64;
+    acc_4_for_dev : Boolean;
+  begin
+    if (act_depth=0) then exit;
+    opc := TPCOperationsComp.Create(Nil);
+    Try
+      LAccounts := TList<Cardinal>.Create;
+      try
+        last_block_number := block_number+1;
+        while (last_block_number>block_number) And (act_depth<>0)
+          And (block_number >= (AAccount DIV CT_AccountsPerBlock))
+          And (AMaxOperations<>0)
+          do begin
+          found_in_block := False;
+          last_block_number := block_number;
+          LAccounts.Clear;
+          If not Bank.Storage.LoadBlockChainBlock(opc,block_number) then begin
+            exit;
+          end;
+          opc.OperationsHashTree.GetOperationsAffectingAccount(AAccount,LAccounts);
+          for i := LAccounts.Count - 1 downto 0 do begin
+            op := opc.Operation[(LAccounts.Items[i])];
+            If TPCOperation.OperationToOperationResume(block_number,Op,False,AAccount,OPR) then begin
+              OPR.NOpInsideBlock := (LAccounts.Items[i]);
+              OPR.time := opc.OperationBlock.timestamp;
+              OPR.Block := block_number;
+              If last_balance>=0 then begin
+                OPR.Balance := last_balance;
+                last_balance := last_balance - ( OPR.Amount + OPR.Fee );
+              end else OPR.Balance := -1; // Undetermined
+              if (nOpsCounter>=AStartOperation) And (AMaxOperations<>0) then begin
+                AOperationsResumeList.Add(OPR);
+              end;
+              inc(nOpsCounter);
+              Dec(AMaxOperations);
+              found_in_block := True;
+            end;
+          end;
+
+          // Is a new block operation?
+          if (TAccountComp.AccountBlock(AAccount)=block_number) then begin
+            TPascalCoinProtocol.GetRewardDistributionForNewBlock(opc.OperationBlock,acc_0_miner_reward,acc_4_dev_reward,acc_4_for_dev);
+            If ((AAccount MOD CT_AccountsPerBlock)=0) Or
+               (  ((AAccount MOD CT_AccountsPerBlock)=CT_AccountsPerBlock-1) AND (acc_4_for_dev)  ) then begin
+              OPR := CT_TOperationResume_NUL;
+              OPR.OpType:=CT_PseudoOp_Reward;
+              OPR.valid := true;
+              OPR.Block := block_number;
+              OPR.time := opc.OperationBlock.timestamp;
+              OPR.AffectedAccount := AAccount;
+              If ((AAccount MOD CT_AccountsPerBlock)=0) then begin
+                OPR.Amount := acc_0_miner_reward;
+                OPR.OperationTxt := 'Miner reward';
+                OPR.OpSubtype:=CT_PseudoOpSubtype_Miner;
+              end else begin
+                OPR.Amount := acc_4_dev_reward;
+                OPR.OperationTxt := 'Dev reward';
+                OPR.OpSubtype:=CT_PseudoOpSubtype_Developer;
+              end;
+              If last_balance>=0 then begin
+               OPR.Balance := last_balance;
+              end else OPR.Balance := -1; // Undetermined
+              if (nOpsCounter>=AStartOperation) And (AMaxOperations<>0) then begin
+                AOperationsResumeList.Add(OPR);
+              end;
+              inc(nOpsCounter);
+              dec(AMaxOperations);
+              found_in_block := True;
+            end;
+          end;
+          //
+          dec(act_depth);
+          If (Not found_in_block) And (first_block_is_unknown) then begin
+            Dec(block_number);
+          end else begin
+            block_number := opc.PreviousUpdatedBlocks.GetPreviousUpdatedBlock(AAccount,block_number);
+          end;
+          opc.Clear(true);
+        end;
+      finally
+        LAccounts.Free;
+      end;
+    Finally
+      opc.Free;
+    End;
+  end;
+
+Var acc : TAccount;
+  startBlock : Cardinal;
+  lastBalance : Int64;
+begin
+  Result := False;
+  if AMaxDepth=0 then Exit;
+  if AAccount>=Bank.SafeBox.AccountsCount then Exit;
+  if AMaxOperations=0 then Exit;
+  Result := True;
+  acc := Bank.SafeBox.Account(AAccount);
+  if (acc.GetLastUpdatedBlock>0) Or (acc.account=0) then Begin
+    if (ASearchBackwardsStartingAtBlock=0) Or (ASearchBackwardsStartingAtBlock>=acc.GetLastUpdatedBlock) then begin
+      startBlock := acc.GetLastUpdatedBlock;
+      lastBalance := acc.balance;
+    end else begin
+      startBlock := ASearchBackwardsStartingAtBlock;
+      lastBalance := -1;
+    end;
+    DoGetFromBlock(startBlock,lastBalance,AMaxDepth,0,startBlock<>acc.GetLastUpdatedBlock);
+  end;
+end;
+
+function TStorage.DoGetBlockInformation(const ABlock: Integer;
+  var AOperationBlock: TOperationBlock; var AOperationsCount: Integer;
+  var AVolume: Int64): Boolean;
+var LPCOperations : TPCOperationsComp;
+begin
+  AOperationBlock:=CT_OperationBlock_NUL;
+  AOperationsCount := 0;
+  AVolume := 0;
+  //
+  LPCOperations := TPCOperationsComp.Create(Bank);
+  Try
+    if Not LoadBlockChainBlock(LPCOperations,ABlock) then begin
+      Exit(False);
+    end else Result := True;
+    AOperationBlock := LPCOperations.OperationBlock.GetCopy;
+    AOperationsCount := LPCOperations.Count;
+    AVolume := LPCOperations.OperationsHashTree.TotalAmount;
+  Finally
+    LPCOperations.Free;
+  End;
+end;
+
+function TStorage.DoGetBlockOperations(ABlock, AOpBlockStartIndex,
+  AMaxOperations: Integer; var AOperationBlock: TOperationBlock;
+  var AOperationsCount: Integer; var AVolume: Int64;
+  const AOperationsResumeList:TOperationsResumeList): Boolean;
+var LPCOperations : TPCOperationsComp;
+  LOpResume : TOperationResume;
+  LOp : TPCOperation;
+begin
+  AOperationBlock:=CT_OperationBlock_NUL;
+  AOperationsCount := 0;
+  AVolume := 0;
+  LPCOperations := TPCOperationsComp.Create(Bank);
+  Try
+    if Not LoadBlockChainBlock(LPCOperations,ABlock) then begin
+      Exit(False);
+    end;
+    AOperationBlock := LPCOperations.OperationBlock.GetCopy;
+    AOperationsCount := LPCOperations.Count;
+    AVolume := LPCOperations.OperationsHashTree.TotalAmount;
+    while (AMaxOperations<>0) and (AOpBlockStartIndex>=0) and (AOpBlockStartIndex<LPCOperations.OperationsHashTree.OperationsCount) do begin
+      LOp := LPCOperations.GetOperation(AOpBlockStartIndex);
+      if TPCOperation.OperationToOperationResume(ABlock,LOp,True,LOp.SignerAccount,LOpResume) then begin
+        LOpResume.NOpInsideBlock := AOpBlockStartIndex;
+        LOpResume.time := LPCOperations.OperationBlock.timestamp;
+        LOpResume.Balance := -1;
+        AOperationsResumeList.Add(LOpResume);
+      end;
+      Inc(AOpBlockStartIndex);
+      Dec(AMaxOperations);
+    end;
+    Result := True;
+  Finally
+    LPCOperations.Free;
+  End;
+end;
+
+procedure TStorage.DoLoadPendingBufferOperations(OperationsHashTree: TOperationsHashTree);
+Var fs : TFileStream;
+  errors : String;
+  n : Integer;
+  LCurrentProtocol : Word;
+begin
+  fs := GetPendingBufferOperationsStream;
+  fs.Position:=0;
+  if fs.Size>0 then begin
+    if Assigned(Bank) then LCurrentProtocol := Bank.SafeBox.CurrentProtocol
+    else LCurrentProtocol := CT_BUILD_PROTOCOL;
+    If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,LCurrentProtocol,LCurrentProtocol, Nil,errors) then begin
+      TLog.NewLog(ltInfo,ClassName,Format('DoLoadPendingBufferOperations loaded operations:%d',[OperationsHashTree.OperationsCount]));
+    end else TLog.NewLog(ltError,ClassName,Format('DoLoadPendingBufferOperations ERROR (Protocol %d): loaded operations:%d errors:%s',[LCurrentProtocol,OperationsHashTree.OperationsCount,errors]));
+  end;
+end;
+
+procedure TStorage.DoSavePendingBufferOperations(
+  OperationsHashTree: TOperationsHashTree);
+Var fs : TFileStream;
+begin
+  fs := GetPendingBufferOperationsStream;
+  fs.Position:=0;
+  fs.Size:=0;
+  OperationsHashTree.SaveOperationsHashTreeToStream(fs,true);
+  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('DoSavePendingBufferOperations operations:%d',[OperationsHashTree.OperationsCount]));{$ENDIF}
 end;
 
 function TStorage.Initialize: Boolean;
@@ -3259,6 +3598,62 @@ procedure TStorage.EraseStorage;
 begin
   TLog.NewLog(ltInfo,ClassName,'Executing EraseStorage');
   DoEraseStorage;
+end;
+
+function TStorage.FindOperation(const AOpHash: TBytes;
+  var AOperationResume: TOperationResume): TSearchOpHashResult;
+begin
+  Result := DoFindOperation(AOpHash,AOperationResume);
+end;
+
+function TStorage.GetAccountOperations(AAccount, AMaxDepth, AStartOperation,
+  AMaxOperations, ASearchBackwardsStartingAtBlock: Integer;
+  const AOperationsResumeList:TOperationsResumeList): Boolean;
+begin
+  Result := DoGetAccountOperations(AAccount,AMaxDepth,AStartOperation,AMaxOperations,ASearchBackwardsStartingAtBlock,AOperationsResumeList);
+end;
+
+function TStorage.GetBlockInformation(ABlock: Integer;
+  var AOperationBlock: TOperationBlock; var AOperationsCount: Integer;
+  var AVolume: Int64): Boolean;
+begin
+  if (ABlock<FirstBlock) Or (ABlock>LastBlock) then begin
+    AOperationBlock := CT_OperationBlock_NUL;
+    AOperationsCount := 0;
+    AVolume := 0;
+    Result := false;
+  end else Result := DoGetBlockInformation(ABlock,AOperationBlock,AOperationsCount,AVolume);
+end;
+
+function TStorage.GetBlockOperations(ABlock, AOpBlockStartIndex,
+  AMaxOperations: Integer; var AOperationBlock: TOperationBlock;
+  var AOperationsCount: Integer; var AVolume: Int64;
+  const AOperationsResumeList:TOperationsResumeList): Boolean;
+begin
+  if (ABlock<FirstBlock) Or (ABlock>LastBlock) then begin
+    Result := false;
+  end else Result := DoGetBlockOperations(ABlock,AOpBlockStartIndex,AMaxOperations,AOperationBlock,AOperationsCount,AVolume,AOperationsResumeList);
+end;
+
+function TStorage.GetPendingBufferOperationsStream: TFileStream;
+Var fs : TFileStream;
+  fn : TFileName;
+  fm : Word;
+begin
+  If Not Assigned(FPendingBufferOperationsStream) then begin
+    fn := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'pendingbuffer.ops';
+    If FileExists(fn) then fm := fmOpenReadWrite+fmShareExclusive
+    else fm := fmCreate+fmShareExclusive;
+    Try
+      FPendingBufferOperationsStream := TFileStream.Create(fn,fm);
+    Except
+      On E:Exception do begin
+        TLog.NewLog(ltError,ClassName,'Error opening PendingBufferOperationsStream '+fn+' ('+E.ClassName+'):'+ E.Message);
+        Raise;
+      end;
+    end;
+  end;
+  Result := FPendingBufferOperationsStream;
 end;
 
 procedure TStorage.SavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
@@ -3278,11 +3673,82 @@ begin
 end;
 
 function TStorage.MoveBlockChainBlocks(StartBlock: Cardinal; const DestOrphan: TOrphan; DestStorage : TStorage): Boolean;
+  Procedure DoCopySafebox;
+  var sr: TSearchRec;
+    FileAttrs: Integer;
+    folder : AnsiString;
+    sourcefn,destfn : AnsiString;
+  begin
+    FileAttrs := faArchive;
+    folder := Bank.GetStorageFolder(Bank.Orphan);
+    if SysUtils.FindFirst(Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
+      repeat
+        if (sr.Attr and FileAttrs) = FileAttrs then begin
+          sourcefn := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+sr.Name;
+          destfn := Bank.GetStorageFolder('')+PathDelim+sr.Name;
+          TLog.NewLog(ltInfo,ClassName,'Copying safebox file '+sourcefn+' to '+destfn);
+          Try
+            {$IFDEF FPC}
+            DoCopyFile(sourcefn,destfn);
+            {$ELSE}
+            CopyFile(PWideChar(sourcefn),PWideChar(destfn),False);
+            {$ENDIF}
+          Except
+            On E:Exception do begin
+              TLog.NewLog(ltError,Classname,'Error copying file: ('+E.ClassName+') '+E.Message);
+            end;
+          End;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+  End;
+Var
+  LOperationsComp : TPCOperationsComp;
+  LCurrentBlock : Integer;
 begin
   if Assigned(DestStorage) then begin
     if DestStorage.ReadOnly then raise Exception.Create('Cannot move blocks because is ReadOnly');
-  end else if ReadOnly then raise Exception.Create('Cannot move blocks from myself because is ReadOnly');
-  Result := DoMoveBlockChain(StartBlock,DestOrphan,DestStorage);
+    // Move process:
+    try
+      try
+        DestStorage.FIsMovingBlockchain:=True;
+        DestStorage.Bank.Orphan := DestOrphan;
+        LOperationsComp := TPCOperationsComp.Create(Nil);
+        try
+          LCurrentBlock := StartBlock;
+          while LoadBlockChainBlock(LOperationsComp,LCurrentBlock) do begin
+            inc(LCurrentBlock);
+            TLog.NewLog(ltDebug,Classname,'Moving block from "'+Orphan+'" to "'+DestOrphan+'" '+TPCOperationsComp.OperationBlockToText(LOperationsComp.OperationBlock));
+            DestStorage.SaveBlockChainBlock(LOperationsComp);
+          end;
+          TLog.NewLog(ltdebug,Classname,'Moved blockchain from "'+Orphan+'" to "'+DestOrphan+'" from block '+inttostr(StartBlock)+' to '+inttostr(LCurrentBlock-1));
+        finally
+          LOperationsComp.Free;
+        end;
+      finally
+        DestStorage.FIsMovingBlockchain:=False;
+      end;
+    Except
+      On E:Exception do begin
+        TLog.NewLog(lterror,ClassName,'Error at DoMoveBlockChain: ('+E.ClassName+') '+E.Message);
+        Raise;
+      end;
+    End;
+  end else begin
+    if ReadOnly then raise Exception.Create('Cannot move blocks from myself because is ReadOnly');
+    Result := DoMoveBlockChain(StartBlock,DestOrphan);
+  end;
+  // If DestOrphan is empty, then copy possible updated safebox (because, perhaps current saved safebox is from invalid blockchain)
+  if (DestOrphan='') And (Orphan<>'') then begin
+    DoCopySafebox;
+  end;
+end;
+
+function TStorage.Orphan: String;
+begin
+  if Assigned(Bank) then Result := Bank.Orphan
+  else Result := '';
 end;
 
 function TStorage.SaveBlockChainBlock(Operations: TPCOperationsComp): Boolean;
@@ -3317,6 +3783,29 @@ begin
   FBufferedRipeMD160:=Nil;
   FUsedPubkeyForSignature := CT_TECDSA_Public_Nul;
   InitializeData(AProtocolVersion);
+end;
+
+class function TPCOperation.CreateOperationFromStream(AStream: TStream;
+  var AOperation: TPCOperation): Boolean;
+var LOpTypeWord, LOpProtocolVersion : Word;
+  LOpClass : TPCOperationClass;
+begin
+  AOperation := Nil;
+  AStream.Read(LOpTypeWord, 2);
+  AStream.Read(LOpProtocolVersion, 2);
+
+  LOpClass := TPCOperationsComp.GetOperationClassByOpType(LOpTypeWord);
+  if Not Assigned(LOpClass) then Exit(False);
+  AOperation := LOpClass.Create(LOpProtocolVersion);
+  Try
+    If not AOperation.LoadFromStorage(AStream,CT_BUILD_PROTOCOL,Nil) then raise Exception.Create(Format('ERR 20211119-01 Cannot read %s from stream optype %d protocol %d',[ClassName,LOpTypeWord,LOpProtocolVersion]));
+    Result := True;
+  Except
+    On E:Exception do begin
+      FreeAndNil(AOperation);
+      Result := False;
+    end;
+  end;
 end;
 
 destructor TPCOperation.Destroy;
@@ -3549,6 +4038,9 @@ begin
   FUsedPubkeyForSignature:=CT_TECDSA_Public_Nul;
   FBufferedSha256 := Nil;
   FBufferedRipeMD160 := Nil;
+  FDiscoveredOnBlock := 0;
+  FResendOnBlock := 0;
+  FResendCount := 0;
 end;
 
 procedure TPCOperation.FillOperationResume(Block: Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
@@ -3558,6 +4050,7 @@ end;
 
 function TPCOperation.IsValidECDSASignature(const PubKey: TECDSA_Public; const Signature: TECDSA_SIG): Boolean;
 begin
+  {$IFnDEF TESTING_NO_POW_CHECK}
   // Will reuse FHasValidSignature if checked previously and was True
   // Introduced on Build 4.0.2 to increase speed using MEMPOOL verified operations instead of verify again everytime
   if (FHasValidSignature) then begin
@@ -3574,6 +4067,11 @@ begin
     end;
   end;
   Result := FHasValidSignature;
+  {$ELSE}
+  FHasValidSignature := True;
+  FUsedPubkeyForSignature := PubKey;
+  Result := True;
+  {$ENDIF}
 end;
 
 procedure TPCOperation.CopyUsedPubkeySignatureFrom(SourceOperation: TPCOperation);
@@ -3931,7 +4429,7 @@ begin
   If Length(FBufferedRipeMD160)=0 then begin
     FBufferedRipeMD160 := TCrypto.DoRipeMD160AsRaw(GetBufferForOpHash(true));
   end;
-  Result := FBufferedRipeMD160;
+  Result := Copy(FBufferedRipeMD160); // Fixed bug. TBytes must be copied using Copy instead of direct assignement.
 end;
 
 function TPCOperation.IsSignerAccount(account: Cardinal): Boolean;
@@ -3940,9 +4438,9 @@ begin
 end;
 
 function TPCOperation.IsAffectedAccount(account: Cardinal): Boolean;
-Var l : TList<Cardinal>;
+Var l : TOrderedList<Cardinal>;
 begin
-  l := TList<Cardinal>.Create;
+  l := TOrderedList<Cardinal>.Create(False,TComparison_Cardinal);
   Try
     AffectedAccounts(l);
     Result := (l.IndexOf(account)>=0);
@@ -3988,86 +4486,6 @@ end;
 function TPCOperation.OperationAmountByAccount(account: Cardinal): Int64;
 begin
   Result := 0;
-end;
-
-{ TOperationsResumeList }
-
-Type POperationResume = ^TOperationResume;
-
-procedure TOperationsResumeList.Add(const OperationResume: TOperationResume);
-Var P : POperationResume;
-begin
-  New(P);
-  P^ := OperationResume;
-  FList.Add(P);
-end;
-
-procedure TOperationsResumeList.Clear;
-Var P : POperationResume;
-  i : Integer;
-  l : TList<Pointer>;
-begin
-  l := FList.LockList;
-  try
-    for i := 0 to l.Count - 1 do begin
-      P := l[i];
-      Dispose(P);
-    end;
-    l.Clear;
-  finally
-    FList.UnlockList;
-  end;
-end;
-
-function TOperationsResumeList.Count: Integer;
-Var l : TList<Pointer>;
-begin
-  l := FList.LockList;
-  Try
-    Result := l.Count;
-  Finally
-    FList.UnlockList;
-  End;
-end;
-
-constructor TOperationsResumeList.Create;
-begin
-  FList := TPCThreadList<Pointer>.Create('TOperationsResumeList_List');
-end;
-
-procedure TOperationsResumeList.Delete(index: Integer);
-Var P : POperationResume;
-  l : TList<Pointer>;
-begin
-  l := FList.LockList;
-  Try
-    P := l[index];
-    l.Delete(index);
-    Dispose(P);
-  Finally
-    FList.UnlockList;
-  End;
-end;
-
-destructor TOperationsResumeList.Destroy;
-begin
-  Clear;
-  FreeAndNil(FList);
-  inherited;
-end;
-
-function TOperationsResumeList.GetOperationResume(index: Integer): TOperationResume;
-Var l : TList<Pointer>;
-begin
-  l := FList.LockList;
-  try
-    if index<l.Count then Result := POperationResume(l[index])^
-    else begin
-      Result := CT_TOperationResume_NUL;
-    end;
-  finally
-    FList.UnlockList;
-  end;
 end;
 
 initialization

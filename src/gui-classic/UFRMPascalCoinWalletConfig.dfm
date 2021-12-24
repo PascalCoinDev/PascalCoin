@@ -297,36 +297,36 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Left = 8
     Top = 250
     Width = 334
-    Height = 121
+    Height = 112
     Caption = ' Miner Server Private Key: '
     TabOrder = 9
     object rbGenerateANewPrivateKeyEachBlock: TRadioButton
-      Left = 18
-      Top = 6
+      Left = 11
+      Top = 14
       Width = 277
       Height = 19
       Caption = 'Generate a new private key for each generated block'
       TabOrder = 0
     end
     object rbUseARandomKey: TRadioButton
-      Left = 18
-      Top = 26
+      Left = 11
+      Top = 34
       Width = 146
       Height = 19
       Caption = 'Use a random existing key'
       TabOrder = 1
     end
     object rbMineAllwaysWithThisKey: TRadioButton
-      Left = 18
-      Top = 47
+      Left = 11
+      Top = 55
       Width = 146
       Height = 19
       Caption = 'Always mine with this key:'
       TabOrder = 2
     end
     object cbPrivateKeyToMine: TComboBox
-      Left = 43
-      Top = 71
+      Left = 36
+      Top = 79
       Width = 266
       Height = 21
       Style = csDropDownList

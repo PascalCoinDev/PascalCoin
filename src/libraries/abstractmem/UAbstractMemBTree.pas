@@ -39,6 +39,7 @@ uses
   // https://github.com/PascalCoinDev/PascalCoin/tree/master/src/libraries/generics.collections
   // (Download and set folder as a "units include folder" in compiler options)
   {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults,{$ELSE}Generics.Collections,Generics.Defaults,{$ENDIF}
+  UAVLCache,
   UOrderedList, UAbstractMem, UAbstractBTree;
 
 {$I ./ConfigAbstractMem.inc }
@@ -50,16 +51,23 @@ type
     // BTree implementation on AbstractMem will use TIdentify and TData as a TAbstractMemPosition (aka pointer inside AbstractMem)
     // Internal search process will convert TData pointer to final TData value for
     // comparisions
+  public
+    type
+      TAVLABTreeCache = Class(TAVLCache<TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode>)
+      end;
   private
     const
           CT_AbstractMemBTree_Magic = 'AMBT'; // DO NOT LOCALIZE MUST BE 4 BYTES LENGTH
     var
     FrootPosition : TAbstractMemPosition;
+    FBTreeCache : TAVLABTreeCache;
     procedure SaveHeader;
     Procedure CheckInitialized;
     procedure LoadNodeHeader(const APosition : TAbstractMemPosition; var ANode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; var AChildsCount : Integer; var AChildsPosition : TAbstractMemPosition);
     procedure SaveNodeHeader(const ANode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; const AChildsPosition : TAbstractMemPosition);
     function GetNodeHeaderSize : Integer;
+    function CacheCompareBTree(const ALeft,ARight : TAVLCache<TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode>.PAVLCacheMemData) : Integer;
+    function OnGetCopyDataMethod(Const AData : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode) : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode;
   protected
     FInitialZone : TAMZone;
     FAbstractMem : TAbstractMem;
@@ -70,10 +78,6 @@ type
     procedure SetNil(var AIdentify : TAbstractMemPosition); override;
     procedure SaveNode(var ANode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode); override;
     procedure SetCount(const ANewCount : Integer); override;
-    //
-    // NOTE: inherited classes will need to override DisposeData if Data is not a new AbstractMem memory region that must be freed
-    //
-    procedure DisposeData(var AData : TAbstractMemPosition); override;
     //
     // NOTE: inherited classes will need to override DoCompareData function in order to properly compare:
     // function DoCompareData(const ALeftData, ARightData: TAbstractMemPosition): Integer; override;
@@ -90,10 +94,16 @@ type
     function NodeIdentifyToString(const AIdentify : TAbstractMemPosition) : String; override;
     property InitialZone : TAMZone read FInitialZone;
     function GetNullData : TAbstractMemPosition; override;
+    property BTreeCache : TAVLABTreeCache read FBTreeCache;
   End;
+
+  {$IFnDEF FPC}
+  TAbstractMemBTreeDataIndex<TBTreeData> = Class;
+  {$ENDIF}
 
   TAbstractMemBTreeDataAbstract<TBTreeData> = Class(TAbstractMemBTree)
   private
+    var
     // FLeft_ and FRight_ will be used as a cache for improvement calls on DoCompareData
     FLeft_Pos, FRight_Pos : TAbstractMemPosition;
     FLeft_Data, FRight_Data : TBTreeData;
@@ -104,40 +114,57 @@ type
     //
     function LoadData(const APosition : TAbstractMemPosition) : TBTreeData; virtual; abstract;
     function SaveData(const AData : TBTreeData) : TAMZone; virtual; abstract;
+    function GetCopyOfData(Const AData : TBTreeData) : TBTreeData;  virtual;
     procedure DoOnFindProcessStart; override;
     procedure DoOnFindProcessEnd; override;
     //
+    function GetData(const APosition : TAbstractMemPosition) : TBTreeData; virtual;
     function AddInherited(const AAbstractMemPosition: TAbstractMemPosition) : Boolean;
     function DeleteInherited(const AAbstractMemPosition: TAbstractMemPosition) : Boolean;
   public
-    constructor Create(AAbstractMem : TAbstractMem; const AInitialZone: TAMZone; AAllowDuplicates : Boolean; AOrder : Integer; const AOnCompareAbstractMemDataMethod: TComparison<TBTreeData>);
+    constructor Create(AAbstractMem : TAbstractMem; const AInitialZone: TAMZone; AAllowDuplicates : Boolean; AOrder : Integer;
+      const AOnCompareAbstractMemDataMethod: TComparison<TBTreeData>); reintroduce;
+    destructor Destroy; override;
     procedure Add(); reintroduce;
     procedure Delete(); reintroduce;
-    function FindData(const AData: TBTreeData; out APosition : TAbstractMemPosition; out AFoundData : TBTreeData) : Boolean; overload;
-    function FindData(const AData: TBTreeData; out APosition : TAbstractMemPosition) : Boolean; overload;
+    function FindData(const AData: TBTreeData; out ADataEqualOrPrecessorFound : TAbstractMemPosition; var AFoundData : TBTreeData) : Boolean; overload;
+    function FindData(const AData: TBTreeData; var AFoundData : TBTreeData) : Boolean; overload;
+    function FindDataPos(const AData: TBTreeData; out ADataEqualOrPrecessorFound : TAbstractMemPosition) : Boolean; overload;
+    function FindDataPos(const AData: TBTreeData; out ADataEqualOrPrecessorFound : TAbstractMemPosition; out ANode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; out iPos : Integer) : Boolean; overload;
     function FindDataPrecessor(const AData : TBTreeData; var APrecessor : TBTreeData) : Boolean;
     function FindDataSuccessor(const AData : TBTreeData; var ASuccessor : TBTreeData) : Boolean;
     function FindDataLowest(out ALowest : TBTreeData) : Boolean;
     function FindDataHighest(out AHighest : TBTreeData) : Boolean;
   End;
 
-  {$IFnDEF FPC}
-  TAbstractMemBTreeDataIndex<TBTreeData> = Class;
-  {$ENDIF}
-
   TAbstractMemBTreeData<TBTreeData> = Class(TAbstractMemBTreeDataAbstract<TBTreeData>)
+  public
+    type
+      TAVLABTreeDataCacheData = record
+        position : TAbstractMemPosition;
+        data : TBTreeData;
+      end;
+      TAVLABTreeDataCache = Class(TAVLCache<TAVLABTreeDataCacheData>)
+      protected
+      public
+    function ToString(const AData : TAVLABTreeDataCacheData) : String; override;
+      end;
   private
-//    Ref: 20211111-1
-//    FreePascal issue: Does not allow recursive Generics...
-//    due to this issue (on Delphi is allowed) then I must use TList< TOjbect > instead
-//    last FreePascal version with this issue: 3.2.0  (will need to check on future versions)
+    //    Ref: 20211111-1  -- TODO
+    //    FreePascal issue: Does not allow recursive Generics...
+    //    due to this issue (on Delphi is allowed) then I must use TList< TOjbect > instead
+    //    last FreePascal version with this issue: 3.2.0  (will need to check on future versions)
     {$IFDEF FPC}
     FIndexes : TList< TObject >;
     {$ELSE}
-//    Ref: 20211111-1 I can't use this... in Delphi it works! Not in FreePascal... SHIT!
+    //    Ref: 20211111-1 I can't use this... in Delphi it works! Not in FreePascal... SHIT!
     FIndexes : TList< TAbstractMemBTreeDataIndex<TBTreeData> >;
     {$ENDIF}
+    FBTreeDataCache : TAVLABTreeDataCache;
+    function CacheCompareBTreeData(const ALeft,ARight : TAVLCache<TAVLABTreeDataCacheData>.PAVLCacheMemData) : Integer;
   protected
+    function GetData(const APosition : TAbstractMemPosition) : TBTreeData; override;
+    procedure DisposeData(var AData : TAbstractMemPosition); override;
     procedure DeletedData(const AData: TBTreeData); virtual;
   public
     constructor Create(AAbstractMem : TAbstractMem; const AInitialZone: TAMZone; AAllowDuplicates : Boolean; AOrder : Integer;
@@ -147,19 +174,24 @@ type
     function AddData(const AData: TBTreeData) : Boolean;
     function DeleteData(const AData: TBTreeData) : Boolean;
     function IndexesCount : Integer;
-//    See ref: 20211111-1
+    //    See ref: 20211111-1
     {$IFDEF FPC}
     function GetIndex(AIndex : Integer) : TObject;
     {$ELSE}
     function GetIndex(AIndex : Integer) : TAbstractMemBTreeDataIndex<TBTreeData>;
     {$ENDIF}
     procedure CheckConsistency; override;
+    property BTreeDataCache : TAVLABTreeDataCache read FBTreeDataCache;
   End;
 
   TAbstractMemBTreeDataIndex<TBTreeData> = Class(TAbstractMemBTreeDataAbstract<TBTreeData>)
-  protected
+  private
     FIndexed : TAbstractMemBTreeData<TBTreeData>;
+    FCompareModeInsertingOrDeleting : Boolean;
+  protected
+    function DoCompareData(const ALefTBTreeData, ARighTBTreeData: TAbstractMemPosition): Integer; override;
     function LoadData(const APosition : TAbstractMemPosition) : TBTreeData; override;
+    function SaveData(const AData : TBTreeData) : TAMZone; override;
   public
     constructor Create(AAbstractMemBTreeData : TAbstractMemBTreeData<TBTreeData>;
       AInitialZone: TAMZone;
@@ -167,11 +199,21 @@ type
       const AOnCompareAbstractMemDataMethod: TComparison<TBTreeData>);
     destructor Destroy; override;
     procedure CheckConsistency; override;
+    procedure Lock; override;
+    procedure Unlock; override;
   End;
 
 implementation
 
 { TAbstractMemBTree<TBTreeData> }
+
+function TAbstractMemBTree.CacheCompareBTree(const ALeft,
+  ARight: TAVLCache<TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode>.PAVLCacheMemData): Integer;
+begin
+  if ALeft.data.identify<ARight.data.identify then Result := -1
+  else if ALeft.data.identify>ARight.data.identify then Result := 1
+  else Result := 0;
+end;
 
 procedure TAbstractMemBTree.CheckInitialized;
 begin
@@ -217,19 +259,22 @@ begin
     if (((FrootPosition=0) and (FCount>0))) then raise EAbstractMemBTree.Create(Format('Invalid initial root %d vs count %d',[FrootPosition,FCount]));
   finally
   end;
+  //
+  {$IFDEF FPC}
+  //    Ref: 20211126-2  -- TODO
+  //    FPC (Tested on 3.2.0) does not allow use "CacheCompareBTree" for problems withs generics...
+  //    Nedd to deeply search why or to test on futures releases...
+  FBTreeCache := Nil;
+  {$ELSE}
+  FBTreeCache :=  TAVLABTreeCache.Create(100000,CacheCompareBTree);
+  {$ENDIF}
 end;
 
 destructor TAbstractMemBTree.Destroy;
 begin
   //
+  FreeAndNil(FBTreeCache);
   inherited;
-end;
-
-procedure TAbstractMemBTree.DisposeData(var AData: TAbstractMemPosition);
-begin
-  inherited;
-  // Will be called on EraseTreeEx
-  FAbstractMem.Dispose(AData);
 end;
 
 procedure TAbstractMemBTree.DisposeNode(var ANode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode);
@@ -237,6 +282,9 @@ var LOld : TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractB
   LChildsCount : Integer;
   LChildsPosition : TAbstractMemPosition;
 begin
+  if Assigned(FBTreeCache) then begin
+    FBTreeCache.Remove(ANode);
+  end;
   LoadNodeHeader(ANode.identify,LOld,LChildsCount,LChildsPosition);
   FAbstractMem.Dispose( ANode.identify );
   ClearNode(ANode);
@@ -251,11 +299,20 @@ function TAbstractMemBTree.GetNode(AIdentify: TAbstractMemPosition): TAbstractBT
 var LBuff : TBytes;
   i, LChildsCount : Integer;
   LChildsPosition : TAbstractMemPosition;
+  LSearch,LFound : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode;
 begin
+  if Assigned(FBTreeCache) then begin
+    LSearch.identify := AIdentify;
+    if FBTreeCache.Find(LSearch,LFound) then begin
+      Result := LFound;
+      Exit;
+    end;
+  end;
   LoadNodeHeader(AIdentify,Result,LChildsCount,LChildsPosition);
   if LChildsCount>0 then begin
     SetLength(Result.childs,LChildsCount);
-    SetLength(LBuff,(LChildsCount*FAbstractMem.SizeOfAbstractMemPosition));
+    if (LChildsCount>MaxChildrenPerNode) then raise EAbstractMemBTree.Create(Format('Childrens in node %d out of range [0..%d]',[LChildsCount,MaxChildrenPerNode]));
+    SetLength(LBuff,(MaxChildrenPerNode*FAbstractMem.SizeOfAbstractMemPosition));
     FAbstractMem.Read(LChildsPosition,LBuff[0],Length(LBuff));
     for i := 0 to LChildsCount-1 do begin
       Move(LBuff[i*FAbstractMem.SizeOfAbstractMemPosition],Result.childs[i],FAbstractMem.SizeOfAbstractMemPosition);
@@ -273,6 +330,9 @@ begin
     end;
     if ((LChildsCount<>0) and (LChildsCount<>(Result.Count+1))) then
       raise EAbstractMemBTree.Create(Format('Node childrens %d not %d+1 in range [%d..%d]',[LChildsCount,Result.Count,MinChildrenPerNode,MaxChildrenPerNode]));
+  end;
+  if Assigned(FBTreeCache) then begin
+    FBTreeCache.Add(Result);
   end;
 end;
 
@@ -370,6 +430,15 @@ begin
   Result := '0x'+AIdentify.ToHexString;
 end;
 
+function TAbstractMemBTree.OnGetCopyDataMethod(
+  const AData: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode): TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
+begin
+  Result.identify := AData.identify;
+  Result.parent := AData.parent;
+  Result.data := Copy(AData.data);
+  Result.childs := Copy(AData.childs);
+end;
+
 procedure TAbstractMemBTree.SaveHeader;
 var LBuff : TBytes;
  i : Integer;
@@ -395,6 +464,9 @@ var LBuff : TBytes;
   LZone : TAMZone;
 begin
   CheckInitialized;
+  if Assigned(FBTreeCache) then begin
+    FBTreeCache.Remove(ANode);
+  end;
   if ((ANode.Count)>MaxItemsPerNode) or (Length(ANode.childs)>MaxChildrenPerNode) then begin
     // Protection against saving temporal Node info with extra datas or childs
     Exit;
@@ -422,6 +494,9 @@ begin
       Move(ANode.childs[i],LBuff[i*FAbstractMem.SizeOfAbstractMemPosition],FAbstractMem.SizeOfAbstractMemPosition);
     end;
     FAbstractMem.Write(LChildsPosition,LBuff[0],LChildsCount*FAbstractMem.SizeOfAbstractMemPosition);
+  end;
+  if Assigned(FBTreeCache) then begin
+    FBTreeCache.Add(ANode);
   end;
 end;
 
@@ -470,7 +545,7 @@ end;
 
 procedure TAbstractMemBTreeDataAbstract<TBTreeData>.Add;
 begin
-  raise EAbstractMemBTree.Create('Invalid use of Abstract function '+ClassName+'.Delete');
+  raise EAbstractMemBTree.Create('Invalid use of Abstract function '+ClassName+'.Add');
 end;
 
 function TAbstractMemBTreeDataAbstract<TBTreeData>.AddInherited(
@@ -501,6 +576,11 @@ begin
   Result := Inherited Delete(AAbstractMemPosition);
 end;
 
+destructor TAbstractMemBTreeDataAbstract<TBTreeData>.Destroy;
+begin
+  inherited;
+end;
+
 function TAbstractMemBTreeDataAbstract<TBTreeData>.DoCompareData(const ALefTBTreeData,
   ARighTBTreeData: TAbstractMemPosition): Integer;
 var Ltmp : TBTreeData;
@@ -518,7 +598,7 @@ begin
         Exit;
       end;
       FRight_Pos := ARighTBTreeData;
-      FRight_Data := LoadData(ARighTBTreeData);
+      FRight_Data := GetData(ARighTBTreeData);
     end;
     Result := FOnCompareAbstractMemData(FSearchTarget,FRight_Data);
   end else begin
@@ -528,17 +608,17 @@ begin
         if (FLeft_Pos<>ARighTBTreeData) then begin
           // Left is not right, reload
           FLeft_Pos := ARighTBTreeData;
-          FLeft_Data := LoadData(ARighTBTreeData);
+          FLeft_Data := GetData(ARighTBTreeData);
         end;
         Result := FOnCompareAbstractMemData(FRight_Data,FLeft_Data);
         Exit;
       end;
       FLeft_Pos := ALefTBTreeData;
-      FLeft_Data := LoadData(ALefTBTreeData);
+      FLeft_Data := GetData(ALefTBTreeData);
     end;
     if (FRight_Pos=0) or (FRight_Pos<>ARighTBTreeData) then begin
       FRight_Pos := ARighTBTreeData;
-      FRight_data := LoadData(ARighTBTreeData);
+      FRight_data := GetData(ARighTBTreeData);
     end;
     Result := FOnCompareAbstractMemData(FLeft_data,FRight_data);
   end;
@@ -559,28 +639,23 @@ begin
 end;
 
 function TAbstractMemBTreeDataAbstract<TBTreeData>.FindData(const AData: TBTreeData;
-  out APosition: TAbstractMemPosition; out AFoundData : TBTreeData): Boolean;
+  out ADataEqualOrPrecessorFound : TAbstractMemPosition; var AFoundData : TBTreeData): Boolean;
 begin
-  if FindData(AData,APosition) then begin
+  if FindDataPos(AData,ADataEqualOrPrecessorFound) then begin
     Result := True;
-    AFoundData := LoadData(APosition);
+    AFoundData := GetData(ADataEqualOrPrecessorFound);
   end else begin
-    if IsNil(APosition) then FindDataLowest(AFoundData)
-    else AFoundData := LoadData(APosition);
+    if IsNil(ADataEqualOrPrecessorFound) then FindDataLowest(AFoundData)
+    else AFoundData := GetData(ADataEqualOrPrecessorFound);
     Result := False;
   end;
 end;
 
 function TAbstractMemBTreeDataAbstract<TBTreeData>.FindData(
-  const AData: TBTreeData; out APosition: TAbstractMemPosition): Boolean;
+  const AData: TBTreeData; var AFoundData: TBTreeData): Boolean;
+var LPos : TAbstractMemPosition;
 begin
-  FAbstractBTreeLock.Acquire;
-  try
-    FSearchTarget := AData;
-    Result := FindExt(1,APosition);
-  finally
-    FAbstractBTreeLock.Release;
-  end;
+  Result := FindData(AData,LPos,AFoundData);
 end;
 
 function TAbstractMemBTreeDataAbstract<TBTreeData>.FindDataHighest(
@@ -589,7 +664,7 @@ var Lpos : TAbstractMemPosition;
 begin
   if FindHighest(Lpos) then begin
     Result := True;
-    AHighest := LoadData(Lpos);
+    AHighest := GetData(Lpos);
   end else Result := False;
 end;
 
@@ -599,8 +674,30 @@ var Lpos : TAbstractMemPosition;
 begin
   if FindLowest(Lpos) then begin
     Result := True;
-    ALowest := LoadData(Lpos);
+    ALowest := GetData(Lpos);
   end else Result := False;
+end;
+
+function TAbstractMemBTreeDataAbstract<TBTreeData>.FindDataPos(
+  const AData: TBTreeData; out ADataEqualOrPrecessorFound : TAbstractMemPosition): Boolean;
+var LNode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
+  iPos : Integer;
+begin
+  Result := FindDataPos(AData,ADataEqualOrPrecessorFound,LNode,iPos);
+end;
+
+function TAbstractMemBTreeDataAbstract<TBTreeData>.FindDataPos(
+  const AData: TBTreeData; out ADataEqualOrPrecessorFound: TAbstractMemPosition;
+  out ANode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
+  out iPos: Integer): Boolean;
+begin
+  Lock;
+  try
+    FSearchTarget := AData;
+    Result := FindExt(1,ADataEqualOrPrecessorFound,ANode,iPos);
+  finally
+    Unlock;
+  end;
 end;
 
 function TAbstractMemBTreeDataAbstract<TBTreeData>.FindDataPrecessor(
@@ -609,17 +706,17 @@ var Lnode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractB
   LiPosNode : Integer;
   Lpos : TAbstractMemPosition;
 begin
-  FAbstractBTreeLock.Acquire;
+  Lock;
   try
   FSearchTarget := AData;
   if inherited Find(1,Lnode,LiPosNode) then begin
     if FindPrecessor(Lnode.data[LiPosNode],Lpos) then begin
       Result := True;
-      APrecessor := LoadData(Lpos);
+      APrecessor := GetData(Lpos);
     end else Result := False;
   end else Result := False;
   finally
-    FAbstractBTreeLock.Release;
+    Unlock;
   end;
 end;
 
@@ -629,35 +726,47 @@ var Lnode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractB
   LiPosNode : Integer;
   Lpos : TAbstractMemPosition;
 begin
-  FAbstractBTreeLock.Acquire;
+  Lock;
   try
   FSearchTarget := AData;
   if inherited Find(1,Lnode,LiPosNode) then begin
     if FindSuccessor(Lnode.data[LiPosNode],Lpos) then begin
       Result := True;
-      ASuccessor := LoadData(Lpos);
+      ASuccessor := GetData(Lpos);
     end else Result := False;
   end else Result := False;
   finally
-    FAbstractBTreeLock.Release;
+    Unlock;
   end;
+end;
+
+function TAbstractMemBTreeDataAbstract<TBTreeData>.GetCopyOfData(const AData: TBTreeData): TBTreeData;
+begin
+  Result := AData;
+end;
+
+function TAbstractMemBTreeDataAbstract<TBTreeData>.GetData(const APosition: TAbstractMemPosition): TBTreeData;
+begin
+  Result := GetCopyOfData(LoadData(APosition));
 end;
 
 { TAbstractMemBTreeData<TBTreeData> }
 
 function TAbstractMemBTreeData<TBTreeData>.AddData(const AData: TBTreeData): Boolean;
-var Lzone, LindexZone : TAMZone;
+var Lzone : TAMZone;
   i : Integer;
   LIndexPosition : TAbstractMemPosition;
   LBTreeIndex : TAbstractMemBTreeDataIndex<TBTreeData>;
+  LCache : TAVLABTreeDataCacheData;
 begin
-  // Check in indexes
+  Lock;
+  Try
   Result := True;
   i := 0;
   while (Result) and (i<FIndexes.Count) do begin
     LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
     if (Not LBTreeIndex.AllowDuplicates) then begin
-      Result :=  Not (LBTreeIndex.FindData(AData,LIndexPosition));
+      Result := Not LBTreeIndex.FindDataPos(AData,LIndexPosition);
     end;
     inc(i);
   end;
@@ -667,21 +776,40 @@ begin
       Result := AddInherited(Lzone.position);
       if Result then begin
         for i := 0 to FIndexes.Count-1 do begin
-          LindexZone := FAbstractMem.New(FAbstractMem.SizeOfAbstractMemPosition);
-          FAbstractMem.Write(LindexZone.position,Lzone.position,FAbstractMem.SizeOfAbstractMemPosition);
           LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
-          if Not LBTreeIndex.AddInherited(LindexZone.position) then
-            raise EAbstractMemBTree.Create(Format('Fatal error adding index %d/%d with data at %s and %s',
-              [i+1,FIndexes.Count,Lzone.ToString,LindexZone.ToString]));
+          Try
+            LBTreeIndex.FCompareModeInsertingOrDeleting := True;
+            if Not LBTreeIndex.AddInherited(LZone.position) then begin
+              raise EAbstractMemBTree.Create(Format('Fatal error adding index %d/%d with data at %s',
+                [i+1,FIndexes.Count,Lzone.ToString]));
+            end;
+          Finally
+            LBTreeIndex.FCompareModeInsertingOrDeleting := False;
+          End;
         end;
       end;
     Finally
       if Not Result then begin
         // Dispose
         FAbstractMem.Dispose(Lzone);
+        If Assigned(FBTreeDataCache) then begin
+          LCache.position := Lzone.position;
+          FBTreeDataCache.Remove(LCache);
+        end;
       end;
     End;
   end;
+  Finally
+    Unlock;
+  End;
+end;
+
+function TAbstractMemBTreeData<TBTreeData>.CacheCompareBTreeData(
+  const ALeft, ARight: TAVLCache<TAVLABTreeDataCacheData>.PAVLCacheMemData): Integer;
+begin
+  if ALeft.data.position<ARight.data.position then Result := -1
+  else if ALeft.data.position>ARight.data.position then Result := 1
+  else Result := 0;
 end;
 
 function TAbstractMemBTreeData<TBTreeData>.CanAddData(
@@ -696,23 +824,39 @@ begin
   while (Result) and (i<FIndexes.Count) do begin
     LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
     if (Not LBTreeIndex.AllowDuplicates) then begin
-      Result :=  Not (LBTreeIndex.FindData(AData,LIndexPosition));
+      Result :=  Not (LBTreeIndex.FindDataPos(AData,LIndexPosition));
     end;
     inc(i);
   end;
   if (Result) And (Not AllowDuplicates) then begin
-    Result := Not FindData(AData,LIndexPosition);
+    Result := Not FindDataPos(AData,LIndexPosition);
   end;
 end;
 
 procedure TAbstractMemBTreeData<TBTreeData>.CheckConsistency;
-var i : Integer;
+var i, nCount : Integer;
  LBTreeIndex : TAbstractMemBTreeDataIndex<TBTreeData>;
+ LSearch,LFound : TBTreeData;
 begin
   inherited;
+  nCount := 0;
+  if FindDataLowest(LFound) then begin
+    inc(nCount);
+    for i := 0 to FIndexes.Count-1 do begin
+      LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
+      if Not LBTreeIndex.FindData(LFound,LSearch) then raise EAbstractMemBTree.Create(Format('Consistency error data %d not found on index %d/%d',[nCount, i+1,FIndexes.Count]));
+    end;
+    while FindDataSuccessor(LSearch,LFound) do begin
+      inc(nCount);
+      for i := 0 to FIndexes.Count-1 do begin
+        LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
+        if Not LBTreeIndex.FindData(LFound,LSearch) then raise EAbstractMemBTree.Create(Format('Consistency error data %d not found on index %d/%d',[nCount, i+1,FIndexes.Count]));
+      end;
+    end;
+  end;
   for i := 0 to FIndexes.Count-1 do begin
     LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
-    if (LBTreeIndex.Count <> Self.Count) then raise EAbstractMemBTree.Create(Format('Consistency error on index %d/%d count %d vs %d',[i+1,FIndexes.Count,LBTreeIndex.Count,Self.Count]));
+    if (LBTreeIndex.Count > Self.Count) then raise EAbstractMemBTree.Create(Format('Consistency error on index %d/%d count %d > %d',[i+1,FIndexes.Count,LBTreeIndex.Count,Self.Count]));
     LBTreeIndex.CheckConsistency;
   end;
 end;
@@ -727,20 +871,40 @@ begin
   FIndexes := TList< TAbstractMemBTreeDataIndex<TBTreeData> >.Create;
   {$ENDIF}
   inherited Create(AAbstractMem,AInitialZone,AAllowDuplicates,AOrder,AOnCompareAbstractMemDataMethod);
+  {$IFDEF FPC}
+  //    Ref: 20211126-1  -- TODO
+  //    FPC (Tested on 3.2.0) does not allow use "CacheCompareBTreeData" for problems withs generics...
+  //    Nedd to deeply search why or to test on futures releases...
+  FBTreeDataCache := Nil;
+  {$ELSE}
+  FBTreeDataCache :=  TAVLABTreeDataCache.Create(100000,CacheCompareBTreeData);
+  {$ENDIF}
 end;
 
 function TAbstractMemBTreeData<TBTreeData>.DeleteData(const AData: TBTreeData): Boolean;
 var LAbstractMemPos, LindexPosition : TAbstractMemPosition;
   i : Integer;
   LBTreeIndex : TAbstractMemBTreeDataIndex<TBTreeData>;
+  LCache : TAVLABTreeDataCacheData;
 begin
-  if FindData(AData,LAbstractMemPos) then begin
+  Lock;
+  Try
+  if FindDataPos(AData,LAbstractMemPos) then begin
     // Delete from indexes
     for i := 0 to FIndexes.Count-1 do begin
       LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
-      if Not LBTreeIndex.FindData(AData,LindexPosition) then raise EAbstractMemBTree.Create(Format('Fatal error Data not found in index %d/%d to Delete from pos %s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString]));
-      if not LBTreeIndex.DeleteInherited(LindexPosition) then raise EAbstractMemBTree.Create(Format('Fatal error Data not deleted in index %d/%d from pos %s at pos %s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString,LindexPosition.ToHexString]));
-      FAbstractMem.Dispose(LindexPosition);
+      try
+        LBTreeIndex.FCompareModeInsertingOrDeleting := True;
+        if Not LBTreeIndex.FindExt(LAbstractMemPos,LIndexPosition) then begin
+          // Fatal error. Not found
+          raise EAbstractMemBTree.Create(Format('Fatal error Data not found in index %d/%d to Delete from pos 0x%s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString]));
+        end;
+        if not LBTreeIndex.DeleteInherited(LindexPosition) then begin
+          raise EAbstractMemBTree.Create(Format('Fatal error Data not deleted in index %d/%d from pos 0x%s at pos 0x%s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString,LindexPosition.ToHexString]));
+        end;
+      finally
+        LBTreeIndex.FCompareModeInsertingOrDeleting := False;
+      end;
     end;
     //
     DeleteInherited(LAbstractMemPos);
@@ -749,8 +913,16 @@ begin
     if FLeft_Pos=LAbstractMemPos then FLeft_Pos := 0;
     if FRight_Pos=LAbstractMemPos then FRight_Pos := 0;
     //
+    If Assigned(FBTreeDataCache) then begin
+      LCache.position := LAbstractMemPos;
+      FBTreeDataCache.Remove(LCache);
+    end;
+    //
     DeletedData(AData);
-  end else Result := False;
+  End else Result := False;
+  Finally
+    Unlock;
+  End;
 end;
 
 procedure TAbstractMemBTreeData<TBTreeData>.DeletedData(
@@ -768,7 +940,34 @@ begin
     LBTreeIndex.FIndexed := Nil;
   end;
   FreeAndNil(Findexes);
+  FreeAndNil(FBTreeDataCache);
   inherited;
+end;
+
+procedure TAbstractMemBTreeData<TBTreeData>.DisposeData(
+  var AData: TAbstractMemPosition);
+begin
+  inherited;
+  // Will be called on EraseTreeEx
+  FAbstractMem.Dispose(AData);
+end;
+
+function TAbstractMemBTreeData<TBTreeData>.GetData(
+  const APosition: TAbstractMemPosition): TBTreeData;
+var LSearch,LFound : TAVLABTreeDataCacheData;
+begin
+  if (Assigned(FBTreeDataCache)) then begin
+    LSearch.position := APosition;
+    if FBTreeDataCache.Find(LSearch,LFound) then begin
+      Result := GetCopyOfData( LFound.data );
+    end else begin
+      LSearch.data := LoadData(APosition);
+      FBTreeDataCache.Add(LSearch);
+      Result := GetCopyOfData( LSearch.data );
+    end;
+  end else begin
+    Result := inherited GetData(APosition);
+  end;
 end;
 
 {$IFDEF FPC}
@@ -802,7 +1001,7 @@ begin
     while FindDataSuccessor(APreviousData,ACurrentData) do begin
       inc(nCount);
       i := FOnCompareAbstractMemData(APreviousData,ACurrentData);
-      if ((Not AllowDuplicates) and (i>=0)) or (i>0) then raise EAbstractMemBTree.Create(Format('Invalid consistency on Index comparing pos %d and %d result %d',[nCount-1,nCount,i]));
+      if ((Not AllowDuplicates) and (i>=0)) or (i>=0) then raise EAbstractMemBTree.Create(Format('Invalid consistency on Index comparing pos %d and %d result %d',[nCount-1,nCount,i]));
       APreviousData := ACurrentData;
     end;
   end;
@@ -816,8 +1015,9 @@ constructor TAbstractMemBTreeDataIndex<TBTreeData>.Create(
 begin
   FIndexed := AAbstractMemBTreeData;
   FIndexed.FIndexes.Add(Self);
-  inherited Create(FIndexed.FAbstractMem,AInitialZone,AAllowDuplicates,
-    AOrder,AOnCompareAbstractMemDataMethod)
+  FOnCompareAbstractMemData := AOnCompareAbstractMemDataMethod;
+  FCompareModeInsertingOrDeleting := False;
+  inherited Create(FIndexed.FAbstractMem,AInitialZone,AAllowDuplicates,AOrder,AOnCompareAbstractMemDataMethod);
 end;
 
 destructor TAbstractMemBTreeDataIndex<TBTreeData>.Destroy;
@@ -828,13 +1028,52 @@ begin
   inherited;
 end;
 
-function TAbstractMemBTreeDataIndex<TBTreeData>.LoadData(const APosition: TAbstractMemPosition): TBTreeData;
-var LDataPosition : TAbstractMemPosition;
+function TAbstractMemBTreeDataIndex<TBTreeData>.DoCompareData(
+  const ALefTBTreeData, ARighTBTreeData: TAbstractMemPosition): Integer;
 begin
-  LDataPosition := 0;
-  if FAbstractMem.Read(APosition,LDataPosition,FAbstractMem.SizeOfAbstractMemPosition)<>FAbstractMem.SizeOfAbstractMemPosition then
-    raise EAbstractMemBTree.Create('Cannot load Data from Index at position '+APosition.ToHexString);
-  Result := FIndexed.LoadData(LDataPosition);
+  Result := inherited DoCompareData(ALeftBTreeData,ARightBTreeData);
+  if (FCompareModeInsertingOrDeleting) and (Result=0) then begin
+    if ALefTBTreeData<ARighTBTreeData then Result := -1
+    else if ALefTBTreeData>ARighTBTreeData then Result := 1
+    else Result := 0;
+  end;
+end;
+
+function TAbstractMemBTreeDataIndex<TBTreeData>.LoadData(const APosition: TAbstractMemPosition): TBTreeData;
+begin
+  Result := FIndexed.GetData(APosition);
+end;
+
+procedure TAbstractMemBTreeDataIndex<TBTreeData>.Lock;
+begin
+  FIndexed.Lock;
+  Try
+    inherited;
+  Except
+    FIndexed.Unlock;
+    raise;
+  End;
+end;
+
+function TAbstractMemBTreeDataIndex<TBTreeData>.SaveData(const AData: TBTreeData): TAMZone;
+begin
+  // This is an index, never suposed to be called this function
+  raise EAbstractMemBTree.Create('ERROR DEV 20211130-01');
+end;
+
+procedure TAbstractMemBTreeDataIndex<TBTreeData>.Unlock;
+begin
+  inherited;
+  FIndexed.Unlock;
+end;
+
+{ TAbstractMemBTreeData<TBTreeData>.TAVLABTreeDataCache }
+
+function TAbstractMemBTreeData<TBTreeData>.TAVLABTreeDataCache.ToString(
+  const AData: TAVLABTreeDataCacheData): String;
+begin
+  inherited;
+  Result := Format('p:%d sizeof:%d',[AData.position,SizeOf(AData.data)]);
 end;
 
 initialization

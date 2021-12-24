@@ -21,7 +21,6 @@ type
    TAbstractMemBTreeExampleInteger = Class(TAbstractMemBTree)
    protected
      procedure DisposeData(var AData : TAbstractMemPosition); override;
-     function DoCompareData(const ALeftData, ARightData: TAbstractMemPosition): Integer; override;
    public
      function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
    End;
@@ -30,6 +29,7 @@ type
    protected
      function LoadData(const APosition : TAbstractMemPosition) : String; override;
      function SaveData(const AData : String) : TAMZone; override;
+     function GetCopyOfData(Const AData : String) : String;  override;
    public
      function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
    End;
@@ -66,17 +66,17 @@ begin
   // NOTE: Nothing to do NEITHER to inherit from ancestor
 end;
 
-function TAbstractMemBTreeExampleInteger.DoCompareData(const ALeftData, ARightData: TAbstractMemPosition): Integer;
-begin
-  Result := Integer( ALeftData - ARightData );
-end;
-
 function TAbstractMemBTreeExampleInteger.NodeDataToString(const AData: TAbstractMemPosition): String;
 begin
   Result := IntToStr(AData);
 end;
 
 { TAbstractMemBTreeExampleString }
+
+function TAbstractMemBTreeExampleString.GetCopyOfData(const AData: String): String;
+begin
+  Result := Copy(AData,0,Length(AData));
+end;
 
 function TAbstractMemBTreeExampleString.LoadData(const APosition: TAbstractMemPosition): String;
 var i : Integer;
@@ -184,6 +184,7 @@ var LOrder, LMemUnitsSize, LInitialRandSeed : Integer;
   L64Bits, LAllowDuplicates : Boolean;
   s64Bits, sAllowDuplicates : String;
 begin
+  RandSeed := 0;
   LInitialRandSeed := RandSeed;
   LOrder := 3;
   LMemUnitsSize := 4;
@@ -397,12 +398,35 @@ procedure TestTAbstractMemBTree.TestInfiniteExt(AMemUnitsSize, AOrder: Integer; 
 var
   Lbt : TAbstractMemBTreeExampleString;
 
+  procedure AddN(ATotalRounds : Integer);
+  var nRounds, intValue : Integer;
+    LFound : String;
+  begin
+    nRounds := 0; intValue := 0;
+    repeat
+      inc(intValue);// := Random(AOrder * 100);
+      if (Lbt.AddData(intValue.ToString)) then inc(nRounds);
+      Lbt.CheckConsistency;
+    until (nRounds>=ATotalRounds);
+    try
+      if not Lbt.FindDataHighest(LFound) then exit;
+      repeat
+        if not Lbt.DeleteData(LFound) then raise Exception.Create('ERR 20211129-01');
+        dec(nRounds);
+        Lbt.CheckConsistency;
+      until Not Lbt.FindDataHighest(LFound) ;
+      Assert(nRounds=0,'No valid rounds values');
+    finally
+    end;
+  end;
+
   procedure ProcessTree(ATotalRounds : Integer);
   var LzoneIndex : TAMZone;
   j : TAbstractMemPosition;
   intValue, nRounds, nAdds, nDeletes, i, intAux : Integer;
   LCurr, LnextCurr : String;
   begin
+    nRounds := 0; nAdds := 0; nDeletes := 0;
     repeat
       inc(nRounds);
       intValue := Random(AOrder * 100);
@@ -420,7 +444,7 @@ var
     // Delete mode
     while Lbt.Count>0 do begin
       if not Lbt.FindDataLowest(LCurr) then raise Exception.Create('Cannot fint lowest but Count>0');
-      if not Lbt.FindData(LCurr,LzoneIndex.position) then raise Exception.Create(Format('"%s" Not Found %d',[LCurr,Lbt.Count]));
+      if not Lbt.FindDataPos(LCurr,LzoneIndex.position) then raise Exception.Create(Format('"%s" Not Found %d',[LCurr,Lbt.Count]));
       while (Random(50)>0) do begin
         if Random(3)=0 then begin
           if not Lbt.FindDataPrecessor(Lcurr,LnextCurr) then begin
@@ -435,7 +459,6 @@ var
         end;
       end;
       If Not Lbt.DeleteData(LCurr) then raise Exception.Create(Format('"%s" Not Found to delete! %d',[LCurr,Lbt.Count]));
-      Lbt.CheckConsistency;
     end;
     Lbt.CheckConsistency;
     // Try to re-use
@@ -487,13 +510,18 @@ begin
     try
       Lbt := TAbstractMemBTreeExampleString.Create(Lmem,LzoneData,AAllowDuplicates,AOrder,TComparison_String);
       try
+
         TAbstractMemBTreeDataIndex<String>.Create(Lbt,
           Lmem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize(Lmem)),False,
           AOrder+1,TComparison_SumChars);
         TAbstractMemBTreeDataIndex<String>.Create(Lbt,
           Lmem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize(Lmem)),True,
           AOrder+1,TComparison_HashCode);
+
         ProcessTree(AOrder * 1000);
+        //AddN(100);
+
+        Lbt.CheckConsistency;
       finally
         // Dispose indexes
         for i := Lbt.IndexesCount-1 downto 0 do begin

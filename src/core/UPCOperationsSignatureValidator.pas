@@ -325,6 +325,9 @@ begin
     LOperation := FValidator.GetNextOperation(Self);
     if Assigned(LOperation) then begin
       if Not LOperation.HasValidSignature then begin
+        {$IFDEF TESTING_NO_POW_CHECK}
+        LIsValid := True;
+        {$ELSE}
         // Only will validate if HasValidSignature is False (Not validated before)
         try
           LIsValid := LOperation.IsValidSignatureBasedOnCurrentSafeboxState(FValidator.FSafeBoxTransaction);
@@ -334,6 +337,7 @@ begin
             TLog.NewLog(lterror,ClassName,LOperation.ToString+' ERROR: ('+E.ClassName+') '+E.Message);
           end;
         end;
+        {$ENDIF}
         FValidator.SetOperationCheckResult(Self,LOperation, LIsValid);
       end;
     end;

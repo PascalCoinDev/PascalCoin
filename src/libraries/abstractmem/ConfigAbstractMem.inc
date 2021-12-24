@@ -66,9 +66,15 @@
     - 32 bits: Fixed 1 unit = 4 bytes: Max size = ((2^24)*4) = 67108864 bytes = 64Mb
     - 64 bits: Customizable: 1 unit from 4..256 bytes (multiple of 4): Max size = from ((2^32)*4) 16Gb ... ((2^32)*256) = 1099511627776 = 1Tb
 
+  Version 1.6 - Dec 2021
+  - Improved 64 bits
+  - Fully redo of CacheMem unit with better improvements on read/write cache
+  - Added BTree index on TAbstractMemBTreeData with TAbstractMemBTreeDataIndex<TBTreeData> class
+  - Added cache on TAbstractMemBTreeData<TData> structures
+
 }
 
 const
-  CT_ABSTRACTMEM_VERSION = 1.5; // Each revision should increase this version...
+  CT_ABSTRACTMEM_VERSION = 1.6; // Each revision should increase this version...
 
 

@@ -69,6 +69,7 @@ type
     Function IndexOf(const AValue: T) : Integer;
     property AllowDuplicates : Boolean read FAllowDuplicates;
     property OnComparer : TComparison<T> read FOnCompare;
+    property Items[index:Integer] : T read Get; default;
   End;
 
 // Default Ordered functions

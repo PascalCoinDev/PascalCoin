@@ -67,14 +67,18 @@ type
     {$ENDIF}
     function OnCacheNeedDataProc(var ABuffer; AStartPos : Int64; ASize: Integer): Integer;
     function OnCacheSaveDataProc(const ABuffer; AStartPos : Int64; ASize: Integer): Integer;
-    procedure SetMaxCacheSize(const Value: Integer);
-    function GetMaxCacheSize: Integer;
-    function GetMaxCacheDataBlocks: Integer;
-    procedure SetMaxCacheDataBlocks(const Value: Integer);
+    procedure SetMaxCacheSize(const Value: Int64);
+    function GetMaxCacheSize: Int64;
+    function GetMaxCacheDataBlocks: Int64;
+    procedure SetMaxCacheDataBlocks(const Value: Int64);
     procedure CacheIsNOTStable; inline;
     function GetUseCache: Boolean;
     procedure SetUseCache(const Value: Boolean);
     procedure SetIncreaseFileBytes(const Value: Int64);
+    function GetGridCache: Boolean;
+    procedure SetDefaultCacheDataBlocksSize(const Value: Int64);
+    procedure SetGridCache(const Value: Boolean);
+    function GetDefaultCacheDataBlocksSize: Int64;
   protected
     function AbsoluteWrite(const AAbsolutePosition : Int64; const ABuffer; ASize : Integer) : Integer; override;
     function AbsoluteRead(const AAbsolutePosition : Int64; var ABuffer; ASize : Integer) : Integer; override;
@@ -90,8 +94,11 @@ type
     // Warning: Accessing Cache is not Safe Thread protected, use LockCache/UnlockCache instead
     property Cache : TCacheMem read FCache;
     {$ENDIF}
-    property MaxCacheSize : Integer read GetMaxCacheSize write SetMaxCacheSize;
-    property MaxCacheDataBlocks : Integer read GetMaxCacheDataBlocks write SetMaxCacheDataBlocks;
+    procedure SetCachePerformance(AGridCache : Boolean; ADefaultCacheDataBlocksSize, AMaxCacheSize, AMaxCacheDataBlocks : Int64);
+    property GridCache : Boolean read GetGridCache write SetGridCache;
+    property DefaultCacheDataBlocksSize : Int64 read GetDefaultCacheDataBlocksSize write SetDefaultCacheDataBlocksSize;
+    property MaxCacheSize : Int64 read GetMaxCacheSize write SetMaxCacheSize;
+    property MaxCacheDataBlocks : Int64 read GetMaxCacheDataBlocks write SetMaxCacheDataBlocks;
     Function FlushCache : Boolean;
     //
     function LockCache : TCacheMem;
@@ -260,18 +267,30 @@ begin
       SaveHeader;
     finally
       FIsFlushingCache := False;
+      FLock.Release;
     end;
-    FLock.Release;
   end;
 end;
 
-function TFileMem.GetMaxCacheDataBlocks: Integer;
+function TFileMem.GetDefaultCacheDataBlocksSize: Int64;
+begin
+  if Not Assigned(FCache) then Exit(0);
+  Result := FCache.DefaultCacheDataBlocksSize;
+end;
+
+function TFileMem.GetGridCache: Boolean;
+begin
+  if Not Assigned(FCache) then Exit(False);
+  Result := FCache.GridCache;
+end;
+
+function TFileMem.GetMaxCacheDataBlocks: Int64;
 begin
   if Not Assigned(FCache) then Exit(0);
   Result := FCache.MaxCacheDataBlocks;
 end;
 
-function TFileMem.GetMaxCacheSize: Integer;
+function TFileMem.GetMaxCacheSize: Int64;
 begin
   if Not Assigned(FCache) then Exit(0);
   Result := FCache.MaxCacheSize;
@@ -319,7 +338,11 @@ begin
 end;
 
 function TFileMem.OnCacheNeedDataProc(var ABuffer; AStartPos : Int64; ASize: Integer): Integer;
+var LFileSize : Int64;
 begin
+  LFileSize := FFileStream.Size;
+  // Allowing Cache to ask for "out of range" data
+  if (LFileSize < (AStartPos + ASize)) then ASize := LFileSize-AStartPos;
   Result := inherited Read(AStartPos,ABuffer,ASize);
 end;
 
@@ -344,13 +367,40 @@ begin
   end;
 end;
 
+procedure TFileMem.SetCachePerformance(AGridCache: Boolean;
+  ADefaultCacheDataBlocksSize, AMaxCacheSize, AMaxCacheDataBlocks: Int64);
+begin
+  FLock.Acquire;
+  Try
+    UseCache := True;
+    FCache.GridCache := AGridCache;
+    FCache.DefaultCacheDataBlocksSize := ADefaultCacheDataBlocksSize;
+    FCache.MaxCacheSize := AMaxCacheSize;
+    FCache.MaxCacheDataBlocks := AMaxCacheDataBlocks;
+  Finally
+    FLock.Release;
+  End;
+end;
+
+procedure TFileMem.SetDefaultCacheDataBlocksSize(const Value: Int64);
+begin
+  if Not Assigned(FCache) then Exit;
+  FCache.DefaultCacheDataBlocksSize := Value;
+end;
+
+procedure TFileMem.SetGridCache(const Value: Boolean);
+begin
+  if Not Assigned(FCache) then Exit;
+  FCache.GridCache := Value;
+end;
+
 procedure TFileMem.SetIncreaseFileBytes(const Value: Int64);
 begin
   if (Value<0) or (Value>(1024*1024*100)) then FIncreaseFileBytes := 0
   else FIncreaseFileBytes := Value;
 end;
 
-procedure TFileMem.SetMaxCacheDataBlocks(const Value: Integer);
+procedure TFileMem.SetMaxCacheDataBlocks(const Value: Int64);
 begin
   if Not Assigned(FCache) then Exit;
   FLock.Acquire;
@@ -361,7 +411,7 @@ begin
   End;
 end;
 
-procedure TFileMem.SetMaxCacheSize(const Value: Integer);
+procedure TFileMem.SetMaxCacheSize(const Value: Int64);
 begin
   if Not Assigned(FCache) then Exit;
   FLock.Acquire;

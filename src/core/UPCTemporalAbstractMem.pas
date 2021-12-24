@@ -61,9 +61,11 @@ begin
 end;
 
 destructor TPCTemporalAbstractMem.Destroy;
-{$IFDEF HIGHLOG}var LSize : Integer;{$ENDIF}
+{$IFDEF HIGHLOG}var LSize : Int64;{$ENDIF}
 begin
-  {$IFDEF HIGHLOG}LSize := Size;{$ENDIF}
+  {$IFDEF HIGHLOG}
+  LSize := {$IFDEF USE_ABSTRACTMEM}NextAvailablePos{$ELSE}Size{$ENDIF};
+  {$ENDIF}
   inherited Destroy;
   {$IFDEF USE_ABSTRACTMEM}
   if FTemporalFileName<>'' then begin

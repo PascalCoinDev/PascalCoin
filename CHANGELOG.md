@@ -1,5 +1,20 @@
 # Changelog
 
+## Build 5.7 - 2021-12-23
+- This version will not propagate 0-Fee operations, but will allow 0-Fee operations to the blockchain (CT_AllowPropagate0feeOperations=False)
+  - A wallet that wants to execute 0-Fee operations will need to connect to a miner/pool/node running a 5.6 version or solomine
+- Removed "Ask for Account (PASA)" feature
+- Improved resend operations process
+- Improvements on TMemPool save to file to protect continued saving process
+- Improvements on TStorage to allow usage of AbstractMem library
+- AbstractMem library v1.6 with improvements on speed and allowing 64bits offsets for files +4Gb
+- Net protocol upgraded to 15, min compatible version 14 (Build 5.6)
+- Daemon:
+  - Usage of Fast Memory Manager for FPC x86_64 on Linux as part of mORMot framework. Copyright (C) 2021 Arnaud Bouchez
+  - log files separated by date: pascalcoin.log -> pascalcoin_YYYY-MM-DD.log
+  - RPC log files separated by date: pascalcoin_rpc.log -> pascalcoin_rpc_YYYY-MM-DD.log
+  - Peers cache stored on a separated file at DATAFOLDER with name "peers_cache.ini" instead of "pascacoin_daemon.ini"
+
 ## Build 5.6 - 2021-11-02
 ** MINERS SHOULD UPDATE AS SOON AS POSSIBLE **
 - Assigned OP_RECOVER automatically to miner using miner AccountKey

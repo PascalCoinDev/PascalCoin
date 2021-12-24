@@ -174,7 +174,7 @@ begin
   Lfs := TStringList.Create;
   try
     Lfm.ClearContent(False,4);
-//    Lfm.UseCache := AUseCache;
+    Lfm.UseCache := AUseCache;
     if AUseCache then begin
       Lfm.MaxCacheSize := 1024 * 1024 * 2; // 2 Mb
       Lfm.MaxCacheDataBlocks := 10000; // 10 K

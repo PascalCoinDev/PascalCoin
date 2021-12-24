@@ -377,7 +377,7 @@ object FRMWallet: TFRMWallet
     Top = 91
     Width = 865
     Height = 466
-    ActivePage = tsMyAccounts
+    ActivePage = tsMessages
     Align = alClient
     TabOrder = 2
     OnChange = PageControlChange
@@ -1188,8 +1188,7 @@ object FRMWallet: TFRMWallet
         Font.Name = 'Tahoma'
         Font.Style = []
         Lines.Strings = (
-          'dsfa '#195#177'ldsaf '#195#177'lk dasf'
-          'dsfklda'#195#177'fs '#195#177'l')
+          '(messages)')
         ParentFont = False
         ReadOnly = True
         ScrollBars = ssBoth

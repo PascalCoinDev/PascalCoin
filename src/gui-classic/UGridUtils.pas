@@ -1065,7 +1065,7 @@ begin
         Finally
           list.Free;
         End;
-        ANode.GetStoredOperationsFromAccount(Self,AList,FOperationsGrid.AccountNumber,100,0,5000);
+        ANode.Bank.Storage.GetAccountOperations(FOperationsGrid.AccountNumber,-1,0,5000,0,AList);
       end;
     end;
   Finally
@@ -1182,7 +1182,7 @@ begin
     DrawGrid.Canvas.FillRect(Rect);
     InflateRect(Rect,-2,-1);
     if (ARow<=FOperationsResume.Count) then begin
-      opr := FOperationsResume.OperationResume[ARow-1];
+      opr := FOperationsResume.Items[ARow-1];
       If (opr.AffectedAccount=opr.SignerAccount) then begin
       end else begin
         if (gdSelected in State) or (gdFocused in State) then begin
@@ -1370,7 +1370,7 @@ begin
     Result := CT_TOperationResume_NUL;
     exit;
   end;
-  Result := FOperationsResume.OperationResume[FDrawGrid.Row-1];
+  Result := FOperationsResume.Items[FDrawGrid.Row-1];
 end;
 
 procedure TOperationsGrid.ShowModalDecoder(WalletKeys: TWalletKeys; AppParams : TAppParams);
@@ -1380,7 +1380,7 @@ Var i : Integer;
 begin
   if Not Assigned(FDrawGrid) then exit;
   if (FDrawGrid.Row<=0) Or (FDrawGrid.Row>FOperationsResume.Count) then exit;
-  opr := FOperationsResume.OperationResume[FDrawGrid.Row-1];
+  opr := FOperationsResume.Items[FDrawGrid.Row-1];
   FRM := TFRMPayloadDecoder.Create(FDrawGrid.Owner);
   try
     FRM.Init(opr,WalletKeys,AppParams);
@@ -1464,17 +1464,16 @@ begin
 end;
 
 procedure TBlockChainGridUpdateThread.DoUpdateBlockChainGrid(ANode: TNode; var AList: TList<TBlockChainData>; ABlockStart, ABlockEnd : Int64);
-Var opc : TPCOperationsComp;
+Var //opc : TPCOperationsComp;
   bcd : TBlockChainData;
   opb : TOperationBlock;
   bn : TBigNum;
 begin
-  opc := TPCOperationsComp.Create(Nil);
-  try
-    opc.bank := ANode.Bank;
     while (ABlockStart<=ABlockEnd) and (Not Terminated) do begin
       bcd := CT_TBlockChainData_NUL;
-      opb := ANode.Bank.SafeBox.GetBlockInfo(ABlockEnd);
+      if Not ANode.Bank.Storage.GetBlockInformation(ABlockEnd,opb,bcd.OperationsCount,bcd.Volume) then begin
+        opb := ANode.Bank.SafeBox.GetBlockInfo(ABlockEnd);
+      end;
       bcd.Block:=opb.block;
       bcd.Timestamp := opb.timestamp;
       bcd.BlockProtocolVersion := opb.protocol_version;
@@ -1500,10 +1499,6 @@ begin
       bcd.PoW := opb.proof_of_work;
       bcd.SafeBoxHash := opb.initial_safe_box_hash;
       if (Not Terminated) then begin
-        If (ANode.Bank.LoadOperations(opc,ABlockEnd)) then begin
-          bcd.OperationsCount := opc.Count;
-          bcd.Volume := opc.OperationsHashTree.TotalAmount + opc.OperationsHashTree.TotalFee;
-        end;
         bcd.TimeAverage200:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,200);
         bcd.TimeAverage150:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,150);
         bcd.TimeAverage100:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,100);
@@ -1516,9 +1511,6 @@ begin
         if (ABlockEnd>0) then dec(ABlockEnd) else Break;
       end;
     end;
-  finally
-    opc.Free;
-  end;
 end;
 
 { TBlockChainGrid }
