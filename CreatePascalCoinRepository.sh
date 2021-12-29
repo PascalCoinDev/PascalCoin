@@ -26,6 +26,9 @@ git checkout PascalCoinDev/master -b PascalCoinDevMaster
 echo Step 8 create local branch for PascalCoin/master
 git checkout PascalCoin/master -b PascalCoinMaster
 
+echo Step 9 configure line endings for Microsoft Windows Operating Systems 
+echo Step 9 (convert CRLF to LF on commit) and (LF to CRLF on checkouts)
+git config --global core.autocrlf true
 
 
 
