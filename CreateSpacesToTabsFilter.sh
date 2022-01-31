@@ -21,15 +21,19 @@ echo So that expand.exe and unexpand.exe can be found and executed.
 echo
 echo To run this script type: ./CreateSpacesToTabsFilter.sh
 echo
-md ".git/info"
+echo Run it on the main folder containing the subfolder .git
+echo
+md .git
+md .git/info
+mkdir .git
 mkdir .git/info 
-echo "*.pas filter=tabspace2" > .git/info/attributes
-echo "*.dpr filter=tabspace2" >> .git/info/attributes
-echo "*.dpk filter=tabspace2" >> .git/info/attributes
-echo "*.inc filter=tabspace2" >> .git/info/attributes
-echo "*.dfm filter=tabspace2" >> .git/info/attributes
-echo "*.xfm filter=tabspace2" >> .git/info/attributes
-echo "*.fmx filter=tabspace2" >> .git/info/attributes
-echo "*.lfm filter=tabspace2" >> .git/info/attributes
-echo "*.nfm filter=tabspace2" >> .git/info/attributes
-echo "*.dpkw filter=tabspace2" >> .git/info/attributes
+echo *.pas filter=tabspace2 > .git/info/attributes
+echo *.dpr filter=tabspace2 >> .git/info/attributes
+echo *.dpk filter=tabspace2 >> .git/info/attributes
+echo *.inc filter=tabspace2 >> .git/info/attributes
+echo *.dfm filter=tabspace2 >> .git/info/attributes
+echo *.xfm filter=tabspace2 >> .git/info/attributes
+echo *.fmx filter=tabspace2 >> .git/info/attributes
+echo *.lfm filter=tabspace2 >> .git/info/attributes
+echo *.nfm filter=tabspace2 >> .git/info/attributes
+echo *.dpkw filter=tabspace2 >> .git/info/attributes
