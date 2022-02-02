@@ -2,13 +2,15 @@ echo Skybuck Flying in the house ! =D
 echo 
 echo Welcome, this script will create an advanced PascalCoin git repository for you in 14 steps !
 echo The script can be run in bash, cmd or powershell.
-echo To run in bash type: ./CreateAdvancedRepo.sh make sure to use a dot and forward slash like so: ./
-echo ./CreateAdvancedRepo.sh
+echo To run in bash type: ./CreateAdvancedRepository.sh 
+echo make sure to use a dot and forward slash like so: ./
+echo ./CreateAdvancedRepository.sh
 echo 
-echo To run in cmd or powershell rename to CreateAdvancedRepo.bat
-echo To rename type: ren CreateAdvancedRepo.sh CreateAdvancedRepo.bat
-echo Now to run in cmd or powershell type: .\CreateAdvanced.bat make sure to use a dot and backward slash like so .\
-echo .\CreateAdvancedRepo.bat
+echo To run in cmd or powershell rename to CreateAdvancedRepository.bat
+echo To rename type: ren CreateAdvancedRepository.sh CreateAdvancedRepository.bat
+echo Now to run in cmd or powershell type: .\CreateAdvancedRepository.bat 
+echo make sure to use a dot and backward slash like so .\
+echo .\CreateAdvancedRepository.bat
 echo 
 echo The advantages of this advanced PascalCoin repository and script are as follows:
 echo 1. All local branches are re-created.

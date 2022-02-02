@@ -1,16 +1,18 @@
 echo Skybuck Flying in the house ! =D
 echo 
-echo Tabbed version of CreateAdvancedRepo.sh
+echo Tabbed version of CreateAdvancedRepository.sh
 echo
-echo Welcome, this script will create an advanced PascalCoin git repository for you in 14 steps !
+echo Welcome, this script will create an advanced PascalCoin git repository for you in 16 steps !
 echo The script can be run in bash, cmd or powershell.
-echo To run in bash type: ./CreateAdvancedRepo.sh make sure to use a dot and forward slash like so: ./
-echo ./CreateAdvancedRepo.sh
+echo To run in bash type: ./CreateAdvancedRepositoryTabbed.sh 
+echo make sure to use a dot and forward slash like so: ./
+echo ./CreateAdvancedRepositoryTabbed.sh
 echo 
-echo To run in cmd or powershell rename to CreateAdvancedRepo.bat
-echo To rename type: ren CreateAdvancedRepo.sh CreateAdvancedRepo.bat
-echo Now to run in cmd or powershell type: .\CreateAdvanced.bat make sure to use a dot and backward slash like so .\
-echo .\CreateAdvancedRepo.bat
+echo To run in cmd or powershell rename to CreateAdvancedRepositoryTabbed.bat
+echo To rename type: ren CreateAdvancedRepo.sh CreateAdvancedRepositoryTabbed.bat
+echo Now to run in cmd or powershell type: .\CreateAdvancedRepositoryTabbed.bat 
+echo make sure to use a dot and backward slash like so .\
+echo .\CreateAdvancedRepositoryTabbed.bat
 echo 
 echo The advantages of this advanced PascalCoin repository and script are as follows:
 echo 1. All local branches are re-created.
@@ -23,8 +25,16 @@ echo 5.1. Line endings LF to CRLF on checkouts/switches
 echo 5.2. Line endings CRLF to LF on checkins/commits
 echo 6. Automatic conversion of spaces to tabs and tabs to spaces.
 echo 6.1 Two space characters are converted to one tab character on checkouts/switches.
-echo 6.2 One tab character is converted to two space characters on checkins/commits. 
+echo 6.2 One tab character is converted to two space characters on checkins/commits.
 echo
+echo For advantage 6 it will be necessary to install GNU Win32 CoreUtils
+echo http://gnuwin32.sourceforge.net/packages.html
+echo which can also be found here
+echo http://gnuwin32.sourceforge.net/packages/coreutils.htm
+echo copy/rename GnuWin32/bin/expand.exe to GnuWin32/bin/CoreUtilsExpand.exe
+echo copy/rename GnuWin32/bin/unexpand.exe to GnuWin32/bin/CoreUtilsUnExpand.exe 
+echo then add core utils install path/GnuWin32/Bin to OS/System path environment variable
+echo After installation restart the command prompt/bash/powershell to benefit from updated path environment variable.
 echo 
 echo Lets get started:
 echo 
@@ -51,13 +61,14 @@ echo For this to work install GNUCoreUtils first and
 echo rename or copy expand.exe to CoreUtilsExpand.exe
 echo rename or copy unexpand.exe to CoreUtilsUnExpand.exe
 echo and add their location to the system path environment
-echo rename is necessary to avoid name space conflict with Microsoft's expand.exe
+echo rename is necessary to avoid name space conflict with Microsofts expand.exe
 echo if GNUCoreUtils is installed later then branches/worktrees and such will
 echo have to be re-checked-out to have any effect.
 echo GNUCoreUtils can be downloaded from these links:
 echo http://gnuwin32.sourceforge.net/packages.html
 echo and here:
 echo http://gnuwin32.sourceforge.net/packages/coreutils.htm
+echo After installation restart the command prompt/bash/powershell to benefit from updated path environment variable.
 git config filter.tabspace2.clean 'CoreUtilsExpand --tabs=2 --initial'
 git config filter.tabspace2.smudge 'CoreUtilsUnExpand --tabs=2 --first-only'
 
@@ -103,14 +114,3 @@ echo Step 17 my SkybuckFlying repository does not have a default master branch b
 echo Step 17 to add a worktree called Origin for your origin/master type the following two commands:
 echo cd PascalCoin.git
 echo git worktree add ../Origin master
-
-
-
-
-
-
-
-
-
-
-
