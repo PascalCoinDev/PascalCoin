@@ -16,9 +16,9 @@ echo 2. Multiple worktrees/folders are created to work with multiple pascal coin
 echo 3. Remotes will be restored to fetch, pull, push as normal to remote repository.
 echo 4. Mirror will be disabled after clone is done.
 echo 5. Automatic line ending conversions for CR=Carrier Return and LF=Line Feed.
-echo Git stores line endings internally as LF, on windows line endings are CRLF.
-echo Line endings LF to CRLF on checkouts/switches
-echo 6. Line endings CRLF to LF on checkins/commits
+echo 5.0 Git stores line endings internally as LF, on windows line endings are CRLF.
+echo 5.1 Line endings LF to CRLF on checkouts/switches
+echo 5.2 Line endings CRLF to LF on checkins/commits
 echo 
 echo Lets get started:
 echo 
