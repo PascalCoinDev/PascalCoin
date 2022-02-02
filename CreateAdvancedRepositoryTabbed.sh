@@ -28,6 +28,7 @@ echo 6.1 Two space characters are converted to one tab character on checkouts/sw
 echo 6.2 One tab character is converted to two space characters on checkins/commits.
 echo
 echo For advantage 6 it will be necessary to install GNU Win32 CoreUtils
+echo GNUCoreUtils can be downloaded from these links:
 echo http://gnuwin32.sourceforge.net/packages.html
 echo which can also be found here
 echo http://gnuwin32.sourceforge.net/packages/coreutils.htm
@@ -69,8 +70,8 @@ echo http://gnuwin32.sourceforge.net/packages.html
 echo and here:
 echo http://gnuwin32.sourceforge.net/packages/coreutils.htm
 echo After installation restart the command prompt/bash/powershell to benefit from updated path environment variable.
-git config filter.tabspace2.clean 'CoreUtilsExpand --tabs=2 --initial'
-git config filter.tabspace2.smudge 'CoreUtilsUnExpand --tabs=2 --first-only'
+git config filter.tabspace2.clean "CoreUtilsExpand --tabs=2 --initial"
+git config filter.tabspace2.smudge "CoreUtilsUnExpand --tabs=2 --first-only"
 
 echo Step 5 configure line endings for Microsoft Windows Operating Systems
 echo Step 5 convert CRLF to LF on commit and convert LF to CRLF on checkouts
