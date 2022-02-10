@@ -1538,7 +1538,7 @@ end;
 
 class function TAccountComp.EqualOperationBlocks(const opBlock1, opBlock2: TOperationBlock): Boolean;
 begin
-  Result := (opBlock1.block = opBlock1.block)
+  Result := (opBlock1.block = opBlock2.block)
           And (EqualAccountKeys(opBlock1.account_key,opBlock2.account_key))
           And (opBlock1.reward = opBlock2.reward)
           And (opBlock1.fee = opBlock2.fee)
