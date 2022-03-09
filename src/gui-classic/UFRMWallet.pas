@@ -324,6 +324,9 @@ Uses UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
   UOpenSSL,
 {$ENDIF}
   UTime, UFileStorage,
+  {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}
+  UAbstractMemBlockchainStorage,
+  {$ENDIF}
   UThread, UOpTransaction, UFRMPascalCoinWalletConfig,
   UFRMOperationsExplorer,
   {$IFDEF TESTNET}
@@ -449,7 +452,11 @@ begin
     FRPCServer.ValidIPs := TSettings.JsonRpcAllowedIPs;
     WalletKeys.SafeBox := FNode.Bank.SafeBox;
     // Check Database
+    {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}
+    FNode.Bank.StorageClass := TAbstractMemBlockchainStorageSecondary;
+    {$ELSE}
     FNode.Bank.StorageClass := TFileStorage;
+    {$ENDIF}
     FNode.Bank.Storage.Initialize;
     // Init Grid
 

@@ -26,6 +26,9 @@ uses
   Classes, SysUtils, daemonapp,
   SyncObjs, UOpenSSL, UCrypto, UNode, UFileStorage, UFolderHelper, UWallet, UConst, ULog, UNetProtocol,
   IniFiles, UBaseTypes,
+  {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}
+  UAbstractMemBlockchainStorage,
+  {$ENDIF}
   {$IF Defined(FPC) and Defined(WINDOWS)}windows,jwawinsvc,crt,{$ENDIF}
   UThread, URPC, UPoolMining, UAccounts, UPCDataTypes;
 
@@ -306,7 +309,11 @@ begin
       InitRPCServer;
       Try
         // Check Database
+        {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}
+        FNode.Bank.StorageClass := TAbstractMemBlockchainStorageSecondary;
+        {$ELSE}
         FNode.Bank.StorageClass := TFileStorage;
+        {$ENDIF}
         // By default daemon will not download checkpoint except if specified on INI file
         TNetData.NetData.MinFutureBlocksToDownloadNewSafebox := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT,0);
         TNetData.NetData.OnReceivedHelloMessage:=@OnNetDataReceivedHelloMessage;

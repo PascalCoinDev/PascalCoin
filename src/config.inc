@@ -74,6 +74,10 @@
   // This also fixes issue #207 High memory usage on FreePascal compiler
   {.$DEFINE USE_BIGBLOCKS_MEM_ON_DISK}
 
+  // This will enable to use indexed data on Blockchain storage so will allow to quick search
+  // indexed by ophash, by block/operation and account history
+  {$DEFINE USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}
+
 { ********************************************************************
   Don't touch more code, it will addapt based on your preferences
   ******************************************************************** }
