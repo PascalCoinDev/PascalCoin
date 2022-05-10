@@ -197,7 +197,7 @@ object FRMAbout: TFRMAbout
     Width = 478
     BorderStyle = bsNone
     Lines.Strings = (
-      'Copyright (c) 2016 - 2021 PascalCoin developers'
+      'Copyright (c) 2016 - 2022 PascalCoin developers'
       'Based on Albert Molina original source code'
       ''
       'Pascal (aka Pascal Coin) is P2P cryptocurrency without the need for historical operations. This software comprises a node within the Pascal network.'
