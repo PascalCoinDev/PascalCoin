@@ -121,6 +121,7 @@ type
   TOnNeedDataProc = function(var ABuffer; AStartPos : Int64; ASize: Integer): Integer of object;
   TOnSaveDataProc = function(const ABuffer; AStartPos : Int64; ASize: Integer): Integer of object;
   TOnNeedsTotalSizeProc = function(const ABuffer; AStartPos : Int64; ASize: Integer): Integer of object;
+  TOnFinalizedCacheProc = procedure(const ASender : TCacheMem; const AProcessDesc : String; AElapsedMilis: Int64) of object;
 
   ECacheMem = Class(Exception);
 
@@ -141,6 +142,7 @@ type
     FMaxCacheDataBlocks: Int64;
     FDefaultCacheDataBlocksSize : Int64;
     FGridCache : Boolean;
+    FOnFlushedCache: TOnFinalizedCacheProc;
     function FindCacheMemDataByPosition(APosition : Int64; out APCacheMemData : PCacheMemData) : Boolean;
     procedure Delete(var APCacheMemData : PCacheMemData); overload;
     function FlushCache(const AFlushCacheList : TOrderedList<PCacheMemData>) : Boolean; overload;
@@ -180,6 +182,7 @@ type
     property CacheMemStats : TCacheMemStats read FCacheMemStats;
     {$ENDIF}
     function GetStatsReport(AClearStats : Boolean) : String;
+    property OnFlushedCache : TOnFinalizedCacheProc read FOnFlushedCache write FOnFlushedCache;
   End;
 
 implementation
@@ -230,13 +233,28 @@ begin
 end;
 
 procedure TCacheMem.CheckMaxMemUsage;
+var LTick : TTickCount;
+  LMillis,
+  LOldCacheDataBlocks,
+  LOldCacheDataSize : Int64;
 begin
   if ((FMaxCacheSize < 0) or (FCacheDataSize<=FMaxCacheSize))
      and
      ((FMaxCacheDataBlocks < 0) or (FCacheDataBlocks<=FMaxCacheDataBlocks)) then Exit;
-  // When calling FreeMem will increase call in order to speed
-  if not FreeMem((FMaxCacheSize-1) SHR 1, (FMaxCacheDataBlocks-1) SHR 1) then begin
-    raise ECacheMem.Create(Format('FreeMem(%d -> %d,%d -> %d)=False',[FCacheDataSize,(FMaxCacheSize-1) SHR 1,FCacheDataBlocks,(FMaxCacheDataBlocks-1) SHR 1]));
+  LOldCacheDataBlocks :=  FCacheDataBlocks;
+  LOldCacheDataSize := FCacheDataSize;
+  LTick := TPlatform.GetTickCount;
+  try
+    // When calling FreeMem will increase call in order to speed
+    if not FreeMem((FMaxCacheSize-1) SHR 1, (FMaxCacheDataBlocks-1) SHR 1) then begin
+      raise ECacheMem.Create(Format('FreeMem(%d -> %d,%d -> %d)=False',[FCacheDataSize,(FMaxCacheSize-1) SHR 1,FCacheDataBlocks,(FMaxCacheDataBlocks-1) SHR 1]));
+    end;
+  finally
+    LMillis := TPlatform.GetElapsedMilliseconds(LTick);
+    if Assigned(FOnFlushedCache) then begin
+      FOnFlushedCache(Self,Format('CheckedMaxMemUsage from %d bytes / %d blocks to %d bytes / %d blocks in %d millis',
+        [LOldCacheDataSize,LOldCacheDataBlocks,FCacheDataSize,FCacheDataBlocks,LMillis]),LMillis);
+    end;
   end;
 end;
 
@@ -341,6 +359,7 @@ begin
   FOnSaveDataProc := AOnSaveDataProc;
   FOldestUsed := Nil;
   FNewestUsed := Nil;
+  FOnFlushedCache := Nil;
 end;
 
 procedure TCacheMem.Delete(var APCacheMemData : PCacheMemData);
@@ -399,18 +418,16 @@ begin
 end;
 
 function TCacheMem.FlushCache(const AFlushCacheList : TOrderedList<PCacheMemData>) : Boolean;
-var i : Integer;
+var i, LCount : Integer;
   PToCurrent, PToNext : PCacheMemData;
-  LTotalBytesSaved, LTotalBytesError : Int64;
-  {$IFDEF ABSTRACTMEM_ENABLE_STATS}
+  LTotalBytesSaved, LTotalBytesError, LMillis, LInitialPendingBytes : Int64;
   LTickCount : TTickCount;
-  {$ENDIF}
 begin
-  {$IFDEF ABSTRACTMEM_ENABLE_STATS}
   LTickCount := TPlatform.GetTickCount;
-  {$ENDIF}
   LTotalBytesSaved := 0;
   LTotalBytesError := 0;
+  LInitialPendingBytes := FPendingToSaveBytes;
+  LCount := 0;
   Result := True;
 
   if (FPendingToSaveBytes<=0) then Exit;
@@ -433,6 +450,7 @@ begin
         Inc(FCacheMemStats.saveDataCallsCount);
         Inc(FCacheMemStats.saveDataCallsBytes,PToCurrent^.GetSize);
         {$ENDIF}
+        inc(LCount);
         if FOnSaveDataProc(PToCurrent^.buffer[0],PToCurrent^.startPos,PToCurrent^.GetSize)<>PToCurrent^.GetSize then begin
           Result := False;
           inc(LTotalBytesError,Int64(PToCurrent^.GetSize));
@@ -446,14 +464,22 @@ begin
     end;
   until Not Assigned(PToCurrent);
   if (LTotalBytesSaved>0) or (LTotalBytesError>0) then begin
+    LMillis := TPlatform.GetElapsedMilliseconds(LTickCount);
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     Inc(FCacheMemStats.flushCount);
     Inc(FCacheMemStats.flushSize,LTotalBytesSaved);
-    Inc(FCacheMemStats.flushElapsedMillis,Int64(TPlatform.GetElapsedMilliseconds(LTickCount)));
-    Inc(FCacheMemStats.saveDataCallsMillis,Int64(TPlatform.GetElapsedMilliseconds(LTickCount)));
+    Inc(FCacheMemStats.flushElapsedMillis,LMillis);
+    Inc(FCacheMemStats.saveDataCallsMillis,LMillis);
     {$ENDIF}
+    if Assigned(FOnFlushedCache) then begin
+      FOnFlushedCache(Self,Format('Flushed %d cells with %d bytes in %d millis',[LCount,LTotalBytesSaved,LMillis]),LMillis);
+    end;
   end;
-  if (LTotalBytesError=0) and (Not Assigned(AFlushCacheList)) and (FPendingToSaveBytes<>0) then raise ECacheMem.Create(Format('Flush Inconsistency error Saved:%d Pending:%d',[LTotalBytesSaved,FPendingToSaveBytes]));
+  if (LInitialPendingBytes - LTotalBytesSaved <> FPendingToSaveBytes) then begin
+    raise ECacheMem.Create(Format('Flush Inconsistency error -> Initial:%d Saved:%d Pending:%d',[LInitialPendingBytes,LTotalBytesSaved,FPendingToSaveBytes]));
+  end;
+
+  if (LTotalBytesError=0) and (Not Assigned(AFlushCacheList)) and (FPendingToSaveBytes<>0) then raise ECacheMem.Create(Format('Flush Inconsistency error Initial:%d Saved:%d Pending:%d',[LInitialPendingBytes,LTotalBytesSaved,FPendingToSaveBytes]));
 
 end;
 
