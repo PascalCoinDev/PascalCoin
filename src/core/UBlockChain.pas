@@ -585,6 +585,7 @@ Type
     Function LoadBankFileInfo(Const AFilename : String; var ASafeBoxHeader : TPCSafeBoxHeader) : Boolean;
     Property Orphan : TOrphan read FOrphan write FOrphan;
     Function SaveBank(forceSave : Boolean) : Boolean;
+    Property IsRestoringFromFile : Boolean read FIsRestoringFromFile;
   End;
 
 Const
@@ -992,7 +993,7 @@ begin
         LProgressEndBlock := Storage.LastBlock - BlocksCount;
         while ((BlocksCount<=max_block)) do begin
           i := BlocksCount;
-          j := i + 99;
+          j := i + 999;
           // Load a batch of TPCOperationsComp;
           try
             LOpsInBlocks := 0;
@@ -1033,8 +1034,7 @@ begin
                 Exit;
               end else begin
                 // To prevent continuous saving...
-                if ((BlocksCount+(CT_BankToDiskEveryNBlocks*2)) >= Storage.LastBlock ) or
-                   ((BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0) then begin
+                if ((BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0) then begin
                   SaveBank(False);
                 end;
                 if (Assigned(restoreProgressNotify)) And (TPlatform.GetElapsedMilliseconds(tc)>1000) then begin
@@ -3166,7 +3166,7 @@ begin
 end;
 
 procedure TOperationsHashTree.MarkVerifiedECDSASignatures(operationsHashTreeToMark: TOperationsHashTree);
-var i, iPosInMyList, nMarkedAsGood, nAlreadyMarked : Integer;
+var i, iPosInMyList, nMarkedAsGood, nAlreadyMarked, nFound : Integer;
   opToMark, opInMyList : TPCOperation;
   myList, listToMark : TList<Pointer>;
 begin
@@ -3175,6 +3175,7 @@ begin
   If Self=operationsHashTreeToMark then Exit;
   nMarkedAsGood := 0;
   nAlreadyMarked := 0;
+  nFound := 0;
   myList := FHashTreeOperations.LockList;
   try
     if myList.Count<=0 then Exit; // Nothing to search...
@@ -3187,6 +3188,7 @@ begin
           // Check if found
           iPosInMyList := Self.IndexOfOperation(opToMark);
           if (iPosInMyList>=0) then begin
+            inc(nFound);
             opInMyList := POperationHashTreeReg(myList[iPosInMyList])^.Op;
             if (opInMyList.FHasValidSignature) then begin
               if (opToMark.FHasValidSignature) then inc(nAlreadyMarked)
@@ -3200,7 +3202,9 @@ begin
           end;
         end;
       end;
-      TLog.NewLog(ltdebug,ClassName,Format('Marked %d/%d operations as ValidSignature (%d before) from MemPool with %d operations',[nMarkedAsGood,listToMark.Count,nAlreadyMarked,myList.Count]));
+      if (nFound>0) then begin
+        TLog.NewLog(ltdebug,ClassName,Format('Marked %d/%d operations (%d found) as ValidSignature (%d before) from MemPool with %d operations',[nMarkedAsGood,listToMark.Count,nFound,nAlreadyMarked,myList.Count]));
+      end;
     finally
       operationsHashTreeToMark.FHashTreeOperations.UnlockList;
     end;

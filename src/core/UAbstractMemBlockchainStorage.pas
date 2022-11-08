@@ -215,6 +215,7 @@ type
     Function DoSaveBlockChainExt(Operations : TPCOperationsComp; const AOrphan : String; var AStats : TBlockchainStorageStats) : Boolean;
     Function DoLoadBlockChainExt(Operations : TPCOperationsComp; Block : Cardinal; const AOrphan : String) : Boolean;
     procedure AddMessage(AMessages : TStrings; const AMessage : String; ARaiseAnException : Boolean);
+    procedure OnCacheMemFlushedCache(const ASender : TCacheMem; const AProcessDesc : String; AElapsedMilis: Int64);
   protected
     procedure SetReadOnly(const Value: Boolean); override;
     Function DoGetBlockInformation(const ABlock : Integer; var AOperationBlock : TOperationBlock; var AOperationsCount : Integer; var AVolume : Int64) : Boolean; override;
@@ -230,8 +231,8 @@ type
     Procedure DoEraseStorage; override;
     function CheckBlockConsistency(ARaiseOnError : Boolean; AMessages : TStrings; const ABlockInformation : TBlockInformation; out AOperationsCount, AAffectedAccountsCount : Integer; AThread : TPCThread) : Boolean;
 
-    procedure DoBlockNotFound(ABlock : Integer); virtual;
-    procedure BlockNotFound(ABlock : Integer);
+    procedure DoBlockNotFound(ABlock : Integer; var AFound : Boolean); virtual;
+    procedure BlockNotFound(ABlock : Integer; var AFound : Boolean);
 
     Function DoGetBlockOperations(ABlock, AOpBlockStartIndex, AMaxOperations : Integer; var AOperationBlock : TOperationBlock; var AOperationsCount : Integer; var AVolume : Int64; const AOperationsResumeList:TOperationsResumeList) : Boolean; override;
     Function DoGetAccountOperations(AAccount : Integer; AMaxDepth, AStartOperation, AMaxOperations, ASearchBackwardsStartingAtBlock: Integer; const AOperationsResumeList:TOperationsResumeList): Boolean; override;
@@ -269,7 +270,7 @@ type
     Function DoMoveBlockChain(StartBlock : Cardinal; Const DestOrphan : TOrphan) : Boolean; override;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); override;
     function DoInitialize : Boolean; override;
-    procedure DoBlockNotFound(ABlock : Integer); override;
+    procedure DoBlockNotFound(ABlock : Integer; var AFound : Boolean); override;
   public
     Constructor Create(AOwner : TComponent); Override;
     Destructor Destroy; Override;
@@ -329,8 +330,9 @@ begin
   FCheckingConsistencyProgress := AMessage;
 end;
 
-procedure TAbstractMemBlockchainStorage.BlockNotFound(ABlock: Integer);
+procedure TAbstractMemBlockchainStorage.BlockNotFound(ABlock: Integer; var AFound : Boolean);
 begin
+  AFound := False;
   if FInBlockNotFound then begin
     TLog.NewLog(ltdebug,ClassName,Format('BlockNotFound cannot save Block:%d because saving block:%d',[ABlock,FInBlockSaving]));
     Exit;
@@ -338,7 +340,7 @@ begin
   FInBlockNotFound := True;
   try
     FInBlockSaving := ABlock;
-    DoBlockNotFound(ABlock);
+    DoBlockNotFound(ABlock,AFound);
   finally
     FInBlockNotFound := False;
   end;
@@ -621,10 +623,10 @@ begin
 
   if (OrphanCompare(AOrphan,Self.Orphan)=0) then begin
     if (FOperationsRawData_By_RightOpHash.Count<>AOperationsFound) then begin
-      AddInfo(True,Format('Found %d operations but stored %d operations',[AOperationsFound,FOperationsRawData_By_RightOpHash.Count]));
+      AddInfo(False,Format('Stored %d operations but only %d on processed blocks',[FOperationsRawData_By_RightOpHash.Count,AOperationsFound]));
     end;
     if FAffectedAccounts_By_Account_Block_OpBlock.Count<>AAffectedAccountsFound then begin
-      AddInfo(True,Format('Stored %d affected accounts but only %d on blocks',[FAffectedAccounts_By_Account_Block_OpBlock.Count,AAffectedAccountsFound]));
+      AddInfo(False,Format('Stored %d affected accounts but only %d on processed blocks',[FAffectedAccounts_By_Account_Block_OpBlock.Count,AAffectedAccountsFound]));
     end;
   end;
   LOrphanInformation.Clear;
@@ -758,7 +760,9 @@ function TAbstractMemBlockchainStorage.DoBlockExists(Block: Cardinal): Boolean;
 var LFoundBlock : TBlockInformation;
 begin
   Result := DoBlockExistsByOrphan(Block,Orphan,LFoundBlock);
-  if Not Result then BlockNotFound(Block);
+  if Not Result then begin
+    BlockNotFound(Block,Result);
+  end;
 end;
 
 function TAbstractMemBlockchainStorage.DoBlockExistsByOrphan(ABlock: Integer;
@@ -772,9 +776,10 @@ begin
   Result := FBlocksInformation_By_OrphanBlock.FindData(LSearch,LDataPos,LBlockInformation);
 end;
 
-procedure TAbstractMemBlockchainStorage.DoBlockNotFound(ABlock: Integer);
+procedure TAbstractMemBlockchainStorage.DoBlockNotFound(ABlock: Integer; var AFound : Boolean);
 begin
   // Nothing to do here
+  AFound := False;
 end;
 
 procedure TAbstractMemBlockchainStorage.DoDeleteBlockChainBlocks(StartingDeleteBlock: Cardinal);
@@ -1009,14 +1014,20 @@ begin
     end;
 
     FFileMem := TFileMem.Create(FStorageFilename,ReadOnly);
-    FFileMem.IncreaseFileBytes := 1 * 1024*1024; // 1Mb each increase
+    FFileMem.IncreaseFileBytes := 10 * 1024*1024; // 10Mb each increase
 
     LCacheMem := FFileMem.LockCache;
     try
       LCacheMem.GridCache := False;
       LCacheMem.DefaultCacheDataBlocksSize := 1024;
-      LCacheMem.MaxCacheSize := 300 * 1024 * 1024; // 300Mb
+      {$IFDEF IS32BITS}
+      LCacheMem.MaxCacheSize := 5 * Int64(100 * 1024 * 1024); // 100Mb * 3 = 500Mb
       LCacheMem.MaxCacheDataBlocks := 150000;
+      {$ELSE}
+      LCacheMem.MaxCacheSize := 10 * Int64(100 * 1024 * 1024); // 100Mb * 10 = 1Gb
+      LCacheMem.MaxCacheDataBlocks := 750000;
+      {$ENDIF};
+      LCacheMem.OnFlushedCache := OnCacheMemFlushedCache;
     finally
       FFileMem.UnlockCache;
     end;
@@ -1122,7 +1133,7 @@ end;
 function TAbstractMemBlockchainStorage.DoLoadBlockChain(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
 begin
   Result := DoLoadBlockChainExt(Operations,Block,Orphan);
-  if Not Result then BlockNotFound(Block);
+  if Not Result then BlockNotFound(Block,Result);
 end;
 
 function TAbstractMemBlockchainStorage.DoLoadBlockChainExt(
@@ -1313,7 +1324,6 @@ begin
   if FAutoFlushCache then begin
     LTC := TPlatform.GetTickCount;
     FileMem.FlushCache;
-    TLog.NewLog(ltdebug,ClassName,Format('Flushed Cache after finalized updating blockchain in %d millis',[TPlatform.GetElapsedMilliseconds(LTC)]));
   end;
 end;
 
@@ -1358,6 +1368,12 @@ begin
     if FBlocksInformation_By_OrphanBlock.Count<=0 then Exit(-1);
     if LBlockInformationFound.IsOrphan(AOrphan) then Exit(LBlockInformationFound.operationBlock.block);
   end else Result := LBlockInformationFound.operationBlock.block;
+end;
+
+procedure TAbstractMemBlockchainStorage.OnCacheMemFlushedCache(
+  const ASender: TCacheMem; const AProcessDesc: String; AElapsedMilis: Int64);
+begin
+  TLog.NewLog(ltdebug,ASender.ClassName,Self.ClassName+' '+AProcessDesc)
 end;
 
 class function TAbstractMemBlockchainStorage.OrphanCompare(const ALeft, ARight: String): Integer;
@@ -1965,15 +1981,16 @@ begin
   inherited;
 end;
 
-procedure TAbstractMemBlockchainStorageSecondary.DoBlockNotFound(ABlock: Integer);
+procedure TAbstractMemBlockchainStorageSecondary.DoBlockNotFound(ABlock: Integer; var AFound : Boolean);
 var LOperationsComp : TPCOperationsComp;
 begin
   inherited;
+  AFound := False;
   if (Assigned(FAuxStorage)) then begin
     LOperationsComp := TPCOperationsComp.Create(Nil);
     Try
       if FAuxStorage.LoadBlockChainBlock(LOperationsComp,ABlock) then begin
-        TLog.NewLog(ltdebug,ClassName,Format('BlockNotFound Migrating block %d with %d operations',[ABlock,LOperationsComp.Count]));
+        AFound := True;
         inherited DoSaveBlockChain(LOperationsComp);
       end;
     Finally
@@ -2078,7 +2095,7 @@ begin
         Inc(FPendingToSave.FAMStorage.FSaveStorageStats.affectedAccountCount);
       end;
     end else begin
-      if nLastBatch>0 then begin
+      if (nLastBatch>0) then begin
         TLog.NewLog(ltdebug,ClassName,Format('Finished %d operations... waiting for more - %s',
             [nLastBatch, FPendingToSave.FAMStorage.FSaveStorageStats.ToString]));
         nLastBatch := 0;
@@ -2137,7 +2154,7 @@ constructor TAbstractMemBlockchainStorage.TPendingToSave.Create(
 begin
   FAMStorage := AStorage;
   FTotal := 0;
-  FMaxPendingsCount := 5000;
+  FMaxPendingsCount := {$IFDEF IS32BITS}10000{$ELSE}50000{$ENDIF};
   FLastLogTC := TPlatform.GetTickCount;
   FOperationsRawData_By_RightOpHash := AAMBTreeTOperationRawDataByRightOpHash;
   FAffectedAccounts_By_Account_Block_OpBlock := AAMBTreeTAffectedAccountByAccountBlockOpBlock;

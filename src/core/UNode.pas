@@ -280,7 +280,9 @@ begin
       Result := Bank.AddNewBlockChainBlock(NewBlockOperations,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,errors);
       if Result then begin
         {$IFDEF USE_ABSTRACTMEM}
-        Bank.SafeBox.PCAbstractMem.FlushCache;
+        If Not FBank.IsRestoringFromFile then begin
+          Bank.SafeBox.PCAbstractMem.FlushCache;
+        end;
         {$ENDIF}
         if Assigned(SenderConnection) then begin
           FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload.ToPrintable,
