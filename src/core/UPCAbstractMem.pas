@@ -139,6 +139,7 @@ type
     function GetMaxAccountKeysCache: Integer;
     procedure SetMaxAccountKeysCache(const Value: Integer);
     procedure SetSavingNewSafeboxMode(const Value: Boolean);
+    procedure OnCacheMemFlushedCache(const ASender : TCacheMem; const AProcessDesc : String; AElapsedMilis: Int64);
   protected
     procedure UpgradeAbstractMemVersion(const ACurrentHeaderVersion : Integer);
     function DoGetAccount(AAccountNumber : Integer; var AAccount : TAccount) : Boolean;
@@ -489,6 +490,7 @@ end;
 constructor TPCAbstractMem.Create(const ASafeboxFileName: string; AReadOnly: boolean);
 var
   LIsNewStructure : Boolean;
+  LCacheMem : TCacheMem;
 begin
   FStats.Clear;
 
@@ -515,6 +517,12 @@ begin
   end;
   if FAbstractMem is TFileMem then begin
     TFileMem(FAbstractMem).SetCachePerformance(True,1024,FMaxMemUsage,200000);
+    LCacheMem := TFileMem(FAbstractMem).LockCache;
+    Try
+      LCacheMem.OnFlushedCache := OnCacheMemFlushedCache;
+    Finally
+      TFileMem(FAbstractMem).UnlockCache;
+    End;
   end;
 
   DoInit(LIsNewStructure);
@@ -889,6 +897,12 @@ begin
   Finally
     FLockAbstractMem.Release;
   End;
+end;
+
+procedure TPCAbstractMem.OnCacheMemFlushedCache(const ASender: TCacheMem;
+  const AProcessDesc: String; AElapsedMilis: Int64);
+begin
+  TLog.NewLog(ltdebug,ASender.ClassName,Self.ClassName+' '+AProcessDesc)
 end;
 
 function TPCAbstractMem.AccountsCount: integer;
