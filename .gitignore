@@ -18,7 +18,7 @@ libeay32.dll
 libeay64.dll
 #libcrypto-1_1-x64.dll
 libcrypto-1_1.dll
-libcrypto.so.1.1
+#libcrypto.so.1.1
 
 
 # Log files

@@ -13,35 +13,35 @@ jobs:
   build:
     name: Build
     runs-on: ${{ matrix.operating-system }}
-    
+
     strategy:
       matrix:
         operating-system: [windows-latest,ubuntu-latest,macos-latest]
 #        lazarus-versions: [stable, 2.2.2, 2.2.0, 2.0.12]
         lazarus-versions: [stable]
-        
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v2
       with:
         submodules: false
-        
+
     - name: Install Lazarus
       uses: gcarreno/setup-lazarus@v3.2
       with:
         with-cache: false
         lazarus-version: ${{ matrix.lazarus-versions }}
-        
+
     - name: Build the Pascal daemon
       run: lazbuild -B "src/pascalcoin_daemon.lpi"
-      
+
     - name: Build reference Pascal Miner
       run: lazbuild -B "src/pascalcoin_miner.lpi"
-      
+
     - name: Build the Main Wallet Application (Windows/Linux)
       if: ${{ matrix.operating-system != 'macos-latest' }}
       run: lazbuild -B "src/pascalcoin_wallet_classic.lpi"
-      
+
     - name: Build the Main Wallet Application (macOS)
       if: ${{ matrix.operating-system == 'macos-latest' }}
       run: lazbuild -B --ws=cocoa "src/pascalcoin_wallet_classic.lpi"
@@ -106,8 +106,9 @@ jobs:
         cp ../windows-dll/*.dll .
         zip -r PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-win64.zip *.exe *.dll
         cd ../PascalCoinLinux
+        cp ../linux-libs/*.so .
         chmod +x PascalCoin* pascalcoin*
-        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-linux.tar.gz PascalCoin* pascalcoin*
+        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-linux.tar.gz PascalCoin* pascalcoin* *.so
         cd ../PascalCoinMacOS
         chmod +x PascalCoin* pascalcoin*
         tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.tar.gz PascalCoin* pascalcoin*
