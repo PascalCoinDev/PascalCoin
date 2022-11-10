@@ -106,9 +106,9 @@ jobs:
         cp ../windows-dll/*.dll .
         zip -r PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-win64.zip *.exe *.dll
         cd ../PascalCoinLinux
-        cp ../linux-libs/*.so .
+        cp ../linux-libs/*.so.1.1 .
         chmod +x PascalCoin* pascalcoin*
-        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-linux.tar.gz PascalCoin* pascalcoin* *.so
+        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-linux.tar.gz PascalCoin* pascalcoin* *.so.1.1
         cd ../PascalCoinMacOS
         chmod +x PascalCoin* pascalcoin*
         tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.tar.gz PascalCoin* pascalcoin*
