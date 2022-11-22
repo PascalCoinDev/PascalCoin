@@ -515,8 +515,10 @@ begin
   end else begin
     FAbstractMem := TMem.Create(0,AReadOnly);
   end;
+
   if FAbstractMem is TFileMem then begin
-    TFileMem(FAbstractMem).SetCachePerformance(True,1024,FMaxMemUsage,200000);
+    TFileMem(FAbstractMem).IncreaseFileBytes := 10 * 1024*1024; // 10Mb each increase
+    TFileMem(FAbstractMem).SetCachePerformance(True,1024,FMaxMemUsage,400000);
     LCacheMem := TFileMem(FAbstractMem).LockCache;
     Try
       LCacheMem.OnFlushedCache := OnCacheMemFlushedCache;

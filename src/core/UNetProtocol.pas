@@ -1921,11 +1921,11 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       Exit;
     end;
       // Will obtain chunks of 10000 blocks each -> Note: Maximum is CT_MAX_SAFEBOXCHUNK_BLOCKS
-      for i:=0 to ((LDownloadedSafeboxBlocksCount-1) DIV 10000) do begin // Bug v3.0.1 and minors
+      for i:=0 to ((LDownloadedSafeboxBlocksCount-1) DIV CT_MAX_SAFEBOXCHUNK_BLOCKS) do begin // Bug v3.0.1 and minors
         FNewBlockChainFromClientStatus := Format('Receiving new safebox with %d blocks (step %d/%d) from %s',
-          [LDownloadedSafeboxBlocksCount,i+1,((LDownloadedSafeboxBlocksCount-1) DIV 10000)+1,Connection.ClientRemoteAddr]);
+          [LDownloadedSafeboxBlocksCount,i+1,((LDownloadedSafeboxBlocksCount-1) DIV CT_MAX_SAFEBOXCHUNK_BLOCKS)+1,Connection.ClientRemoteAddr]);
         LreceivedChunk := TPCTemporalFileStream.Create(Format('CHUNK_%.3d_',[i]));
-        if (Not DownloadSafeBoxChunk(LDownloadedSafeboxBlocksCount,ASafeboxLastOperationBlock.initial_safe_box_hash,(i*10000),((i+1)*10000)-1,LreceivedChunk,safeBoxHeader,errors)) then begin
+        if (Not DownloadSafeBoxChunk(LDownloadedSafeboxBlocksCount,ASafeboxLastOperationBlock.initial_safe_box_hash,(i*CT_MAX_SAFEBOXCHUNK_BLOCKS),((i+1)*CT_MAX_SAFEBOXCHUNK_BLOCKS)-1,LreceivedChunk,safeBoxHeader,errors)) then begin
           LreceivedChunk.Free;
           TLog.NewLog(ltError,CT_LogSender,errors);
           Exit;
