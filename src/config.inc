@@ -149,7 +149,7 @@ ERROR: You must select ONLY ONE option: Use_OpenSSL or Use_CryptoLib4Pascal
       {$UNDEF IS32BITS}
       {$DEFINE IS64BITS}
     {$ENDIF}
-  {ELSE}
+  {$ELSE}
     {$IFDEF CPU32BITS}
       {$DEFINE IS32BITS}
       {$UNDEF IS64BITS}
