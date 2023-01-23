@@ -35,7 +35,7 @@ Uses
   {$ENDIF}
   DBXJSON,
   {$ENDIF}
-  SysUtils, DateUtils, Variants, Classes, ULog,
+  SysUtils, DateUtils, Variants, Classes,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Type
@@ -88,6 +88,11 @@ Type
     Function AsCurrency(DefValue : Currency) : Currency;
     Function AsCardinal(DefValue : Cardinal) : Cardinal;
     Function IsNull : Boolean;
+    Function IncrementAsInteger(AIncrement : Integer) : TPCJSONVariantValue;
+    Function IncrementAsInt64(AIncrement : Int64) : TPCJSONVariantValue;
+    Function IncrementAsDouble(AIncrement : Double) : TPCJSONVariantValue;
+    Function IncrementAsCurrency(AIncrement : Currency) : TPCJSONVariantValue;
+    Function IncrementAsCardinal(AIncrement : Cardinal) : TPCJSONVariantValue;
   End;
 
   TPCJSONNameValue = Class(TPCJSONData)
@@ -295,7 +300,7 @@ end;
 function TPCJSONArray.ToJSONFormatted(pretty: Boolean; const prefix: String): String;
 Var i : Integer;
 begin
-  If pretty then Result := prefix+'['
+  if pretty then Result := '['+#10+prefix
   else Result := '[';
   for i := 0 to Count - 1 do begin
     if (i>0) then begin
@@ -422,7 +427,8 @@ End;
 function TPCJSONVariantValue.AsBoolean(DefValue: Boolean): Boolean;
 begin
   try
-    Result := VarAsType(Value,varBoolean);
+    if VarIsNull(Value) then Result := DefValue
+    else Result := VarAsType(Value,varBoolean);
   except
     Result := DefValue;
   end;
@@ -431,7 +437,8 @@ end;
 function TPCJSONVariantValue.AsCurrency(DefValue: Currency): Currency;
 begin
   try
-    Result := VariantToDouble(Value);
+    if VarIsNull(Value) then Result := DefValue
+    else Result := VariantToDouble(Value);
   except
     Result := DefValue;
   end;
@@ -439,13 +446,15 @@ end;
 
 function TPCJSONVariantValue.AsCardinal(DefValue: Cardinal): Cardinal;
 begin
-  Result := Cardinal( StrToIntDef(VarToStrDef(Value,''),DefValue) );
+  if VarIsNull(Value) then Result := DefValue
+  else Result := Cardinal( StrToIntDef(VarToStrDef(Value,''),DefValue) );
 end;
 
 function TPCJSONVariantValue.AsDateTime(DefValue: TDateTime): TDateTime;
 begin
   try
-    Result := VarAsType(Value,varDate);
+    if VarIsNull(Value) then Result := DefValue
+    else Result := VarAsType(Value,varDate);
   except
     Result := DefValue;
   end;
@@ -454,7 +463,8 @@ end;
 function TPCJSONVariantValue.AsDouble(DefValue: Double): Double;
 begin
   try
-    Result := VariantToDouble(Value);
+    if VarIsNull(Value) then Result := DefValue
+    else Result := VariantToDouble(Value);
   except
     Result := DefValue;
   end;
@@ -462,12 +472,14 @@ end;
 
 function TPCJSONVariantValue.AsInt64(DefValue: Int64): Int64;
 begin
-  Result := StrToInt64Def(VarToStrDef(Value,''),DefValue);
+  if VarIsNull(Value) then Result := DefValue
+  else Result := StrToInt64Def(VarToStrDef(Value,''),DefValue);
 end;
 
 function TPCJSONVariantValue.AsInteger(DefValue: Integer): Integer;
 begin
-  Result := StrToIntDef(VarToStrDef(Value,''),DefValue);
+  if VarIsNull(Value) then Result := DefValue
+  else Result := StrToIntDef(VarToStrDef(Value,''),DefValue);
 end;
 
 function TPCJSONVariantValue.AsString(DefValue: String): String;
@@ -539,6 +551,36 @@ begin
   {$ENDIF}
 end;
 
+function TPCJSONVariantValue.IncrementAsCardinal(AIncrement: Cardinal): TPCJSONVariantValue;
+begin
+  Value := AsCardinal(0) + AIncrement;
+  Result := Self;
+end;
+
+function TPCJSONVariantValue.IncrementAsCurrency(AIncrement: Currency): TPCJSONVariantValue;
+begin
+  Value := AsCurrency(0) + AIncrement;
+  Result := Self;
+end;
+
+function TPCJSONVariantValue.IncrementAsDouble(AIncrement: Double): TPCJSONVariantValue;
+begin
+  Value := AsDouble(0) + AIncrement;
+  Result := Self;
+end;
+
+function TPCJSONVariantValue.IncrementAsInt64(AIncrement: Int64): TPCJSONVariantValue;
+begin
+  Value := AsInt64(0) + AIncrement;
+  Result := Self;
+end;
+
+function TPCJSONVariantValue.IncrementAsInteger(AIncrement: Integer): TPCJSONVariantValue;
+begin
+  Value := AsInteger(0) + AIncrement;
+  Result := Self;
+end;
+
 function TPCJSONVariantValue.IsNull: Boolean;
 begin
   Result := VarIsNull(FValue) or VarIsEmpty(FValue);
@@ -587,7 +629,7 @@ begin
     Result := DefValue;
     Exit;
   end;
-  v := GetAsVariant(ParamName).Value;
+  v := VV.Value;
   try
     if VarIsNull(v) then Result := DefValue
     else Result := VarAsType(v,varBoolean);
@@ -610,7 +652,7 @@ begin
     Result := DefValue;
     Exit;
   end;
-  v := GetAsVariant(ParamName).Value;
+  v := VV.Value;
   try
     if VarIsNull(v) then Result := DefValue
     else Result := VariantToDouble(v);
@@ -629,7 +671,7 @@ begin
     Result := DefValue;
     Exit;
   end;
-  v := GetAsVariant(ParamName).Value;
+  v := VV.Value;
   try
     if VarIsNull(v) then Result := DefValue
     else Result := VarAsType(v,varDate);
@@ -647,7 +689,7 @@ begin
     Result := DefValue;
     Exit;
   end;
-  v := GetAsVariant(ParamName).Value;
+  v := VV.Value;
   try
     if VarIsNull(v) then Result := DefValue
     else Result := VariantToDouble(v);
@@ -665,7 +707,7 @@ begin
     Result := DefValue;
     Exit;
   end;
-  v := GetAsVariant(ParamName).Value;
+  v := VV.Value;
   try
     if VarIsNull(v) then Result := DefValue
     else Result := StrToInt64Def(VarToStrDef(v,''),DefValue);
@@ -683,7 +725,7 @@ begin
     Result := DefValue;
     Exit;
   end;
-  v := GetAsVariant(ParamName).Value;
+  v := VV.Value;
   try
     if VarIsNull(v) then Result := DefValue
     else Result := StrToIntDef(VarToStrDef(v,''),DefValue);
@@ -701,7 +743,7 @@ begin
     Result := DefValue;
     Exit;
   end;
-  v := GetAsVariant(ParamName).Value;
+  v := VV.Value;
   try
     Case VarType(V) of
       varNull : Result := '';
@@ -932,7 +974,7 @@ end;
 function TPCJSONObject.ToJSONFormatted(pretty: Boolean; const prefix: String): String;
 Var i : Integer;
 begin
-  if pretty then Result := prefix+'{'
+  if pretty then Result := '{'+#10+prefix
   else Result := '{';
   for i := 0 to Count - 1 do begin
     if (i>0) then Begin
@@ -1046,17 +1088,11 @@ begin
     JS := GetJSON(jss);
   Except
     On E:Exception do begin
-      TLog.NewLog(ltDebug,ClassName,'Error processing JSON: '+E.Message);
+      // Nothing to do...
     end;
   end;
   {$ELSE}
-  Try
-    JS := TJSONObject.ParseJSONValue(JSONObject,0);
-  Except
-    On E:Exception do begin
-      TLog.NewLog(ltDebug,ClassName,'Error processing JSON: '+E.Message);
-    end;
-  End;
+  JS := TJSONObject.ParseJSONValue(JSONObject,0);
   {$ENDIF}
   if Not Assigned(JS) then exit;
   Try
