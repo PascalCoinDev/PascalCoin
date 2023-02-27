@@ -1,9 +1,9 @@
-![BUILD](https://github.com/PascalCoin/PascalCoin/actions/workflows/workflow.yml/badge.svg)
+[![BUILD](https://github.com/PascalCoin/PascalCoin/actions/workflows/workflow.yml/badge.svg?branch=master)](https://github.com/PascalCoin/PascalCoin/actions)
 
-![VERSION](https://img.shields.io/github/v/tag/PascalCoin/PascalCoin?sort=semver&style=for-the-badge)
-![License](https://img.shields.io/github/license/PascalCoin/PascalCoin.svg?style=for-the-badge)
-![DISCORD](https://img.shields.io/discord/383064643482025984.svg?label=DISCORD%20COMMUNITY&style=for-the-badge)
-![REDDIT](https://img.shields.io/reddit/subreddit-subscribers/pascalcoin.svg?style=for-the-badge)
+[![VERSION](https://img.shields.io/github/v/tag/PascalCoin/PascalCoin?sort=semver&style=for-the-badge)](https://github.com/PascalCoin/PascalCoin/releases)
+[![License](https://img.shields.io/github/license/PascalCoin/PascalCoin.svg?style=for-the-badge)](https://github.com/PascalCoin/PascalCoin/blob/master/LICENSE)
+[![DISCORD](https://img.shields.io/discord/383064643482025984.svg?label=DISCORD%20COMMUNITY&style=for-the-badge)](https://discord.gg/9YYZyw)
+[![REDDIT](https://img.shields.io/reddit/subreddit-subscribers/pascalcoin.svg?style=for-the-badge)](https://www.reddit.com/r/pascalcoin)
 <p align="center">
 <br /><br />
 <img width="30%" src="resources/logo.svg" />
@@ -41,9 +41,9 @@ There are testnet and mainnet releases.
 
 In case you have questions or just want to get in touch with like-minded Pascal users.
 
- - Listen to our twitter on: https://twitter.com/PascalCoin
+ - Our twitter feed: https://twitter.com/PascalCoin
  - Chat with us on discord: https://discord.gg/9YYZyw
- - Join our subreddit on: https://discord.gg/9YYZyw
+ - Join our subreddit on: https://www.reddit.com/r/pascalcoin
 
 ## Develop with Pascal
 
@@ -58,7 +58,7 @@ In case you have questions or just want to get in touch with like-minded Pascal 
 View the changelog [here](CHANGELOG.md)
 
 ## Donations  
-  
+
 Consider a donation using Pascal coin to development account: `0-10`
 
 Also, consider a donation using BitCoin to `16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk`

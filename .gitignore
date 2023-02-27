@@ -4,9 +4,11 @@
 *.identcache
 *.stat
 /src/*.app
-src/PascalCoinWallet
-src/PascalCoinWalletLazarus
-src/PascalCoinWalletExperimental
+pascalcoin_daemon
+PascalCoinMiner
+PascalCoinWallet
+PascalCoinWalletLazarus
+PascalCoinWalletExperimental
 *.dSYM*
 *.dbg
 *.res
@@ -14,9 +16,9 @@ src/PascalCoinWalletExperimental
 ## OpenSSL 
 libeay32.dll
 libeay64.dll
-libcrypto-1_1-x64.dll
+#libcrypto-1_1-x64.dll
 libcrypto-1_1.dll
-libcrypto.so.1.1
+#libcrypto.so.1.1
 
 
 # Log files
