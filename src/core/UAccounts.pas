@@ -118,7 +118,7 @@ Type
     Class procedure SaveTOperationBlockToStream(const stream : TStream; const operationBlock:TOperationBlock);
     Class Function LoadTOperationBlockFromStream(const stream : TStream; var operationBlock:TOperationBlock) : Boolean;
     Class Function AccountToTxt(const Account : TAccount) : String;
-    Class Function AccountCanRecover(const Account: TAccount; currentBlockCount: Cardinal) : Boolean;
+    Class Function AccountCanRecover(const Account: TAccount; currentBlockCount: Cardinal; ASafeboxCurrentProtocol : Integer) : Boolean;
   End;
 
   TPCSafeBox = Class;
@@ -1777,7 +1777,7 @@ begin
       Account.account_data.ToHexaString,Account.account_seal.ToHexaString ]);
 end;
 
-class function TAccountComp.AccountCanRecover(const Account: TAccount; currentBlockCount: Cardinal): Boolean;
+class function TAccountComp.AccountCanRecover(const Account: TAccount; currentBlockCount: Cardinal; ASafeboxCurrentProtocol : Integer) : Boolean;
 begin
   Result := True;
   if TAccountComp.IsAccountBlockedByProtocol(Account.account, currentBlockCount) then begin
@@ -1798,6 +1798,13 @@ begin
     Result := False; // 'account block is active';
     Exit;
   end;
+  if (ASafeboxCurrentProtocol>CT_PROTOCOL_5) then begin
+    if (Account.balance>0) or (Length(Account.name)>0) then begin
+      Result := False; // 'Recover account is only valid for Balance 0 since Protocol 6'
+      exit;
+    end;
+  end;
+
 end;
 
 class function TAccountComp.IsValidAccountInfo(const AAccountInfo: TAccountInfo; ACurrentProtocol : Word; var errors: String): Boolean;

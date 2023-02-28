@@ -810,7 +810,9 @@ begin
       try
         if (Not (TPCOperationsComp.EqualsOperationBlock(FMinerOperations.OperationBlock,LLockedMempool.OperationBlock))) then begin
           FMinerOperations.Clear(true);
-          CheckMinerRecover(LLockedMempool);
+          if LLockedMempool.SafeBoxTransaction.FreezedSafeBox.CurrentProtocol < CT_PROTOCOL_6 then begin
+            CheckMinerRecover(LLockedMempool);
+          end;
           if LLockedMempool.Count>0 then begin
             // First round: Select with fee > 0
             i := 0;
@@ -973,7 +975,7 @@ begin
         LRecoverAccountsCount := LAccOrd.Count;
         while ((LRecIndex < LRecoverAccountsCount) and (LRecIndex < CT_MAX_0_fee_operations_per_block_by_miner)) do begin
           LAccount := FNodeNotifyEvents.Node.GetMempoolAccount(LIndexKey);
-          if(TAccountComp.AccountCanRecover(LAccount, nbOperations.OperationBlock.block)) then begin // does the AccountCanRecover check, !locked, old enough, etc
+          if(TAccountComp.AccountCanRecover(LAccount, nbOperations.OperationBlock.block, nbOperations.bank.SafeBox.CurrentProtocol)) then begin // does the AccountCanRecover check, !locked, old enough, etc
             LRecoverAccounts.Add(LAccount);
           end else begin
             Break; // we could not recover this account, then we can never recover move recent accounts
