@@ -632,8 +632,9 @@ Var PS : PAnsiChar;
 begin
 {$IFDEF Use_OpenSSL}
   If length(ResultSha256)<>32 then SetLength(ResultSha256,32);
-  PS := @ResultSha256[Low(ResultSha256)];
-  SHA256(@TheMessage[Low(TheMessage)],Length(TheMessage),PS);
+  PS := @ResultSha256[0];
+  if length(TheMessage)=0 then SHA256(Nil,0,PS)
+  else SHA256(@TheMessage[0],Length(TheMessage),PS);
 {$ELSE}
   TPCCryptoLib4Pascal.DoSHA256(TheMessage,ResultSha256);
 {$ENDIF}
