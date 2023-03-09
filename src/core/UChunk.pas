@@ -36,7 +36,7 @@ uses
   {$ELSE}
   zlib,
   {$ENDIF}
-  UAccounts, ULog, UConst, UCrypto, UBaseTypes, UPCDataTypes;
+  UBaseTypes, UPCDataTypes;
 
 type
 
@@ -55,26 +55,40 @@ type
 
   TPCSafeboxChunks = Class
   private
-    FChunks : Array of TStream;
+    Type TChunkStreamInfo = Record
+      stream : TStream;
+      streamInitialPosition : Int64;
+      streamFinalPosition : Int64;
+      freeStreamOnClear : Boolean;
+    End;
+  private
+    FChunks : Array of TChunkStreamInfo;
+    FIsMultiChunkStream : Boolean;
   public
     constructor Create;
     destructor Destroy; override;
     procedure Clear;
     function Count : Integer;
-    procedure AddChunk(ASafeboxStreamChunk : TStream);
+    function AddChunk(ASafeboxStreamChunk : TStream; AFreeStreamOnClear : Boolean; ARaiseOnError : Boolean = false) : Boolean;
     function GetSafeboxChunk(index : Integer) : TStream;
     function GetSafeboxChunkHeader(index : Integer) : TPCSafeBoxHeader;
     function IsComplete : Boolean;
     function GetSafeboxHeader : TPCSafeBoxHeader;
+    function SaveSafeboxfile(AFileName : String) : Boolean;
+    function SaveSafeboxStream(AStream : TStream) : Boolean;
+    class function GetSafeboxHeaderFromStream(AStream : TStream; var APCSafeBoxHeader : TPCSafeBoxHeader) : Boolean;
+    class function GetSafeboxHeaderFromFile(AFilename : String; var APCSafeBoxHeader : TPCSafeBoxHeader) : Boolean;
   end;
 
 implementation
 
+uses UAccounts, ULog, UConst;
 { TPCSafeboxChunks }
 
 constructor TPCSafeboxChunks.Create;
 begin
   SetLength(FChunks,0);
+  FIsMultiChunkStream := False;
 end;
 
 destructor TPCSafeboxChunks.Destroy;
@@ -87,9 +101,11 @@ procedure TPCSafeboxChunks.Clear;
 var i : Integer;
 begin
   For i:=0 to Count-1 do begin
-    FChunks[i].Free;
+    if (FChunks[i].freeStreamOnClear) then FChunks[i].stream.Free;
+    if FIsMultiChunkStream then break; // When MultiChunk first stream is the same for all
   end;
   SetLength(FChunks,0);
+  FIsMultiChunkStream := False;
 end;
 
 function TPCSafeboxChunks.Count: Integer;
@@ -97,36 +113,60 @@ begin
   Result := Length(FChunks);
 end;
 
-procedure TPCSafeboxChunks.AddChunk(ASafeboxStreamChunk: TStream);
+function TPCSafeboxChunks.AddChunk(ASafeboxStreamChunk: TStream; AFreeStreamOnClear : Boolean; ARaiseOnError : Boolean) : Boolean;
 var LLastHeader, LsbHeader : TPCSafeBoxHeader;
+  LChunk : TChunkStreamInfo;
+  LCount : Integer;
 begin
-  If Not TPCSafeBox.LoadSafeBoxStreamHeader(ASafeboxStreamChunk,LsbHeader) then begin
-    Raise EPCChunk.Create('SafeBoxStream is not a valid SafeBox to add!');
+  if FIsMultiChunkStream then begin
+    if ARaiseOnError then raise EPCChunk.Create('Cannot add to a MultiChunk Stream')
+    else Exit(False);
   end;
-  if (Count>0) then begin
-    LLastHeader := GetSafeboxChunkHeader(Count-1);
-    if (LsbHeader.ContainsFirstBlock)
-      or (LsbHeader.startBlock<>LLastHeader.endBlock+1)
-      or (LLastHeader.ContainsLastBlock)
-      or (LsbHeader.protocol<>LLastHeader.protocol)
-      or (LsbHeader.blocksCount<>LLastHeader.blocksCount)
-      or (Not LsbHeader.safeBoxHash.IsEqualTo( LLastHeader.safeBoxHash ))
-      then begin
-      raise EPCChunk.Create(Format('Cannot add %s at (%d) %s',[LsbHeader.ToString,Length(FChunks),LLastHeader.ToString]));
+  LCount := 0;
+  repeat
+    LChunk.streamInitialPosition := ASafeboxStreamChunk.position;
+    LChunk.stream := ASafeboxStreamChunk;
+    LChunk.freeStreamOnClear := AFreeStreamOnClear;
+    If Not TPCSafeBox.LoadSafeBoxStreamHeader(ASafeboxStreamChunk,LsbHeader,LChunk.streamFinalPosition) then begin
+      if (ARaiseOnError) and (LCount=0) then Raise EPCChunk.Create('SafeBoxStream is not a valid SafeBox to add!')
+      else Exit(LCount>0);
+    end else if LCount>0 then FIsMultiChunkStream := True;
+
+    if (Count>0) then begin
+      LLastHeader := GetSafeboxChunkHeader(Count-1);
+      if (LsbHeader.ContainsFirstBlock)
+        or (LsbHeader.startBlock<>LLastHeader.endBlock+1)
+        or (LLastHeader.ContainsLastBlock)
+        or (LsbHeader.protocol<>LLastHeader.protocol)
+        or (LsbHeader.blocksCount<>LLastHeader.blocksCount)
+        or (Not LsbHeader.safeBoxHash.IsEqualTo( LLastHeader.safeBoxHash ))
+        then begin
+          if ARaiseOnError then raise EPCChunk.Create(Format('Cannot add %s at (%d) %s',[LsbHeader.ToString,Length(FChunks),LLastHeader.ToString]))
+          else Exit(False);
+      end;
+    end else if (Not LsbHeader.ContainsFirstBlock) then begin
+      if ARaiseOnError then raise EPCChunk.Create(Format('Cannot add %s',[LsbHeader.ToString]))
+      else Exit(False);
     end;
-  end else if (Not LsbHeader.ContainsFirstBlock) then begin
-    raise EPCChunk.Create(Format('Cannot add %s',[LsbHeader.ToString]));
-  end;
-  //
-  SetLength(FChunks,Length(FChunks)+1);
-  FChunks[High(FChunks)] := ASafeboxStreamChunk;
+    //
+    ASafeboxStreamChunk.Position := LChunk.streamFinalPosition;
+    //
+    SetLength(FChunks,Length(FChunks)+1);
+    FChunks[High(FChunks)] := LChunk;
+    inc(LCount);
+  until false;
+  Result := True;
 end;
 
 function TPCSafeboxChunks.GetSafeboxChunk(index: Integer): TStream;
 begin
   if (index<0) or (index>=Count) then raise EPCChunk.Create(Format('Invalid index %d of %d',[index,Length(FChunks)]));
-  Result := FChunks[index];
-  Result.Position := 0;
+  if FIsMultiChunkStream then begin
+    Result := FChunks[0].stream;
+  end else begin
+    Result := FChunks[index].stream;
+  end;
+  Result.Position := FChunks[index].streamInitialPosition;
 end;
 
 function TPCSafeboxChunks.GetSafeboxChunkHeader(index: Integer): TPCSafeBoxHeader;
@@ -146,11 +186,68 @@ begin
   end;
 end;
 
+function TPCSafeboxChunks.SaveSafeboxfile(AFileName: String): Boolean;
+var fs : TFileStream;
+begin
+  fs := TFileStream.Create(AFilename,fmCreate);
+  try
+    Result := SaveSafeboxStream(fs);
+  finally
+    fs.Free;
+  end;
+end;
+
+
+function TPCSafeboxChunks.SaveSafeboxStream(AStream: TStream): Boolean;
+Var
+  iChunk : Integer;
+  Lstream : TStream;
+begin
+  Result := false;
+  for iChunk := 0 to Count-1 do begin
+    Lstream := GetSafeboxChunk(iChunk);
+    AStream.CopyFrom(LStream,FChunks[iChunk].streamFinalPosition - FChunks[iChunk].streamInitialPosition);
+  end;
+  Result := True;
+end;
+
+
 function TPCSafeboxChunks.GetSafeboxHeader: TPCSafeBoxHeader;
 begin
   if Not IsComplete then Raise EPCChunk.Create(Format('Chunks are not complete %d',[Length(FChunks)]));
   Result := GetSafeboxChunkHeader(Count-1);
   Result.startBlock := 0;
+end;
+
+class function TPCSafeboxChunks.GetSafeboxHeaderFromFile(AFilename: String;
+  var APCSafeBoxHeader: TPCSafeBoxHeader): Boolean;
+var fs: TFileStream;
+begin
+  APCSafeBoxHeader := CT_PCSafeBoxHeader_NUL;
+  if (AFileName.trim()='') or (Not FileExists(AFileName)) then Exit(False);
+  fs := TFileStream.Create(AFilename,fmOpenRead);
+  try
+    Result := TPCSafeboxChunks.GetSafeboxHeaderFromStream(fs,APCSafeBoxHeader);
+  finally
+    fs.Free;
+  end;
+end;
+
+class function TPCSafeboxChunks.GetSafeboxHeaderFromStream(AStream: TStream;
+  var APCSafeBoxHeader: TPCSafeBoxHeader): Boolean;
+var LChunks : TPCSafeboxChunks;
+begin
+  APCSafeBoxHeader := CT_PCSafeBoxHeader_NUL;
+  LChunks := TPCSafeboxChunks.Create;
+  try
+    if LChunks.AddChunk(AStream,False,False) then begin
+      if LChunks.IsComplete then APCSafeBoxHeader := LChunks.GetSafeboxHeader
+      else APCSafeBoxHeader := LChunks.GetSafeboxChunkHeader(0);
+      Result := True;
+    end else Result := False;
+  finally
+    LChunks.Free;
+  end;
 end;
 
 { TPCChunk }
