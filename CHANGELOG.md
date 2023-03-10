@@ -1,5 +1,12 @@
 # Changelog
 
+## Build 6 (Pending)
+- MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK **(pending)**
+- Upgrade to Protocol 6 (Hard fork)
+- Implementation of PIP-0043 (Update OP_RECOVER to recover only non used, not named PASA's) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0043.md
+- Improvements on downloading Safebox (fresh installation)
+
+
 ## Build 5.7 - 2021-12-23
 - This version will not propagate 0-Fee operations, but will allow 0-Fee operations to the blockchain (CT_AllowPropagate0feeOperations=False)
   - A wallet that wants to execute 0-Fee operations will need to connect to a miner/pool/node running a 5.6 version or solomine
