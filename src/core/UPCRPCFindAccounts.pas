@@ -206,7 +206,7 @@ begin
   // Validate Parameters
   if (Length(LAccountName)>0) And (LSearchByNameType = st_exact) then begin
     LRaw.FromString( LAccountName );
-    if not ASender.Node.Bank.SafeBox.ValidAccountName(LRaw, LErrors) then begin
+    if not TPascalCoinProtocol.IsValidAccountName(CT_BUILD_PROTOCOL, LRaw, LErrors) then begin
       AErrorNum := CT_RPC_ErrNum_InvalidAccountName;
       AErrorDesc := LErrors;
       exit;

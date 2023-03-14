@@ -58,6 +58,7 @@ Type
     class procedure GetRewardDistributionForNewBlock(const OperationBlock : TOperationBlock; out acc_0_miner_reward, acc_4_dev_reward : Int64; out acc_4_for_dev : Boolean);
     class Function CalcSafeBoxHash(ABlocksHashBuffer : TBytesBuffer; protocol_version : Integer) : TRawBytes;
     class Function AllowUseHardcodedRandomHashTable(const AHardcodedFileName : String; const AHardcodedSha256Value : TRawBytes) : Boolean;
+    class function IsValidAccountName(protocol_version : Integer; const new_name : TRawBytes; var errors : String) : Boolean;
   end;
 
   TAccount_Helper = record helper for TAccount
@@ -290,7 +291,6 @@ Type
     Procedure SaveSafeBoxToAStream(Stream : TStream; FromBlock, ToBlock : Cardinal);
     class Function CopySafeBoxStream(Source,Dest : TStream; FromBlock, ToBlock : Cardinal; var errors : String) : Boolean;
     class Function ConcatSafeBoxStream(Source1, Source2, Dest : TStream; var errors : String) : Boolean;
-    class function ValidAccountName(const new_name : TRawBytes; var errors : String) : Boolean;
 
     Function IsValidNewOperationsBlock(Const newOperationBlock : TOperationBlock; checkSafeBoxHash, checkValidOperationsBlock : Boolean; var errors : String) : Boolean;
     class Function IsValidOperationBlock(Const newOperationBlock : TOperationBlock; var errors : String) : Boolean;
@@ -898,6 +898,53 @@ begin
   finally
     ms.Free;
   end;
+end;
+
+class function TPascalCoinProtocol.IsValidAccountName(protocol_version: Integer; const new_name: TRawBytes; var errors: String): Boolean;
+  { Note:
+    This function is case senstive, and only lower case chars are valid.
+    Execute a LowerCase() prior to call this function!
+    }
+Const CT_PascalCoin_Base64_Charset : RawByteString = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-+{}[]\_:"|<>,.?/~';
+      // First char can't start with a number
+      CT_PascalCoin_FirstChar_Charset : RawByteString = 'abcdefghijklmnopqrstuvwxyz!@#$%^&*()-+{}[]\_:"|<>,.?/~';
+      CT_PascalCoin_name_min_length = 3;
+      CT_PascalCoin_name_max_length = 64;
+var i,j : Integer;
+  Lraw : TRawBytes;
+begin
+  Result := False; errors := '';
+  if (length(new_name)<CT_PascalCoin_name_min_length) Or (length(new_name)>CT_PascalCoin_name_max_length) then begin
+    errors := 'Invalid length:'+IntToStr(Length(new_name))+' (valid from '+Inttostr(CT_PascalCoin_name_max_length)+' to '+IntToStr(CT_PascalCoin_name_max_length)+')';
+    Exit;
+  end;
+  for i:=Low(new_name) to High(new_name) do begin
+    if (i=Low(new_name)) then begin
+      j:=Low(CT_PascalCoin_FirstChar_Charset);
+      // First char can't start with a number
+      While (j<=High(CT_PascalCoin_FirstChar_Charset)) and (Ord(new_name[i])<>Ord(CT_PascalCoin_FirstChar_Charset[j])) do inc(j);
+      if (j>High(CT_PascalCoin_FirstChar_Charset)) then begin
+        // Allow Account Name as an hexadecimal value for a hash on Protocol V6 as proposed on PIP-0044
+        if Not (
+          (protocol_version>=CT_PROTOCOL_6) and
+          (new_name[i] in [Ord('0')..Ord('9')]) and
+          (length(new_name)=64) and
+          (TCrypto.HexaToRaw(new_name.ToString,Lraw))
+          ) then begin
+          errors := 'Invalid char '+Char(new_name[i])+' at first pos';
+          Exit; // Not found
+        end;
+      end;
+    end else begin
+      j:=Low(CT_PascalCoin_Base64_Charset);
+      While (j<=High(CT_PascalCoin_Base64_Charset)) and (Ord(new_name[i])<>Ord(CT_PascalCoin_Base64_Charset[j])) do inc(j);
+      if j>High(CT_PascalCoin_Base64_Charset) then begin
+        errors := 'Invalid char '+Char(new_name[i])+' at pos '+IntToStr(i);
+        Exit; // Not found
+      end;
+    end;
+  end;
+  Result := True;
 end;
 
 class function TPascalCoinProtocol.IsValidMinerBlockPayload(const newBlockPayload: TRawBytes): Boolean;
@@ -3627,7 +3674,7 @@ begin
           //
           // check valid
           If (Length(LBlock.accounts[iacc].name)>0) then begin
-            if Not TPCSafeBox.ValidAccountName(LBlock.accounts[iacc].name,aux_errors) then begin
+            if Not TPascalCoinProtocol.IsValidAccountName(CurrentProtocol,LBlock.accounts[iacc].name,aux_errors) then begin
               errors := errors + ' > Invalid name "'+LBlock.accounts[iacc].name.ToPrintable+'": '+aux_errors;
               Exit;
             end;
@@ -4295,44 +4342,6 @@ begin
   end;
 end;
 
-
-class function TPCSafeBox.ValidAccountName(const new_name: TRawBytes; var errors : String): Boolean;
-  { Note:
-    This function is case senstive, and only lower case chars are valid.
-    Execute a LowerCase() prior to call this function!
-    }
-Const CT_PascalCoin_Base64_Charset : RawByteString = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-+{}[]\_:"|<>,.?/~';
-      // First char can't start with a number
-      CT_PascalCoin_FirstChar_Charset : RawByteString = 'abcdefghijklmnopqrstuvwxyz!@#$%^&*()-+{}[]\_:"|<>,.?/~';
-      CT_PascalCoin_name_min_length = 3;
-      CT_PascalCoin_name_max_length = 64;
-var i,j : Integer;
-begin
-  Result := False; errors := '';
-  if (length(new_name)<CT_PascalCoin_name_min_length) Or (length(new_name)>CT_PascalCoin_name_max_length) then begin
-    errors := 'Invalid length:'+IntToStr(Length(new_name))+' (valid from '+Inttostr(CT_PascalCoin_name_max_length)+' to '+IntToStr(CT_PascalCoin_name_max_length)+')';
-    Exit;
-  end;
-  for i:=Low(new_name) to High(new_name) do begin
-    if (i=Low(new_name)) then begin
-      j:=Low(CT_PascalCoin_FirstChar_Charset);
-      // First char can't start with a number
-      While (j<=High(CT_PascalCoin_FirstChar_Charset)) and (Ord(new_name[i])<>Ord(CT_PascalCoin_FirstChar_Charset[j])) do inc(j);
-      if j>High(CT_PascalCoin_FirstChar_Charset) then begin
-        errors := 'Invalid char '+Char(new_name[i])+' at first pos';
-        Exit; // Not found
-      end;
-    end else begin
-      j:=Low(CT_PascalCoin_Base64_Charset);
-      While (j<=High(CT_PascalCoin_Base64_Charset)) and (Ord(new_name[i])<>Ord(CT_PascalCoin_Base64_Charset[j])) do inc(j);
-      if j>High(CT_PascalCoin_Base64_Charset) then begin
-        errors := 'Invalid char '+Char(new_name[i])+' at pos '+IntToStr(i);
-        Exit; // Not found
-      end;
-    end;
-  end;
-  Result := True;
-end;
 
 var _initialSafeboxHash : TRawBytes = Nil;
 
@@ -5643,7 +5652,7 @@ begin
   if (Not TBaseType.Equals(newName,P_target^.name)) then begin
     // NEW NAME CHANGE CHECK:
     if Length(newName)>0 then begin
-      If Not TPCSafeBox.ValidAccountName(newName,errors) then begin
+      If Not TPascalCoinProtocol.IsValidAccountName(FreezedSafeBox.CurrentProtocol,newName,errors) then begin
         errors := 'Invalid account name "'+newName.ToPrintable+'" length:'+IntToStr(length(newName))+': '+errors;
         Exit;
       end;

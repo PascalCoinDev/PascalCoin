@@ -680,7 +680,7 @@ begin
     end;
     If (account_name in chi.changes_type) then begin
       If (Length(chi.New_Name)>0) then begin
-        If Not TPCSafeBox.ValidAccountName(chi.New_Name,errors) then Exit;
+        If Not TPascalCoinProtocol.IsValidAccountName(AccountTransaction.FreezedSafeBox.CurrentProtocol,chi.New_Name,errors) then Exit;
         // Check name not found!
         j := AccountTransaction.FindAccountByNameInTransaction(chi.New_Name,newNameWasAdded, newNameWasDeleted);
         If (j>=0) Or (newNameWasAdded) or (newNameWasDeleted) then begin
