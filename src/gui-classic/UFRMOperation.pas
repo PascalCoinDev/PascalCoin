@@ -1050,7 +1050,7 @@ begin
       If Not TBaseType.Equals(newName,TargetAccount.name) then begin
         changeName:=True;
         If Length(newName)>0 then begin
-          if (Not TPCSafeBox.ValidAccountName(newName,errors)) then begin
+          if (Not TPascalCoinProtocol.IsValidAccountName(TNode.Node.Bank.SafeBox.CurrentProtocol,newName,errors)) then begin
             errors := '"'+newName.ToPrintable+'" is not a valid name: '+errors;
             Exit;
           end;

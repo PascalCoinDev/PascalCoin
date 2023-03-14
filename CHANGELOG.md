@@ -4,6 +4,7 @@
 - MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK **(pending)**
 - Upgrade to Protocol 6 (Hard fork)
 - Implementation of PIP-0043 (Update OP_RECOVER to recover only non used, not named PASA's) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0043.md
+- Implementation of PIP-0044 (Induplicatable NFT) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0044.md
 - Improvements on downloading Safebox (fresh installation)
 
 

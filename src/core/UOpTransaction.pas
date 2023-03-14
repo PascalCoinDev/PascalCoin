@@ -550,7 +550,7 @@ begin
   end;
   If (account_name in FData.changes_type) then begin
     If (Length(FData.new_name)>0) then begin
-      If Not TPCSafeBox.ValidAccountName(FData.new_name,errors) then Exit;
+      If Not TPascalCoinProtocol.IsValidAccountName(AccountTransaction.FreezedSafeBox.CurrentProtocol,FData.new_name,errors) then Exit;
     end;
   end else begin
     If (Length(FData.new_name)>0) then begin

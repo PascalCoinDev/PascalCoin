@@ -409,7 +409,7 @@ LBL_start_changer:
       aux := new_name;
       If Not InputQuery(Caption,Format('New name for account %s:',[TAccountComp.AccountNumberToAccountTxtNumber(nAccount)]),aux) then Break;
       aux := LowerCase(aux);
-    Until (aux='') Or (TPCSafeBox.ValidAccountName(TEncoding.ANSI.GetBytes(aux),errors));
+    Until (aux='') Or (TPascalCoinProtocol.IsValidAccountName(FSourceNode.Bank.SafeBox.CurrentProtocol,TEncoding.ANSI.GetBytes(aux),errors));
     new_name := aux;
 
     aux := IntToStr(new_type);
