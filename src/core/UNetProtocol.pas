@@ -303,6 +303,7 @@ Type
     procedure SetMinServersConnected(AValue: Integer);
     procedure SetNetConnectionsActive(const Value: Boolean);
     procedure SetMinFutureBlocksToDownloadNewSafebox(const Value: Integer);
+    procedure OnDownloadingSafeboxProgressNotify(sender : TObject; const mesage : String; curPos, totalCount : Int64);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     Procedure DiscoverServersTerminated(Sender : TObject);
@@ -513,7 +514,7 @@ implementation
 
 uses
   UConst, ULog, UNode, UTime, UPCEncryption, UChunk,
-  UPCOperationsBlockValidator, UPCOperationsSignatureValidator, UOpTransaction,
+  UPCOperationsBlockValidator, UPCOperationsSignatureValidator, UOpTransaction, UPCDownloadSafebox,
   UPCTemporalFileStream;
 
 Const
@@ -1903,8 +1904,8 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
   var LDownloadedSafeboxBlocksCount, request_id : Cardinal;
     LreceivedChunk : TStream;
     safeBoxHeader : TPCSafeBoxHeader;
-    //errors : String;
     i : Integer;
+    LdownSafebox : TPCDownloadSafebox;
   Begin
     Result := False;
     ASafeboxChunks.Clear;
@@ -1920,33 +1921,15 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       Connection.DisconnectInvalidClient(false,'Invalid operation block at DownloadSafeBox '+TPCOperationsComp.OperationBlockToText(ASafeboxLastOperationBlock)+' errors: '+errors);
       Exit;
     end;
-      // Will obtain chunks of 10000 blocks each -> Note: Maximum is CT_MAX_SAFEBOXCHUNK_BLOCKS
-      for i:=0 to ((LDownloadedSafeboxBlocksCount-1) DIV CT_MAX_SAFEBOXCHUNK_BLOCKS) do begin // Bug v3.0.1 and minors
-        FNewBlockChainFromClientStatus := Format('Receiving new safebox with %d blocks (step %d/%d) from %s',
-          [LDownloadedSafeboxBlocksCount,i+1,((LDownloadedSafeboxBlocksCount-1) DIV CT_MAX_SAFEBOXCHUNK_BLOCKS)+1,Connection.ClientRemoteAddr]);
-        LreceivedChunk := TPCTemporalFileStream.Create(Format('CHUNK_%.3d_',[i]));
-        if (Not DownloadSafeBoxChunk(LDownloadedSafeboxBlocksCount,ASafeboxLastOperationBlock.initial_safe_box_hash,(i*CT_MAX_SAFEBOXCHUNK_BLOCKS),((i+1)*CT_MAX_SAFEBOXCHUNK_BLOCKS)-1,LreceivedChunk,safeBoxHeader,errors)) then begin
-          LreceivedChunk.Free;
-          TLog.NewLog(ltError,CT_LogSender,errors);
-          Exit;
-        end;
-        try
-          LreceivedChunk.Position := 0;
-          ASafeboxChunks.AddChunk( LreceivedChunk );
-        Except
-          On E:Exception do begin
-            errors:= Format('(%s) %s',[E.ClassName,E.Message]);
-            Result := false;
-            LreceivedChunk.Free;
-            Exit;
-          end;
-        end;
-      end;
 
-      if Not ASafeboxChunks.IsComplete then begin
-        errors := 'Safebox Chunks is not complete!';
-        Exit;
-      end else Result := True;
+    LdownSafebox := TPCDownloadSafebox.Create;
+    Try
+      LdownSafebox.OnProgressNotify := OnDownloadingSafeboxProgressNotify;
+      Result := LdownSafebox.DownloadSafebox(TThread.CurrentThread,ASafeboxLastOperationBlock,ASafeboxChunks);
+    finally
+      LdownSafebox.Free;
+    end;
+
   end;
 
 
@@ -2304,6 +2287,14 @@ end;
 procedure TNetData.NotifyStatisticsChanged;
 begin
   FNetDataNotifyEventsThread.FNotifyOnStatisticsChanged := true;
+end;
+
+procedure TNetData.OnDownloadingSafeboxProgressNotify(sender: TObject;
+  const mesage: String; curPos, totalCount: Int64);
+Var pct : String;
+begin
+  if (totalCount>0) then pct := FormatFloat('0.00',curPos*100/totalCount)+'%' else pct := '';
+  FNewBlockChainFromClientStatus := Format('%s %s',[mesage,pct]);
 end;
 
 procedure TNetData.OnReadingNewSafeboxProgressNotify(sender: TObject; const mesage: String; curPos, totalCount: Int64);

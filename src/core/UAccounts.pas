@@ -281,7 +281,8 @@ Type
     Function LoadSafeBoxChunkFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var ALastReadBlock : TBlockAccount; var errors : String) : Boolean;
     Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; var LastReadBlock : TBlockAccount; var errors : String) : Boolean; overload;
     Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var ALastReadBlock : TBlockAccount; var errors : String) : Boolean; overload;
-    Class Function LoadSafeBoxStreamHeader(Stream : TStream; var sbHeader : TPCSafeBoxHeader) : Boolean;
+    Class Function LoadSafeBoxStreamHeader(Stream : TStream; var sbHeader : TPCSafeBoxHeader; out AStreamFinalPos : Int64) : Boolean; overload;
+    Class Function LoadSafeBoxStreamHeader(Stream : TStream; var sbHeader : TPCSafeBoxHeader) : Boolean; overload;
     Class Function SaveSafeBoxStreamHeader(Stream : TStream; protocol : Word; OffsetStartBlock, OffsetEndBlock, CurrentSafeBoxBlocksCount : Cardinal) : Boolean;
     Class Function MustSafeBoxBeSaved(BlocksCount : Cardinal) : Boolean;
     Class Function InitialSafeboxHash : TRawBytes;
@@ -3837,8 +3838,16 @@ end;
 
 
 function TPCSafeBox.LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var ALastReadBlock : TBlockAccount; var errors : String) : Boolean;
+var Ltc : TTickCount;
 begin
+  Ltc := TPlatform.GetTickCount;
   Result := LoadSafeBoxChunkFromStream(Stream,checkAll,checkSafeboxHash,progressNotify,previousCheckedSafebox,ALastReadBlock,errors);
+  if Result then begin
+    while LoadSafeBoxChunkFromStream(Stream,checkAll,checkSafeboxHash,progressNotify,previousCheckedSafebox,ALastReadBlock,errors) do begin
+      TLog.NewLog(ltdebug,ClassName,Format('Loading safebox from stream... %.2f secs',[TPlatform.GetElapsedMilliseconds(Ltc)/1000]));
+    end;
+  end;
+  TLog.NewLog(ltdebug,ClassName,Format('Finalized Loading safebox from stream in %.2f secs',[TPlatform.GetElapsedMilliseconds(Ltc)/1000]));
 end;
 
 function TPCSafeBox.LoadSafeBoxFromStream(Stream: TStream; checkAll: Boolean; var LastReadBlock: TBlockAccount; var errors: String): Boolean;
@@ -3848,7 +3857,13 @@ begin
   Result := LoadSafeBoxFromStream(Stream,checkAll,Nil,pn,Nil,LastReadBlock,errors);
 end;
 
-class function TPCSafeBox.LoadSafeBoxStreamHeader(Stream: TStream; var sbHeader : TPCSafeBoxHeader) : Boolean;
+class function TPCSafeBox.LoadSafeBoxStreamHeader(Stream: TStream; var sbHeader: TPCSafeBoxHeader): Boolean;
+var LPos : Int64;
+begin
+  Result := LoadSafeBoxStreamHeader(Stream,sbHeader,LPos);
+end;
+
+class function TPCSafeBox.LoadSafeBoxStreamHeader(Stream: TStream; var sbHeader : TPCSafeBoxHeader; out AStreamFinalPos : Int64) : Boolean;
   // This function reads SafeBox stream info and sets position at offset start zone if valid, otherwise sets position to actual position
 Var w : Word;
   raw : TRawBytes;
@@ -3881,6 +3896,7 @@ begin
     If (Stream.Size<offsetPos + (endBlocks)) then exit;
     Stream.Position:=offsetPos + endBlocks;
     If TStreamOp.ReadAnsiString(Stream,sbHeader.safeBoxHash)<0 then exit;
+    AStreamFinalPos := Stream.position;
     // Back
     Stream.Position:=offsetPos;
     Result := True;

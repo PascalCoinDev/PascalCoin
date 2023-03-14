@@ -218,7 +218,8 @@ begin
   Move(ASerialized[0],Lsize,2);
   if (2 + Lsize > Length(ASerialized)) then Exit(False);
   SetLength(Self,Lsize);
-  Move(ASerialized[2],Self[0],Lsize);
+  if Lsize>0 then
+    Move(ASerialized[2],Self[0],Lsize);
   Result := True;
 end;
 

@@ -1311,18 +1311,11 @@ end;
 
 function TPCBank.LoadBankFileInfo(const AFilename: String;
   var ASafeBoxHeader: TPCSafeBoxHeader): Boolean;
-var fs: TFileStream;
 begin
   Result := false;
   ASafeBoxHeader := CT_PCSafeBoxHeader_NUL;
   If Not FileExists(AFilename) then exit;
-  fs := TFileStream.Create(AFilename,fmOpenRead);
-  try
-    fs.Position:=0;
-    Result := SafeBox.LoadSafeBoxStreamHeader(fs,ASafeBoxHeader);
-  finally
-    fs.Free;
-  end;
+  Result := TPCSafeboxChunks.GetSafeboxHeaderFromFile(AFilename,ASafeBoxHeader);
 end;
 
 function TPCBank.LoadBankFromChunks(AChunks : TPCSafeboxChunks;
