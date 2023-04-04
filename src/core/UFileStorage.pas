@@ -29,7 +29,7 @@ uses
 
 
 Type
-  TBlockHeader = Record
+  TBlockHeader = packed record
     BlockNumber : Cardinal;
     StreamBlockRelStartPos : Int64;
     BlockSize : Cardinal;
