@@ -30,6 +30,7 @@ uses
   UAbstractMem in '..\UAbstractMem.pas',
   UAbstractMemBTree in '..\UAbstractMemBTree.pas',
   UAbstractMemTList in '..\UAbstractMemTList.pas',
+  UMemoryBTreeData in '..\UMemoryBTreeData.pas',
   UAVLCache in '..\UAVLCache.pas',
   UCacheMem in '..\UCacheMem.pas',
   UFileMem in '..\UFileMem.pas',
@@ -39,7 +40,8 @@ uses
   UAbstractBTree.Tests in 'src\UAbstractBTree.Tests.pas',
   UAbstractMemBTree.Tests in 'src\UAbstractMemBTree.Tests.pas',
   UAbstractMemTList.Tests in 'src\UAbstractMemTList.Tests.pas',
-  UFileMem.Tests in 'src\UFileMem.Tests.pas';
+  UFileMem.Tests in 'src\UFileMem.Tests.pas',
+  UMemoryBTreeData.Tests in 'src\UMemoryBTreeData.Tests.pas';
 
 {$IF Defined(FPC) and (Defined(CONSOLE_TESTRUNNER))}
 type

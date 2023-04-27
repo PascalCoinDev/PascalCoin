@@ -72,9 +72,12 @@
   - Added BTree index on TAbstractMemBTreeData with TAbstractMemBTreeDataIndex<TBTreeData> class
   - Added cache on TAbstractMemBTreeData<TData> structures
 
+  Version 1.7 - April 2023
+  - Added TMemoryBTreeData<TData> structures that allows multiple indexes via "AddIndex" method creating TMemoryBTreeDataIndex<TBTreeData> objects
+
 }
 
 const
-  CT_ABSTRACTMEM_VERSION = 1.6; // Each revision should increase this version...
+  CT_ABSTRACTMEM_VERSION = 1.7; // Each revision should increase this version...
 
 
