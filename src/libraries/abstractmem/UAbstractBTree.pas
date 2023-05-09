@@ -184,8 +184,6 @@ type
 
 implementation
 
-uses UAbstractMem;
-
 { TAbstractBTree<TIdentify, TData> }
 
 function TAbstractBTree<TIdentify, TData>.Add(const AData: TData): Boolean;
