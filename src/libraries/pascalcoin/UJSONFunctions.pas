@@ -27,6 +27,9 @@ Uses
 {$DEFINE DELPHIXE}
 {$ENDIF}
 
+{$DEFINE USE_BTREE}
+{$DEFINE JSONOBJECTS_NAMES_CASE_SENSITIVITY}
+
   {$IFDEF FPC}
   fpjson, jsonparser,
   {$ELSE}
@@ -36,6 +39,7 @@ Uses
   DBXJSON,
   {$ENDIF}
   SysUtils, DateUtils, Variants, Classes,
+  {$IFDEF USE_BTREE}UAbstractBTree,{$ENDIF}
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Type
@@ -127,10 +131,10 @@ Type
     Constructor Create; override;
     Destructor Destroy; override;
     Property Items[Index:Integer] : TPCJSONData read GetItems write SetItems;
-    Procedure Insert(Index:Integer; PCJSONData:TPCJSONData);
-    Procedure Delete(index : Integer);
+    Procedure Insert(Index:Integer; PCJSONData:TPCJSONData); virtual;
+    Procedure Delete(index : Integer); virtual;
     function Count : Integer;
-    Procedure Clear;
+    Procedure Clear; virtual;
   End;
 
   TPCJSONArray = class(TPCJSONList)
@@ -152,6 +156,11 @@ Type
 
   TPCJSONObject = Class(TPCJSONList)
   private
+    {$IFDEF USE_BTREE}
+    FSearchingValue : String;
+    FOrderedByName : TMemoryBTree<Integer>;
+    function CompareBTree(const Left, Right: Integer): Integer;
+    {$ENDIF}
     Function GetIndexOrCreateName(Name : String) : Integer;
     Function GetByName(Name : String) : TPCJSONNameValue;
   protected
@@ -183,6 +192,10 @@ Type
     Function GetNameValue(index : Integer) : TPCJSONNameValue;
     Function IsNull(ParamName : String) : Boolean;
     Procedure SetAs(Name : String; Value : TPCJSONData);
+    Procedure Delete(index : Integer); override;
+    Procedure Clear; override;
+    Procedure Insert(Index:Integer; PCJSONData:TPCJSONData); override;
+    procedure CheckConsistency;
   End;
 
   EPCParametresError = Class(Exception);
@@ -771,6 +784,14 @@ begin
   if Not (PCJSONData is TPCJSONNameValue) then raise Exception.Create('Object inside a '+TPCJSONData.ClassName+' must be a '+TPCJSONNameValue.ClassName+' (currently '+PCJSONData.ClassName+')');
 end;
 
+procedure TPCJSONObject.CheckConsistency;
+begin
+  {$IFDEF USE_BTREE}
+  FOrderedByName.CheckConsistency;
+  if FOrderedByName.Count<>Count then raise EPCParametresError.Create('Not valid counters');
+  {$ENDIF}
+end;
+
 procedure TPCJSONObject.CheckValidName(Name: String);
 Var i : Integer;
 begin
@@ -783,9 +804,20 @@ begin
   end;
 end;
 
+procedure TPCJSONObject.Clear;
+begin
+  inherited;
+  {$IFDEF USE_BTREE}
+  FOrderedByName.EraseTree;
+  {$ENDIF}
+end;
+
 constructor TPCJSONObject.Create;
 begin
   inherited;
+  {$IFDEF USE_BTREE}
+  FOrderedByName := TMemoryBTree<Integer>.Create(CompareBTree,False,7);
+  {$ENDIF}
 end;
 
 constructor TPCJSONObject.CreateFromJSONObject(JSONObject: TJSONObject);
@@ -821,6 +853,34 @@ begin
   {$ENDIF}
 end;
 
+{$IFDEF USE_BTREE}
+function TPCJSONObject.CompareBTree(const Left, Right: Integer): Integer;
+var sLeft,sRight : String;
+begin
+  if Left=-1 then sLeft := FSearchingValue
+  else if (Left>=0) and (Left<FList.Count) and (Assigned(FList.Items[Left])) And (TObject(FList.Items[Left]) is TPCJSONNameValue) then sLeft := TPCJSONNameValue( FList.Items[Left] ).Name
+  else raise EPCParametresError.Create('Invalid JSON left index '+Left.ToString);
+  if Right=-1 then sRight := FSearchingValue
+  else if (Right>=0) and (Right<FList.Count) and (Assigned(FList.Items[Right])) And (TObject(FList.Items[Right]) is TPCJSONNameValue) then sRight := TPCJSONNameValue( FList.Items[Right] ).Name
+  else raise EPCParametresError.Create('Invalid JSON right index '+Right.ToString);
+  {$IFDEF JSONOBJECTS_NAMES_CASE_SENSITIVITY}
+  // NOTE: CompareStr is case sensitivity
+  Result := CompareStr(sLeft,sRight);
+  {$ELSE}
+  Result := CompareText(sLeft,sRight);
+  {$ENDIF}
+end;
+{$ENDIF}
+
+procedure TPCJSONObject.Delete(index: Integer);
+begin
+  {$IFDEF USE_BTREE}
+  if (index<0) or (index>=FList.Count) then raise EPCParametresError.Create('Invalid delete index '+index.ToString+'/'+FList.Count.ToString);
+  FSearchingValue :=  TPCJSONNameValue( FList.Items[index] ).Name;
+  FOrderedByName.Delete(-1);
+  {$ENDIF}
+  inherited;
+end;
 
 procedure TPCJSONObject.DeleteName(Name: String);
 Var i : Integer;
@@ -833,8 +893,10 @@ end;
 
 destructor TPCJSONObject.Destroy;
 begin
-
   inherited;
+  {$IFDEF USE_BTREE}
+  FOrderedByName.Free;
+  {$ENDIF}
 end;
 
 function TPCJSONObject.FindName(Name: String): TPCJSONNameValue;
@@ -893,7 +955,8 @@ Begin
   if (Result<0) then begin
     CheckValidName(Name);
     NV := TPCJSONNameValue.Create(Name);
-    Result := FList.Add(NV);
+    Result := FList.Count;
+    Insert(Result,NV);
   end;
 end;
 
@@ -918,15 +981,42 @@ begin
 end;
 
 function TPCJSONObject.IndexOfName(Name: String): Integer;
+{$IFDEF USE_BTREE}
+var bnode : TMemoryBTree<Integer>.TAbstractBTreeNode;
+  i : Integer;
+{$ENDIF}
 begin
+  {$IFDEF USE_BTREE}
+  FSearchingValue := Name;
+  if FOrderedByName.Find(-1,bnode,i) then begin
+    Result := bnode.data[i];
+  end else Result := -1;
+  {$ELSE}
   for Result := 0 to FList.Count - 1 do begin
     if (Assigned(FList.Items[Result])) And (TObject(FList.Items[Result]) is TPCJSONNameValue) then begin
-      If TPCJSONNameValue( FList.Items[Result] ).Name = Name then begin
-        exit;
+      {$IFDEF JSONOBJECTS_NAMES_CASE_SENSITIVITY}
+      // NOTE: CompareStr is case sensitivity
+      If CompareStr(TPCJSONNameValue( FList.Items[Result] ).Name, Name)=0 then begin
+        Exit;
       end;
+      {$ELSE}
+      if CompareText(TPCJSONNameValue( FList.Items[Result] ).Name, Name)=0 then begin
+        Exit;
+      end;
+      {$ENDIF}
     end;
   end;
   Result := -1;
+  {$ENDIF}
+end;
+
+procedure TPCJSONObject.Insert(Index: Integer; PCJSONData: TPCJSONData);
+begin
+  inherited;
+  {$IFDEF USE_BTREE}
+  FSearchingValue := TPCJSONNameValue(PCJSONData).Name;
+  if not FOrderedByName.Add( Index ) then raise EPCParametresError.Create('Error adding "'+FSearchingValue+'" index '+Index.ToString+' on BTree');
+  {$ENDIF}
 end;
 
 function TPCJSONObject.HasName(Name: String): Boolean;
