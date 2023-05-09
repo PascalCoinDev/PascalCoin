@@ -189,7 +189,8 @@ Type
     Function AsCurrency(ParamName : String; DefValue : Currency) : Currency;
     Function SaveAsStream(ParamName : String; Stream : TStream) : Integer;
     Function LoadAsStream(ParamName : String; Stream : TStream) : Integer;
-    Function GetNameValue(index : Integer) : TPCJSONNameValue;
+    Function GetNameValue(index : Integer) : TPCJSONNameValue; overload;
+    Function GetNameValue(Name : String) : TPCJSONNameValue; overload;
     Function IsNull(ParamName : String) : Boolean;
     Procedure SetAs(Name : String; Value : TPCJSONData);
     Procedure Delete(index : Integer); override;
@@ -958,6 +959,11 @@ Begin
     Result := FList.Count;
     Insert(Result,NV);
   end;
+end;
+
+function TPCJSONObject.GetNameValue(Name: String): TPCJSONNameValue;
+begin
+  Result := Items[GetIndexOrCreateName(Name)] as TPCJSONNameValue;
 end;
 
 function TPCJSONObject.GetNameValue(index: Integer): TPCJSONNameValue;
