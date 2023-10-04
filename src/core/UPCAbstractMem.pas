@@ -140,6 +140,7 @@ type
     procedure SetMaxAccountKeysCache(const Value: Integer);
     procedure SetSavingNewSafeboxMode(const Value: Boolean);
     procedure OnCacheMemFlushedCache(const ASender : TCacheMem; const AProcessDesc : String; AElapsedMilis: Int64);
+    procedure OnCacheMemLog(ASender : TObject; const ALog : String);
   protected
     procedure UpgradeAbstractMemVersion(const ACurrentHeaderVersion : Integer);
     function DoGetAccount(AAccountNumber : Integer; var AAccount : TAccount) : Boolean;
@@ -522,6 +523,7 @@ begin
     LCacheMem := TFileMem(FAbstractMem).LockCache;
     Try
       LCacheMem.OnFlushedCache := OnCacheMemFlushedCache;
+      LCacheMem.OnLog := OnCacheMemLog;
     Finally
       TFileMem(FAbstractMem).UnlockCache;
     End;
@@ -905,6 +907,11 @@ procedure TPCAbstractMem.OnCacheMemFlushedCache(const ASender: TCacheMem;
   const AProcessDesc: String; AElapsedMilis: Int64);
 begin
   TLog.NewLog(ltdebug,ASender.ClassName,Self.ClassName+' '+AProcessDesc)
+end;
+
+procedure TPCAbstractMem.OnCacheMemLog(ASender: TObject; const ALog: String);
+begin
+  TLog.NewLog(ltdebug,ASender.ClassName,Self.ClassName+' '+ALog);
 end;
 
 function TPCAbstractMem.AccountsCount: integer;

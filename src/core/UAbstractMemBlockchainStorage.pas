@@ -216,6 +216,7 @@ type
     Function DoLoadBlockChainExt(Operations : TPCOperationsComp; Block : Cardinal; const AOrphan : String) : Boolean;
     procedure AddMessage(AMessages : TStrings; const AMessage : String; ARaiseAnException : Boolean);
     procedure OnCacheMemFlushedCache(const ASender : TCacheMem; const AProcessDesc : String; AElapsedMilis: Int64);
+    procedure OnCacheMemLog(ASender : TObject; const ALog : String);
   protected
     procedure SetReadOnly(const Value: Boolean); override;
     Function DoGetBlockInformation(const ABlock : Integer; var AOperationBlock : TOperationBlock; var AOperationsCount : Integer; var AVolume : Int64) : Boolean; override;
@@ -1028,6 +1029,7 @@ begin
       LCacheMem.MaxCacheDataBlocks := 750000;
       {$ENDIF};
       LCacheMem.OnFlushedCache := OnCacheMemFlushedCache;
+      LCacheMem.OnLog := OnCacheMemLog;
     finally
       FFileMem.UnlockCache;
     end;
@@ -1374,6 +1376,12 @@ procedure TAbstractMemBlockchainStorage.OnCacheMemFlushedCache(
   const ASender: TCacheMem; const AProcessDesc: String; AElapsedMilis: Int64);
 begin
   TLog.NewLog(ltdebug,ASender.ClassName,Self.ClassName+' '+AProcessDesc)
+end;
+
+procedure TAbstractMemBlockchainStorage.OnCacheMemLog(ASender: TObject;
+  const ALog: String);
+begin
+  TLog.NewLog(ltdebug,ASender.ClassName,Self.ClassName+' '+ALog);
 end;
 
 class function TAbstractMemBlockchainStorage.OrphanCompare(const ALeft, ARight: String): Integer;

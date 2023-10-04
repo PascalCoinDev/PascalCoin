@@ -607,6 +607,7 @@ uses
   UTime, UConst, UOpTransaction, UPCOrderedLists,
   UPCOperationsSignatureValidator,
   UPCOperationsBlockValidator,
+  UAbstractMemBlockchainStorage,
   UNode;
 
 { TPCOperationsStorage }
@@ -1096,6 +1097,7 @@ var fs: TFileStream;
     LBankfilename,Laux_newfilename: AnsiString;
     ms : TMemoryStream;
   LTC : TTickCount;
+  LOldB : Boolean;
 begin
   Result := true;
   LBankfilename := GetSafeboxCheckpointingFileName(GetStorageFolder(Orphan),BlocksCount);
@@ -1139,6 +1141,13 @@ begin
           TLog.NewLog(lterror,ClassName,'Exception copying extra safebox file '+Laux_newfilename+' ('+E.ClassName+'):'+E.Message);
         end;
       end;
+    end;
+    // Flush pending
+    if (FStorage is TAbstractMemBlockchainStorage) then begin
+      LOldB := TAbstractMemBlockchainStorage(FStorage).UseMultithread;
+      TAbstractMemBlockchainStorage(FStorage).UseMultithread := False;
+      TAbstractMemBlockchainStorage(FStorage).UseMultithread := LOldB;
+
     end;
   end;
 
