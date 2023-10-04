@@ -122,6 +122,7 @@ type
   TOnSaveDataProc = function(const ABuffer; AStartPos : Int64; ASize: Integer): Integer of object;
   TOnNeedsTotalSizeProc = function(const ABuffer; AStartPos : Int64; ASize: Integer): Integer of object;
   TOnFinalizedCacheProc = procedure(const ASender : TCacheMem; const AProcessDesc : String; AElapsedMilis: Int64) of object;
+  TOnLog = procedure(ASender : TObject; const ALog : String) of object;
 
   ECacheMem = Class(Exception);
 
@@ -143,6 +144,7 @@ type
     FDefaultCacheDataBlocksSize : Int64;
     FGridCache : Boolean;
     FOnFlushedCache: TOnFinalizedCacheProc;
+    FOnLog: TOnLog;
     function FindCacheMemDataByPosition(APosition : Int64; out APCacheMemData : PCacheMemData) : Boolean;
     procedure Delete(var APCacheMemData : PCacheMemData); overload;
     function FlushCache(const AFlushCacheList : TOrderedList<PCacheMemData>) : Boolean; overload;
@@ -183,6 +185,7 @@ type
     {$ENDIF}
     function GetStatsReport(AClearStats : Boolean) : String;
     property OnFlushedCache : TOnFinalizedCacheProc read FOnFlushedCache write FOnFlushedCache;
+    property OnLog : TOnLog read FOnLog write FOnLog;
   End;
 
 implementation
@@ -360,6 +363,7 @@ begin
   FOldestUsed := Nil;
   FNewestUsed := Nil;
   FOnFlushedCache := Nil;
+  FOnLog := Nil;
 end;
 
 procedure TCacheMem.Delete(var APCacheMemData : PCacheMemData);
@@ -490,7 +494,8 @@ end;
 
 function TCacheMem.FreeMem(const AMaxMemSize, AMaxBlocks: Int64) : Boolean;
 var
-  i, LTempCacheDataSize, LAuxCacheDataSize,
+  i, LTotalRemovedBlocks : Integer;
+  LTempCacheDataSize, LAuxCacheDataSize,
   LFinalMaxMemSize, LMaxPendingRounds : Int64;
   PToRemove, PToNext : PCacheMemData;
   LListToFlush : TOrderedList<PCacheMemData>;
@@ -509,12 +514,16 @@ begin
   LPreviousCacheDataBlocks := FCacheDataBlocks;
   try
   {$ENDIF}
+  if Assigned(FOnLog) then begin
+    FOnLog(Self,Format('%s.FreeMem(MaxMem:%d,MaxBlocks:%d) Mem:%d Blocks:%d',[Self.ClassName,AMaxMemSize,AMaxBlocks,FCacheDataSize,FCacheDataBlocks]));
+  end;
 
   if (AMaxMemSize<0) then LFinalMaxMemSize := FCacheDataSize
   else LFinalMaxMemSize := AMaxMemSize;
   if (AMaxBlocks<0) then LMaxPendingRounds := 0
   else LMaxPendingRounds := FCacheDataBlocks - AMaxBlocks;
   //
+  LTotalRemovedBlocks := 0;
   PToRemove := FOldestUsed;
   LListToFlush := TOrderedList<PCacheMemData>.Create(False,_TCacheMemDataTree_Compare);
   try
@@ -524,6 +533,7 @@ begin
       // Both conditions must be true
       ((LTempCacheDataSize > LFinalMaxMemSize) or (LMaxPendingRounds>0))
       do begin
+      inc(LTotalRemovedBlocks);
       Dec(LMaxPendingRounds);
       PToNext := PToRemove^.used_next; // Capture now to avoid future PToRemove updates
       Dec(LTempCacheDataSize, Int64(PToRemove^.GetSize));
@@ -550,11 +560,14 @@ begin
     if (Result) and (LAuxCacheDataSize<>0) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Removed size %d<>0 with CacheDataSize %d (save list %d)',[LAuxCacheDataSize,FCacheDataSize,LListToFlush.Count]));
     if (Result) and (LTempCacheDataSize > FCacheDataSize) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected Cache size is Higher (%d > obtained %d) (save list %d)',[LTempCacheDataSize,FCacheDataSize,LListToFlush.Count]));
     if (Result) and (LMaxPendingRounds>0) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected Max Blocks %d <> obtained %d',[AMaxBlocks,FCacheDataBlocks]));
+    if Assigned(FOnLog) then begin
+      FOnLog(Self,Format('Final %s.FreeMem(MaxMem:%d,MaxBlocks:%d) Mem:%d (=Temporal Mem:%d) Blocks:%d Removed:%d Flushed:%d',
+        [Self.ClassName,AMaxMemSize,AMaxBlocks,FCacheDataSize,LTempCacheDataSize,FCacheDataBlocks,LTotalRemovedBlocks,LListToFlush.Count]));
+    end;
   finally
     LListToFlush.Free;
   end;
 
-  Result := (Result) And (FCacheDataSize <= AMaxMemSize);
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
   finally
   Inc(FCacheMemStats.freememCount);
