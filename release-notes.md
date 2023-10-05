@@ -1,3 +1,6 @@
+# PascalCoin v5.7.2
+- Minor update on cache mem log event
+
 # PascalCoin v5.7.1
 
 - Fix cls function TAccountComp.EqualOperationBlocks
