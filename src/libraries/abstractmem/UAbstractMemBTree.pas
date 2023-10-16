@@ -95,6 +95,7 @@ type
     property InitialZone : TAMZone read FInitialZone;
     function GetNullData : TAbstractMemPosition; override;
     property BTreeCache : TAVLABTreeCache read FBTreeCache;
+    class function GetInfo(AAbstractMem : TAbstractMem; AInitialZone: TAMZone; out AAllowDuplicates : Boolean; out AOrder, ACount : Integer): Boolean;
   End;
 
   {$IFnDEF FPC}
@@ -293,6 +294,33 @@ begin
   if LChildsCount>0 then begin
     FAbstractMem.Dispose( LChildsPosition );
   end;
+end;
+
+class function TAbstractMemBTree.GetInfo(AAbstractMem: TAbstractMem;
+  AInitialZone: TAMZone; out AAllowDuplicates: Boolean;
+  out AOrder, ACount: Integer): Boolean;
+var LBuff : TBytes;
+ i : Integer;
+ amz : TAMZone;
+ ii : UInt64;
+begin
+  AAllowDuplicates := false;
+  AOrder := 0;
+  Result := False;
+  //
+  if Not AAbstractMem.GetUsedZoneInfo(AInitialZone.position,False,amz) then Exit(False);
+  if amz.position=0 then Exit(False);
+  if (amz.size<MinAbstractMemInitialPositionSize(AAbstractMem)) then Exit(False);
+  SetLength(LBuff,MinAbstractMemInitialPositionSize(AAbstractMem));
+  AAbstractMem.Read(amz.position,LBuff[0],Length(LBuff));
+  // Check magic
+  for i := 0 to CT_AbstractMemBTree_Magic.Length-1 do begin
+    if LBuff[i]<>Ord(CT_AbstractMemBTree_Magic.Chars[i]) then Exit;
+  end;
+  Move(LBuff[4],ii,AAbstractMem.SizeOfAbstractMemPosition);
+  Move(LBuff[4+AAbstractMem.SizeOfAbstractMemPosition],ACount,4);
+  Move(LBuff[8+AAbstractMem.SizeOfAbstractMemPosition],AOrder,4);
+  Result := (AOrder>=3) and (ACount>=0);
 end;
 
 function TAbstractMemBTree.GetNode(AIdentify: TAbstractMemPosition): TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;

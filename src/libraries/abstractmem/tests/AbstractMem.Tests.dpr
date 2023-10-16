@@ -35,12 +35,14 @@ uses
   UCacheMem in '..\UCacheMem.pas',
   UFileMem in '..\UFileMem.pas',
   UOrderedList in '..\UOrderedList.pas',
+  UAbstractStorage in '..\UAbstractStorage.pas',
   UCacheMem.Tests in 'src\UCacheMem.Tests.pas',
   UAbstractMem.Tests in 'src\UAbstractMem.Tests.pas',
   UAbstractBTree.Tests in 'src\UAbstractBTree.Tests.pas',
   UAbstractMemBTree.Tests in 'src\UAbstractMemBTree.Tests.pas',
   UAbstractMemTList.Tests in 'src\UAbstractMemTList.Tests.pas',
   UFileMem.Tests in 'src\UFileMem.Tests.pas',
+  UAbstractStorage.Tests in 'src\UAbstractStorage.Tests.pas',
   UMemoryBTreeData.Tests in 'src\UMemoryBTreeData.Tests.pas';
 
 {$IF Defined(FPC) and (Defined(CONSOLE_TESTRUNNER))}
