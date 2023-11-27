@@ -18,6 +18,32 @@ uses
    UAbstractMemTList;
 
 type
+  TTestRecord = record
+    i : Integer;
+    s : String;
+    procedure Clear;
+    procedure RandomData;
+  end;
+
+  TAbstractMemTList_TTestRecord = class(TAbstractMemTList<TTestRecord>)
+  protected
+    procedure LoadFrom(const ABytes : TBytes; var AItem : TTestRecord); override;
+    procedure SaveTo(const AItem : TTestRecord; AIsAddingItem : Boolean; var ABytes : TBytes); override;
+  public
+    procedure AddRandom;
+    procedure AddValues(i : Integer; s : String);
+  end;
+
+  TAbstractMemOrderedTList_TTestRecord = class(TAbstractMemOrderedTList<TTestRecord>)
+  protected
+    procedure LoadFrom(const ABytes : TBytes; var AItem : TTestRecord); override;
+    procedure SaveTo(const AItem : TTestRecord; AIsAddingItem : Boolean; var ABytes : TBytes); override;
+    function Compare(const ALeft, ARight : TTestRecord) : Integer; override;
+  public
+    procedure AddRandom;
+    procedure AddValues(i : Integer; s : String);
+  end;
+
    TestTAbstractMemTList = class(TTestCase)
    strict private
    public
@@ -29,10 +55,12 @@ type
      procedure Test_32b_Cache;
      procedure Test_64b_NoCache;
      procedure Test_64b_Cache;
+     procedure Test_TTestRecord;
    end;
 
 implementation
 
+uses UAbstractStorage;
 
 { TestTAbstractMemTList }
 
@@ -50,8 +78,10 @@ procedure TestTAbstractMemTList.TestInfinite(A64Bytes, AUseCache,
   AUseCacheAuto: Boolean; AElementsPerBlock: Integer);
 var LMem : TMem;
   LAMList : TAbstractMemTList;
+  LAMList_TR : TAbstractMemTList_TTestRecord;
   LAMZone : TAMZone;
   i : Integer;
+  LTR : TTestRecord;
 begin
   RandSeed:=0;
   LMem := TMem.Create(0,False);
@@ -59,10 +89,14 @@ begin
     LMem.Initialize(A64Bytes,4);
     LAMZone := LMem.New(TAbstractMemTList.MinAbstractMemTListHeaderSize(LMem));
     LAMList := TAbstractMemTList.Create(LMem,LAMZone,AElementsPerBlock,AUseCache);
+    LAMList_TR := TAbstractMemTList_TTestRecord.Create(LMem,LMem.New(TAbstractMemTList.MinAbstractMemTListHeaderSize(LMem)),5,True);
     Try
       LAMList.UseCacheAuto := AUseCacheAuto;
       // Start process
       repeat
+        LTR.RandomData;
+        LAMList_TR.Add(LTR);
+        //
         LAMList.Add(LMem.New((Random(50)+1)*4).position);
         if (Random(5)=0) and (LAMList.Count>0) then begin
           i := Random(LAMList.Count);
@@ -89,6 +123,7 @@ begin
       //
     Finally
       LAMList.Free;
+      LAMList_TR.Free;
     End;
   Finally
     LMem.Free;
@@ -113,6 +148,134 @@ end;
 procedure TestTAbstractMemTList.Test_64b_NoCache;
 begin
   TestInfinite(True,False,False,10);
+end;
+
+procedure TestTAbstractMemTList.Test_TTestRecord;
+begin
+
+end;
+
+{ TTestRecord }
+
+procedure TTestRecord.Clear;
+begin
+  Self.i := 0;
+  Self.s := '';
+end;
+
+procedure TTestRecord.RandomData;
+var i,j : Integer;
+begin
+  Self.s := '';
+  Self.i := Random(100000);
+  j := Random(25)+5;
+  for i := 1 to j do begin
+    Self.s := Self.s + Char(Random(ord('Z')-ord('A'))+ord('A'));
+  end;
+end;
+
+{ TAbstractMemTList_TTestRecord }
+
+procedure TAbstractMemTList_TTestRecord.AddRandom;
+var tr : TTestRecord;
+begin
+  tr.Clear;
+  tr.RandomData;
+  Add(tr);
+end;
+
+procedure TAbstractMemTList_TTestRecord.AddValues(i: Integer; s: String);
+var tr : TTestRecord;
+begin
+  tr.Clear;
+  tr.i := i;
+  tr.s := s;
+  Add(tr);
+end;
+
+procedure TAbstractMemTList_TTestRecord.LoadFrom(const ABytes: TBytes;
+  var AItem: TTestRecord);
+var bs : TBytesStorage;
+begin
+  bs := TBytesStorage.Create(ABytes);
+  try
+    AItem.Clear;
+    AItem.i := bs.ReadUInt32;
+    AItem.s := bs.ReadString;
+  finally
+    bs.Free;
+  end;
+end;
+
+procedure TAbstractMemTList_TTestRecord.SaveTo(const AItem: TTestRecord;
+  AIsAddingItem: Boolean; var ABytes: TBytes);
+var bs : TBytesStorage;
+begin
+  bs := TBytesStorage.Create(0);
+  try
+    bs.WriteUInt32(AItem.i);
+    bs.WriteString(AItem.s);
+    ABytes := Copy(bs.Bytes,0,bs.Size);
+  finally
+    bs.Free;
+  end;
+end;
+
+{ TAbstractMemOrderedTList_TTestRecord }
+
+procedure TAbstractMemOrderedTList_TTestRecord.AddRandom;
+var tr : TTestRecord;
+begin
+  tr.Clear;
+  tr.RandomData;
+  Add(tr);
+end;
+
+procedure TAbstractMemOrderedTList_TTestRecord.AddValues(i: Integer;
+  s: String);
+var tr : TTestRecord;
+begin
+  tr.Clear;
+  tr.i := i;
+  tr.s := s;
+  Add(tr);
+end;
+
+function TAbstractMemOrderedTList_TTestRecord.Compare(const ALeft,
+  ARight: TTestRecord): Integer;
+begin
+  Result := ALeft.i - ARight.i;
+  if (Result=0) then begin
+    Result := AnsiCompareStr(ALeft.s,ARight.s);
+  end;
+end;
+
+procedure TAbstractMemOrderedTList_TTestRecord.LoadFrom(const ABytes: TBytes;
+  var AItem: TTestRecord);
+var bs : TBytesStorage;
+begin
+  bs := TBytesStorage.Create(ABytes);
+  try
+    AItem.Clear;
+    AItem.i := bs.ReadUInt32;
+    AItem.s := bs.ReadString;
+  finally
+    bs.Free;
+  end;
+end;
+
+procedure TAbstractMemOrderedTList_TTestRecord.SaveTo(const AItem: TTestRecord;
+  AIsAddingItem: Boolean; var ABytes: TBytes);
+var bs : TBytesStorage;
+begin
+  bs := TBytesStorage.Create(0);
+  try
+    bs.WriteUInt32(AItem.i);
+    bs.WriteString(AItem.s);
+    ABytes := Copy(bs.Bytes,0,bs.Size);
+  finally
+    bs.Free;
+  end;
 end;
 
 initialization
