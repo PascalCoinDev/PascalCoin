@@ -1097,7 +1097,6 @@ var fs: TFileStream;
     LBankfilename,Laux_newfilename: AnsiString;
     ms : TMemoryStream;
   LTC : TTickCount;
-  LOldB : Boolean;
 begin
   Result := true;
   LBankfilename := GetSafeboxCheckpointingFileName(GetStorageFolder(Orphan),BlocksCount);
@@ -1142,16 +1141,7 @@ begin
         end;
       end;
     end;
-    // Flush pending
-    if (FStorage is TAbstractMemBlockchainStorage) then begin
-      LOldB := TAbstractMemBlockchainStorage(FStorage).UseMultithread;
-      TAbstractMemBlockchainStorage(FStorage).UseMultithread := False;
-      TAbstractMemBlockchainStorage(FStorage).UseMultithread := LOldB;
-
-    end;
   end;
-
-
 end;
 
 procedure TPCBank.UpdateValuesFromSafebox;

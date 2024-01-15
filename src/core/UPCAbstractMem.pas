@@ -613,6 +613,7 @@ begin
   end;
   Inc(FStats.FlushesCount);
   Inc(Fstats.FlushesMillis, TPlatform.GetElapsedMilliseconds(Ltc) );
+  TLog.NewLog(ltdebug,Self.ClassName,Format('AbstractMem Safebox flushed in %.2f seconds',[TPlatform.GetElapsedMilliseconds(Ltc)/1000]));
 end;
 
 Procedure DoCopyFile(const ASource, ADest : String);
@@ -795,6 +796,7 @@ end;
 
 procedure TPCAbstractMem.UpdateSafeboxFileName(const ANewSafeboxFileName: String);
 var LReadOnly, Ltmp : Boolean;
+  LCacheMem : TCacheMem;
 begin
   if SameFileName(FFileName,ANewSafeboxFileName) then Exit;
 
@@ -812,6 +814,13 @@ begin
   end;
   if FAbstractMem is TFileMem then begin
     TFileMem(FAbstractMem).SetCachePerformance(True,1024,FMaxMemUsage,200000);
+    LCacheMem := TFileMem(FAbstractMem).LockCache;
+    Try
+      LCacheMem.OnFlushedCache := OnCacheMemFlushedCache;
+      LCacheMem.OnLog := OnCacheMemLog;
+    Finally
+      TFileMem(FAbstractMem).UnlockCache;
+    End;
   end;
   DoInit(Ltmp);
 end;
