@@ -393,7 +393,9 @@ begin
   FLastTC := 0;
   OnProgressNotify(Self,'Initializing databases',0,0);
   // Read Operations saved from disk
+  TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).AutoFlushCache := False;
   TNode.Node.InitSafeboxAndOperations($FFFFFFFF,OnProgressNotify); // New Build 2.1.4 to load pending operations buffer
+  TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).AutoFlushCache := True;
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   TNode.Node.NetServer.Active := true;
   FLastTC := 0;
@@ -436,6 +438,7 @@ begin
         Raise;
       end;
     End;
+    UpdateConfigChanged(Self);
     ips := TSettings.TryConnectOnlyWithThisFixedServers;
     TNode.DecodeIpStringToNodeServerAddressArray(ips,nsarr);
     TNetData.NetData.DiscoverFixedServersOnly(nsarr);
@@ -472,7 +475,6 @@ begin
     FThreadActivate := TThreadActivate.Create(true);
     TThreadActivate(FThreadActivate).FreeOnTerminate := true;
     TThreadActivate(FThreadActivate).Suspended := False;
-    UpdateConfigChanged(Self);
     UpdateNodeStatus;
     TPCTNetDataExtraMessages.InitNetDataExtraMessages(FNode,TNetData.NetData,FWalletKeys);
   Except
