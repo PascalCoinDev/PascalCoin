@@ -7,6 +7,12 @@
 - Implementation of PIP-0044 (Induplicatable NFT) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0044.md
 - Improvements on downloading Safebox (fresh installation)
 
+## Build 5.8 - 2024-01-17
+- Accumulative release, including:
+- Minor bugs fixed
+- Usage of AbstractMem v1.8
+- Improvements on speed and data storage (see Github commits since last release)
+- Clean code and documentation
 
 ## Build 5.7 - 2021-12-23
 - This version will not propagate 0-Fee operations, but will allow 0-Fee operations to the blockchain (CT_AllowPropagate0feeOperations=False)
