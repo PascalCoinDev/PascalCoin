@@ -3049,6 +3049,9 @@ begin
     TNode.Node.Bank.SafeBox.PCAbstractMem.FlushCache;
     if (TNode.Node.Bank.Storage is TAbstractMemBlockchainStorage) then begin
       TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).AutoFlushCache := LPrevious;
+      if TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).PendingToSave = 0 then begin
+        TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).FileMem.FlushCache;
+      end;
     end;
     {$ENDIF}
   end;
