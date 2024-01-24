@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master ]
     tags: [ "*" ]
-    paths-ignore: [ "README.md", "history.md", "release-notes.md" ]
+    paths-ignore: [ "README.md", "CHANGELOG.md", "release-notes.md" ]
 
   pull_request:
     branches: [ master ]
@@ -22,12 +22,12 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         submodules: false
 
     - name: Install Lazarus
-      uses: gcarreno/setup-lazarus@v3.2
+      uses: gcarreno/setup-lazarus@v3
       with:
         with-cache: false
         lazarus-version: ${{ matrix.lazarus-versions }}
@@ -48,7 +48,7 @@ jobs:
 
     - name: Upload binary (Windows)
       if: ${{ (matrix.operating-system == 'windows-latest')  &&  (matrix.lazarus-versions == 'stable') }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: PascalCoinWindows
         path: |
@@ -58,7 +58,7 @@ jobs:
 
     - name: Upload binary (Ubuntu)
       if: ${{ (matrix.operating-system == 'ubuntu-latest')  &&  (matrix.lazarus-versions == 'stable') }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: PascalCoinLinux
         path: |
@@ -68,7 +68,7 @@ jobs:
 
     - name: Upload binary (macOS)
       if: ${{ (matrix.operating-system == 'macos-latest')  &&  (matrix.lazarus-versions == 'stable') }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: PascalCoinMacOS
         path: |
@@ -85,14 +85,14 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Set output
       id: vars
       run: echo "tag=${GITHUB_REF#refs/*/}" >> ${GITHUB_OUTPUT}
 
     - name: Download the Release binary
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
 
     - name: List files
       run: |
