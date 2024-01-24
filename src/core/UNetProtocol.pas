@@ -36,7 +36,7 @@ Uses
   UPCDataTypes,
   {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults
   {$ELSE}Generics.Collections,Generics.Defaults{$ENDIF},
-  {$IFDEF USE_ABSTRACTMEM}UPCAbstractMem,{$ENDIF}
+  {$IFDEF USE_ABSTRACTMEM}UPCAbstractMem, UAbstractMemBlockchainStorage,{$ENDIF}
   UNetProtection;
 
 Const
@@ -2950,8 +2950,15 @@ procedure TNetConnection.DoProcess_GetBlocks_Response(HeaderData: TNetHeaderData
   DoDisconnect : Boolean;
   LBlocks : TList<TPCOperationsComp>;
   LSafeboxTransaction : TPCSafeBoxTransaction;
+  LPrevious : Boolean;
 begin
   DoDisconnect := true;
+  {$IFDEF USE_ABSTRACTMEM}
+  if (TNode.Node.Bank.Storage is TAbstractMemBlockchainStorage) then begin
+    LPrevious := TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).AutoFlushCache;
+    TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).AutoFlushCache := False;
+  end;
+  {$ENDIF}
   try
     if HeaderData.header_type<>ntp_response then begin
       errors := 'Not response';
@@ -3019,13 +3026,10 @@ begin
         end;
         sleep(1);
       end;
-      {$IFDEF USE_ABSTRACTMEM}
-      TNode.Node.Bank.SafeBox.PCAbstractMem.FlushCache;
-      {$ENDIF}
 
       FIsDownloadingBlocks := false;
       if ((LOpCount>0) And (FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount)) then begin
-        Send_GetBlocks(TNode.Node.Bank.BlocksCount,100,c);
+        Send_GetBlocks(TNode.Node.Bank.BlocksCount,100+Random(300),c);
       end else begin
         // No more blocks to download, download Pending operations
         DoProcess_GetPendingOperations;
@@ -3041,6 +3045,15 @@ begin
     if DoDisconnect then begin
       DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
     end;
+    {$IFDEF USE_ABSTRACTMEM}
+    TNode.Node.Bank.SafeBox.PCAbstractMem.FlushCache;
+    if (TNode.Node.Bank.Storage is TAbstractMemBlockchainStorage) then begin
+      TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).AutoFlushCache := LPrevious;
+      if TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).PendingToSave = 0 then begin
+        TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).FileMem.FlushCache;
+      end;
+    end;
+    {$ENDIF}
   end;
 end;
 

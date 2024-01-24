@@ -265,6 +265,7 @@ type
   TAbstractMemBlockchainStorageSecondary = Class(TAbstractMemBlockchainStorage)
   private
     FAuxStorage : TStorage;
+    FSaving : Boolean;
   protected
     procedure SetReadOnly(const Value: Boolean); override;
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; override;
@@ -1981,6 +1982,7 @@ constructor TAbstractMemBlockchainStorageSecondary.Create(AOwner: TComponent);
 begin
   inherited;
   FAuxStorage := Nil;
+  FSaving := False;
 end;
 
 destructor TAbstractMemBlockchainStorageSecondary.Destroy;
@@ -1995,6 +1997,7 @@ begin
   inherited;
   AFound := False;
   if (Assigned(FAuxStorage)) then begin
+    FSaving := True;
     LOperationsComp := TPCOperationsComp.Create(Nil);
     Try
       if FAuxStorage.LoadBlockChainBlock(LOperationsComp,ABlock) then begin
@@ -2003,6 +2006,7 @@ begin
       end;
     Finally
       LOperationsComp.Free;
+      FSaving := False;
     End;
   end;
 end;
@@ -2017,6 +2021,35 @@ begin
 end;
 
 function TAbstractMemBlockchainStorageSecondary.DoInitialize: Boolean;
+  procedure FillSecondary;
+  var i, LTotal, LNotFound : Integer;
+    Ltc : TTickCount;
+    LOpComp : TPCOperationsComp;
+  begin
+    i := FAuxStorage.LastBlock;
+    if i>=Self.LastBlock then Exit;
+    TLog.NewLog(ltdebug,ClassName,Format('Start filling secondary storage with blocks from %d to %d',[i,Self.LastBlock]));
+    Ltc := TPlatform.GetTickCount;
+    LOpComp := TPCOperationsComp.Create(Nil);
+    try
+      LTotal := 0; LNotFound := 0;
+      while (i<=Self.LastBlock) do begin
+        if (Self.DoLoadBlockChain(LOpComp,i)) then begin
+          inc(LTotal);
+          FAuxStorage.SaveBlockChainBlock(LOpComp);
+        end else inc(LNotFound);
+        inc(i);
+        if TPlatform.GetElapsedMilliseconds(Ltc)>10000 then begin
+          TLog.NewLog(ltdebug,ClassName,Format('Filling secondary storage with blocks current %d to %d done %d not found %d',[i,Self.LastBlock,LTotal,LNotFound]));
+          Ltc := TPlatform.GetTickCount;
+        end;
+      end;
+    finally
+      LOpComp.Free;
+    end;
+    TLog.NewLog(ltdebug,ClassName,Format('Finalized filling secondary storage with blocks to %d done %d not found %d',[Self.LastBlock,LTotal,LNotFound]));
+  end;
+
 begin
   Result := inherited DoInitialize;
   if (Result) And (Not Assigned(FAuxStorage)) then begin
@@ -2024,6 +2057,8 @@ begin
     FAuxStorage.Bank := Self.Bank;
     FAuxStorage.ReadOnly := Self.ReadOnly;
     Result := FAuxStorage.Initialize;
+    // Try to fill secondary with newest blocks...
+    FillSecondary;
   end;
 end;
 
@@ -2040,7 +2075,7 @@ function TAbstractMemBlockchainStorageSecondary.DoSaveBlockChain(
   Operations: TPCOperationsComp): Boolean;
 begin
   Result := inherited;
-  if (Result) and (Assigned(FAuxStorage)) then begin
+  if (Result) and (Assigned(FAuxStorage)) and (Not FSaving) then begin
     Result := FAuxStorage.SaveBlockChainBlock(Operations);
   end;
 end;
