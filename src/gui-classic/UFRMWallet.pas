@@ -438,11 +438,13 @@ begin
         Raise;
       end;
     End;
-    UpdateConfigChanged(Self);
     ips := TSettings.TryConnectOnlyWithThisFixedServers;
     TNode.DecodeIpStringToNodeServerAddressArray(ips,nsarr);
     TNetData.NetData.DiscoverFixedServersOnly(nsarr);
     setlength(nsarr,0);
+
+    UpdateConfigChanged(Self);
+
     // Creating Node:
     FNode := TNode.Node;
     FNode.NetServer.Port := TSettings.InternetServerPort;
