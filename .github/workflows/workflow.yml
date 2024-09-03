@@ -92,7 +92,7 @@ jobs:
       run: echo "tag=${GITHUB_REF#refs/*/}" >> ${GITHUB_OUTPUT}
 
     - name: Download the Release binary
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7
 
     - name: List files
       run: |
