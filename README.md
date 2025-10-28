@@ -1,3 +1,5 @@
+Test commit
+
 [![BUILD](https://github.com/PascalCoin/PascalCoin/actions/workflows/workflow.yml/badge.svg?branch=master)](https://github.com/PascalCoin/PascalCoin/actions)
 
 [![VERSION](https://img.shields.io/github/v/tag/PascalCoin/PascalCoin?sort=semver&style=for-the-badge)](https://github.com/PascalCoin/PascalCoin/releases)
