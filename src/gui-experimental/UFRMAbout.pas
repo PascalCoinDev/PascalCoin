@@ -1,6 +1,7 @@
 unit UFRMAbout;
 
 { Copyright (c) 2016 by Albert Molina
+  Copyright © 2017-2026 Herman Schoenfeld <https://sphere10.com>
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
@@ -69,6 +70,7 @@ uses
 
 procedure TFRMAbout.FormCreate(Sender: TObject);
 begin
+  // Keep attribution in the paired form resources; runtime versions use node data.
   lblBuild.Caption :=  'Build: '+CT_ClientAppVersion;
   lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[TNode.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available,
     CT_NetProtocol_Version, CT_NetProtocol_Available]);

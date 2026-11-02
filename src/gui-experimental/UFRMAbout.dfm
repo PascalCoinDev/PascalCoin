@@ -97,8 +97,8 @@
     Left = 90
     Height = 25
     Top = 15
-    Width = 188
-    Caption = 'PascalCoin Wallet'
+    Width = 349
+    Caption = 'PascalCoin Experimental Wallet'
     Font.Color = clBlack
     Font.Height = -21
     Font.Name = 'Tahoma'
@@ -166,8 +166,9 @@
     Width = 478
     BorderStyle = bsNone
     Lines.Strings = (
-      'Copyright (c) 2018 PascalCoin Developers'
-      '(based on original source-code by Albert Molina)'
+      'Copyright '#169' 2016-2026 Albert Molina and Herman Schoenfeld'
+      'Original PascalCoin: Albert Molina'
+      'Experimental GUI: Herman Schoenfeld'
       ''
       'PascalCoin is P2P cryptocurrency designed for infinite scalabilty by implementing a new technology known as SafeBox.'
       ''
@@ -176,13 +177,12 @@
       ''
       'ACKNOWLEDGEMENTS'
       ''
-      'Alber Molina: founder and lead developer'
-      'Herman Schoenfeld: core developer'
       'Ugochukwu Mmaduekwe: core developer'
       'Maciej Izak: contributor and author of Generics.Collections'
-      'OpenSSL Project:  https://github.com/Arvur/OpenSSL-Delph'
+      'OpenSSL Project:  https://github.com/Arvur/OpenSSL-Delphi'
       'Synapse: network library copyright Lukas Gebauer'
-      'Sphere 10 Software: framework code, gui libraries and visual grid'
+      'Sphere 10 Pascal Framework: Herman Schoenfeld'
+      'https://sphere10.com'
       'Ladar Levison: cryptographic functions'
       'Marco Ferrante: cryptographic functions'
       ''

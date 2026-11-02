@@ -7,6 +7,13 @@ for sale, changing account information and buying a listed account. Version 5.9
 also uses account-index paging, cached history queries and coalesced backend
 refreshes during sync.
 
+## Credits
+
+Herman Schoenfeld developed the experimental GUI and its shared
+[Sphere 10 Pascal Framework](https://github.com/HermanSchoenfeld/PascalFramework)
+components. PascalCoin is based on Albert Molina's original implementation.
+Copyright © 2016-2026 Albert Molina and Herman Schoenfeld.
+
 ## Grid paging and tool windows
 
 Both wallet grids use the shared
