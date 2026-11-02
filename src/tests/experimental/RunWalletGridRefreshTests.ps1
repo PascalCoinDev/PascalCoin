@@ -3,7 +3,9 @@
 Builds and runs main-wallet refresh and received-block checks on a private desktop.
 .DESCRIPTION
 The default target is the dedicated FPCUnit fixture. Use -Demo to run the native
-interactive demo's automatic scenarios instead. Use -NetworkOff for the real
+interactive demo's automatic scenarios instead. Add -AllDemoCases to include
+every distinct native presentation/logging/dialog group in fresh processes.
+Use -NetworkOff for the real
 connectivity toggle and deferred-refresh lifecycle regression. Use -Backlog for
 the actual buffered-response processor, outgoing/incoming transport ownership,
 explicit shutdown, inherited data sources and committed footer/status checks
@@ -22,6 +24,7 @@ param(
     [string] $LazarusDirectory = '<lazarus>',
     [string] $OutputDirectory,
     [switch] $Demo,
+    [switch] $AllDemoCases,
     [switch] $NetworkOff,
     [switch] $Backlog,
     [switch] $LargeBacklog,
@@ -32,6 +35,7 @@ $ErrorActionPreference = 'Stop'
 if (@($Demo, $NetworkOff, $Backlog, $LargeBacklog).Where({ $_.IsPresent }).Count -gt 1) {
     throw 'Choose only one of -Demo, -NetworkOff, -Backlog or -LargeBacklog.'
 }
+if ($AllDemoCases -and -not $Demo) { throw '-AllDemoCases requires -Demo.' }
 $ownedLargeRoot = $null
 if ($LargeBacklog) {
     if ([string]::IsNullOrWhiteSpace($LargeDataRoot)) { throw '-LargeBacklog requires -LargeDataRoot.' }
@@ -94,6 +98,13 @@ if (-not (Test-Path -LiteralPath $crypto)) {
 }
 if (-not (Test-Path -LiteralPath $crypto)) { throw "OpenSSL runtime not found: $crypto" }
 Copy-Item -LiteralPath $crypto -Destination $output
+if ($Demo) {
+    # Tools and operation-dialog cases validate the repository's historic genesis.
+    $fixture = Join-Path $PSScriptRoot 'fixtures/mainnet-blocks-0-4.bin'
+    Copy-Item -LiteralPath $fixture -Destination $output
+    Get-FileHash -LiteralPath $fixture -Algorithm SHA256 | Select-Object Algorithm, Hash |
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'fixture.json')
+}
 
 $broker = Join-Path $output 'PrivateDesktopBroker.exe'
 & $compiler '-MDelphi' '-O2' '-gl' "-FU$brokerUnits" "-o$broker" `
@@ -108,7 +119,33 @@ $previousTemp = $env:TEMP
 $previousTmp = $env:TMP
 $previousBacklogCase = $env:PASCALCOIN_BACKLOG_CASE
 $previousLargeDataRoot = $env:PASCALCOIN_LARGE_BACKLOG_ROOT
+$demoSelectors = @{
+    'selection' = @('PASCAL_WALLET_SELECTION_ONLY')
+    'safebox-info' = @('PASCAL_WALLET_SAFEBOX_LOG_ONLY')
+    'sync-paint' = @('PASCAL_WALLET_SYNC_PAINT_ONLY')
+    'tools' = @('PASCAL_WALLET_TOOLS_ONLY')
+    'history-depth' = @('PASCAL_WALLET_TOOLS_ONLY', 'PASCAL_WALLET_HISTORY_DEPTH_ONLY')
+    'operation-input' = @('PASCAL_WALLET_TOOLS_ONLY', 'PASCAL_WALLET_OPERATION_INPUT_ONLY')
+    'block-tools' = @('PASCAL_WALLET_TOOLS_ONLY', 'PASCAL_WALLET_BLOCK_TOOLS_ONLY')
+    'change-info-approval' = @('PASCAL_WALLET_CHANGE_INFO_APPROVAL_ONLY')
+    'change-info-ui' = @('PASCAL_WALLET_CHANGE_INFO_UI_ONLY')
+    'send-ui' = @('PASCAL_WALLET_SEND_UI_ONLY')
+    'operation-messages' = @('PASCAL_WALLET_OPERATION_MESSAGE_ONLY')
+    'advanced-ui' = @('PASCAL_WALLET_ADVANCED_UI_ONLY')
+}
+$selectorNames = @($demoSelectors.Values | ForEach-Object { $_ }) + @(
+    'PASCAL_WALLET_KEY_NOTIFICATIONS_ONLY', 'PASCAL_WALLET_CONSECUTIVE_SELECTION_ONLY',
+    'PASCAL_WALLET_REFRESH_LIFECYCLE_ONLY', 'PASCAL_WALLET_SELECTION_COMPLETION_ONLY')
+$selectorNames = @($selectorNames | Sort-Object -Unique)
+$previousSelectors = @{}
+if ($AllDemoCases) {
+    foreach ($name in $selectorNames) {
+        $previousSelectors[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+    }
+}
 $status = 0
+$overallStatus = 0
+$caseResults = @()
 try {
     $env:TEMP = $temporaryData
     $env:TMP = $temporaryData
@@ -116,12 +153,25 @@ try {
     $cases = if ($Backlog) {
         @('direct', 'outgoing', 'outgoing-shutdown', 'incoming',
           'incoming-settings', 'incoming-shutdown', 'connected-miner')
+    } elseif ($AllDemoCases) {
+        @('default', 'selection', 'safebox-info', 'sync-paint', 'tools',
+          'history-depth', 'operation-input', 'block-tools', 'change-info-approval',
+          'change-info-ui', 'send-ui', 'operation-messages', 'advanced-ui')
     } else { @('') }
     foreach ($case in $cases) {
         $suffix = if ($case) { "-$case" } else { '' }
         $log = Join-Path $output "tests$suffix.log"
         $brokerLog = Join-Path $output "broker$suffix.log"
         if ($Backlog) { $env:PASCALCOIN_BACKLOG_CASE = $case }
+        if ($AllDemoCases) {
+            # Focused selectors replace the default branch; clear all before each child.
+            foreach ($name in $selectorNames) {
+                [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+            }
+            foreach ($name in $demoSelectors[$case]) {
+                [Environment]::SetEnvironmentVariable($name, '1', 'Process')
+            }
+        }
         & $broker $executable $log *> $brokerLog
         $status = $LASTEXITCODE
         if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log }
@@ -137,9 +187,12 @@ try {
                 $status = 1
             }
         }
+        $caseResults += [pscustomobject]@{ Case = $case; ExitCode = $status; Log = $log }
+        $caseResults | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'cases.json')
         if ($status -ne 0) {
+            $overallStatus = $status
             Get-Content -LiteralPath $brokerLog -Tail 25
-            break
+            if (-not $AllDemoCases) { break }
         }
     }
 } finally {
@@ -147,6 +200,11 @@ try {
     $env:TMP = $previousTmp
     $env:PASCALCOIN_BACKLOG_CASE = $previousBacklogCase
     $env:PASCALCOIN_LARGE_BACKLOG_ROOT = $previousLargeDataRoot
+    if ($AllDemoCases) {
+        foreach ($name in $selectorNames) {
+            [Environment]::SetEnvironmentVariable($name, $previousSelectors[$name], 'Process')
+        }
+    }
 }
 Write-Host "Wallet grid refresh evidence: $output"
-exit $status
+exit $overallStatus

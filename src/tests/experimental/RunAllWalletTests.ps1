@@ -81,7 +81,7 @@ $registeredUnits | Sort-Object Unit | ConvertTo-Json | Set-Content -LiteralPath 
 $phases = @(
     @{ Name = 'unit'; Script = 'RunExperimentalWalletTests.ps1'; Lazarus = $true },
     @{ Name = 'grid-integration'; Script = 'RunWalletGridRefreshTests.ps1'; Lazarus = $true },
-    @{ Name = 'grid-native'; Script = 'RunWalletGridRefreshTests.ps1'; Lazarus = $true; Switch = '-Demo' },
+    @{ Name = 'grid-native'; Script = 'RunWalletGridRefreshTests.ps1'; Lazarus = $true; Switch = '-Demo'; ExtraSwitch = '-AllDemoCases' },
     @{ Name = 'network-toggle'; Script = 'RunWalletGridRefreshTests.ps1'; Lazarus = $true; Switch = '-NetworkOff' },
     @{ Name = 'buffered-backlog'; Script = 'RunWalletGridRefreshTests.ps1'; Lazarus = $true; Switch = '-Backlog' },
     @{ Name = 'startup'; Script = 'native/RunWalletStartupNativeTests.ps1'; Lazarus = $true; Shipping = $true },
@@ -102,6 +102,9 @@ $coverage = @{
         'UOperationReadHashChecks', 'UOrderedCardinalChecks',
         'UPendingCatchupChecks', 'UPendingSaveChecks', 'UStoredHistoryChecks')
     EquivalentNodeLifecycleScenarios = 'UNodeSynchronizationTests mirrors the eight native UNodeSynchronizationChecks cases'
+    NativeDemoCases = @('default', 'selection', 'safebox-info', 'sync-paint', 'tools',
+        'history-depth', 'operation-input', 'block-tools', 'change-info-approval',
+        'change-info-ui', 'send-ui', 'operation-messages', 'advanced-ui')
     SeparateInputs = @('Delphi-only probes require Delphi',
         'BlockThroughputProbe requires an owned public-chain dataset',
         'LargeBufferedBlockBacklogProbe requires an owned matching-chain dataset')
@@ -117,10 +120,31 @@ foreach ($phase in $phases) {
     if ($phase.Shipping) { $arguments += @('-WalletExecutable', $shippingWallet) }
     if ($phase.Probe) { $arguments += @('-Probe', $phase.Probe) }
     if ($phase.Switch) { $arguments += $phase.Switch }
+    if ($phase.ExtraSwitch) { $arguments += $phase.ExtraSwitch }
     Write-Host "Running wallet tests: $($phase.Name)"
     $started = Get-Date
-    & $shell @arguments 2>&1 | Tee-Object -FilePath (Join-Path $output ($phase.Name + '-runner.log'))
-    $status = $LASTEXITCODE
+    $phaseLog = Join-Path $output ($phase.Name + '-runner.log')
+    $previousErrors = $ErrorActionPreference
+    $nativeSetting = Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue
+    $previousNativeErrors = if ($nativeSetting) { $nativeSetting.Value } else { $null }
+    try {
+        # A failed child is a recorded phase failure, not permission to omit later phases.
+        $ErrorActionPreference = 'Continue'
+        $PSNativeCommandUseErrorActionPreference = $false
+        $LASTEXITCODE = 1
+        & $shell @arguments 2>&1 | Tee-Object -FilePath $phaseLog
+        $status = $LASTEXITCODE
+    } catch {
+        $status = 1
+        $_ | Out-String | Tee-Object -FilePath $phaseLog -Append
+    } finally {
+        $ErrorActionPreference = $previousErrors
+        if ($nativeSetting) {
+            $PSNativeCommandUseErrorActionPreference = $previousNativeErrors
+        } else {
+            Remove-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue
+        }
+    }
     $results += [pscustomobject]@{
         Phase = $phase.Name
         ExitCode = $status

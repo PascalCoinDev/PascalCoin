@@ -98,17 +98,20 @@ $log = Join-Path $output 'tests.log'
 $previousTemp, $previousTmp = $env:TEMP, $env:TMP
 $previousFixture = $env:PASCAL_CLASSIC_BLOCK_FIXTURE
 $previousProtocolCase = $env:PASCAL_PENDING_PROTOCOL_ONLY
+$previousPowCase = $env:PASCAL_PENDING_POW_NONEMPTY_ONLY
 try {
     $env:TEMP = $temporaryData
     $env:TMP = $temporaryData
     $env:PASCAL_CLASSIC_BLOCK_FIXTURE = $fixture
     Remove-Item Env:PASCAL_PENDING_PROTOCOL_ONLY -ErrorAction SilentlyContinue
+    Remove-Item Env:PASCAL_PENDING_POW_NONEMPTY_ONLY -ErrorAction SilentlyContinue
     & $broker $executable $log *> (Join-Path $output 'broker.log')
     $status = $LASTEXITCODE
 } finally {
     $env:TEMP, $env:TMP = $previousTemp, $previousTmp
     $env:PASCAL_CLASSIC_BLOCK_FIXTURE = $previousFixture
     $env:PASCAL_PENDING_PROTOCOL_ONLY = $previousProtocolCase
+    $env:PASCAL_PENDING_POW_NONEMPTY_ONLY = $previousPowCase
 }
 if (Test-Path -LiteralPath $log) {
     $report = [IO.File]::ReadAllText($log)
@@ -128,6 +131,16 @@ if ($status -eq 0 -and (-not (Test-Path -LiteralPath $heap) -or
         [IO.File]::ReadAllText($heap) -notmatch '(?m)^0 unfreed memory blocks')) {
     Write-Error 'The native regression did not produce a clean heap report.' -ErrorAction Continue
     $status = 1
+}
+if ($Probe -eq 'pending-protocol') {
+    # Recompute both fixed digests independently of the Pascal serializer.
+    $python = @('python', 'python3') | ForEach-Object {
+        Get-Command $_ -CommandType Application -ErrorAction SilentlyContinue
+    } | Where-Object Source -NotLike '*\WindowsApps\*' | Select-Object -First 1
+    if (-not $python) { throw 'Python 3 is required for the independent proof-of-work vectors.' }
+    & $python.Source (Join-Path $PSScriptRoot 'pending-protocol/ProofOfWorkVectors.py') `
+        *> (Join-Path $output 'proof-of-work-vectors.json')
+    if ($LASTEXITCODE -ne 0) { $status = 1 }
 }
 @{
     Probe = $Probe

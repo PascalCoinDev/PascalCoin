@@ -11,13 +11,21 @@ Build the experimental wallet, then run:
 The runner finds FPC and Lazarus on `PATH`, or accepts `-FpcPath` and
 `-LazarusDirectory`. Use `-OutputDirectory` for compiler outputs and reports;
 `-WalletExecutable` selects the already-built shipping wallet used by startup
-checks. CI builds both wallet applications before invoking this runner.
+checks. Python 3 recomputes the independent proof-of-work vectors. CI builds
+both wallet applications before invoking this runner.
+Startup checks stage an identical executable beside bundled OpenSSL in the test
+output directory.
 
 It runs every registered unit fixture, the isolated main-grid integration
 fixture, native grid scenarios, network toggling, buffered backlog, startup and
 shutdown, downloader cancellation and safebox recovery. Native checks also cover
 Classic key selection/closure, connection restart, all nine pending-protocol
 groups, buffered frames, real-node grid cancellation and mempool lock upgrades.
+The demo is compiled once, then runs thirteen fresh processes covering its
+default refresh checks and distinct selection, logging, painting, Tools,
+history limits, operation input, block filters, approval, Send PASC and dialog
+presentation groups. Subset selectors already covered by the default branch are
+not repeated.
 Each phase uses its own
 process and fresh data. The controller fixture remains separate because its
 application state lasts for the process. A registration manifest fails if a
@@ -28,6 +36,9 @@ The general suite passed **751 tests** on 2 November 2026 with zero errors,
 failures or unfreed blocks. This includes the common/collection fixtures and
 the previously unregistered box and comparer cases. The dedicated controller
 fixture supplies one additional FPCUnit case in its own process.
+The thirteen native demo groups passed, along with all nine pending-protocol
+groups and both independent Python vectors. Startup passed four controlled
+modes and both normal-executable modes against the optimized 5.9 Release wallet.
 
 The native Windows checks require the real Win32 widgetset. Linux and macOS
 build both wallets and run the portable lock suite below. Delphi-only probes
