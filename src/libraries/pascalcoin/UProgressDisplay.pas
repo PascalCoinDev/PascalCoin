@@ -8,15 +8,39 @@ unit UProgressDisplay;
 
 interface
 
-uses SysUtils, UAccounts;
+uses SysUtils, UAccounts, UNode;
 
 // Recreate the producer's original text separately from each application's
 // percentage/prefix decoration; raw counters and metadata remain unchanged.
 function FormatProgressMessage(const AProgress: TProgressInfo): String;
 function FormatProgressInfo(const AProgress: TProgressInfo): String;
 function FormatProgressLogInfo(const AProgress: TProgressInfo): String;
+// A storage failure is operational state, not peer or chain progress.
+function FormatStorageFailure(const AFailure: TNodeStorageFailure): String;
 
 implementation
+
+function FormatStorageFailure(const AFailure: TNodeStorageFailure): String;
+var LStage: String;
+begin
+  Result := '';
+  if not AFailure.HasFailure then Exit;
+  case AFailure.Stage of
+    sfsSafeboxFlush: LStage := 'safebox flush';
+    sfsCheckpoint: LStage := 'checkpoint save';
+    sfsBlockStream: LStage := 'block storage';
+    sfsPendingOperations: LStage := 'pending operations save';
+    sfsRestore: LStage := 'local blockchain restore';
+  else
+    LStage := 'local storage';
+  end;
+  // Restart-only recovery is stated first so a narrow status surface cannot
+  // disguise the persistent error as ordinary disconnected/sync progress.
+  Result := 'Storage error (restart required) during '+LStage;
+  if AFailure.ErrorClass<>'' then Result := Result+': '+AFailure.ErrorClass;
+  if AFailure.ErrorMessage<>'' then Result := Result+': '+AFailure.ErrorMessage;
+  if AFailure.FileName<>'' then Result := Result+' ['+AFailure.FileName+']';
+end;
 
 function FormatProgressMessage(const AProgress: TProgressInfo): String;
 begin

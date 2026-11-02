@@ -84,6 +84,7 @@ type
       private
         FNode: TNode;
         FNetData: TNetData;
+        FStopRPCServer: TRPCServer;
         FActive: Boolean;
         FPort: Word;
         FRequestVersion: Cardinal;
@@ -98,7 +99,7 @@ type
       protected
         procedure ExecuteLoad; override;
       public
-        constructor Create(ANode: TNode; ANetData: TNetData; AActive: Boolean; APort: Word; ARequestVersion: Cardinal; const AMinerName: String; AApplyMinerPayload: Boolean; const AMining: TMiningSettings; AApplyMining, AApplyMiningKey: Boolean); reintroduce;
+        constructor Create(ANode: TNode; ANetData: TNetData; AStopRPCServer: TRPCServer; AActive: Boolean; APort: Word; ARequestVersion: Cardinal; const AMinerName: String; AApplyMinerPayload: Boolean; const AMining: TMiningSettings; AApplyMining, AApplyMiningKey: Boolean); reintroduce;
         procedure Supersede;
       end;
 
@@ -155,6 +156,7 @@ type
       class var FMiningStatusChanged : TNotifyManyEvent;
       class var FState : TUserInterfaceState;
       class var FStateText : String;
+      class var FStorageFailureHandled: Boolean;
       class var FLastLoggedSafeboxProgress : TProgressInfo;
       class var FLoadingThread : TWalletStartupTask;
       class var FNetworkSettingsTask: TNetworkSettingsTask;
@@ -183,6 +185,7 @@ type
       class function HasUnappliedMempoolSettings: Boolean;
       class procedure StartNetworkSettingsTask;
       class procedure OnNetworkSettingsCompleted(Sender: TObject);
+      class procedure ApplyStorageFailure(const AFailure: TNodeStorageFailure);
       class procedure RefreshNodeState;
       class procedure OnNodeSnapshotChanged(Sender: TObject);
       class procedure OnSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
@@ -334,11 +337,12 @@ end;
 
 { TUserInterface.TNetworkSettingsTask }
 
-constructor TUserInterface.TNetworkSettingsTask.Create(ANode: TNode; ANetData: TNetData; AActive: Boolean; APort: Word; ARequestVersion: Cardinal; const AMinerName: String; AApplyMinerPayload: Boolean; const AMining: TMiningSettings; AApplyMining, AApplyMiningKey: Boolean);
+constructor TUserInterface.TNetworkSettingsTask.Create(ANode: TNode; ANetData: TNetData; AStopRPCServer: TRPCServer; AActive: Boolean; APort: Word; ARequestVersion: Cardinal; const AMinerName: String; AApplyMinerPayload: Boolean; const AMining: TMiningSettings; AApplyMining, AApplyMiningKey: Boolean);
 begin
   inherited Create;
   FNode := ANode;
   FNetData := ANetData;
+  FStopRPCServer := AStopRPCServer;
   FActive := AActive;
   FPort := APort;
   FRequestVersion := ARequestVersion;
@@ -365,6 +369,17 @@ end;
 procedure TUserInterface.TNetworkSettingsTask.ExecuteLoad;
 var LLockedMempool: TPCOperationsComp;
 begin
+  if not RequestCurrent then Exit;
+  // A storage failure is restart-only. Retire services on this owned worker,
+  // never by joining RPC, peer or miner listeners from a UI state callback.
+  if FNode.HasStorageFailure then begin
+    FActive := False;
+    FApplyMinerPayload := False;
+    FApplyMiningKey := False;
+    FMining.Active := False;
+    FMining.HasKey := False;
+  end;
+  if Assigned(FStopRPCServer) then FStopRPCServer.Active := False;
   if not RequestCurrent then Exit;
   // Publish OFF before a potentially long listener join. The core preserves
   // physical buffered work and denies new acquisition independently of the UI.
@@ -451,9 +466,9 @@ class procedure TUserInterface.RequestNetworkSettings(AActive: Boolean; APort: W
 var LMinerName: String; LApplyPayload: Boolean;
 begin
   if FStopping or not Assigned(FNetData) or not Assigned(FNode) then Exit;
-  AActive := AActive and not Offline;
+  AActive := AActive and not Offline and not FNode.HasStorageFailure;
   LMinerName := TSettings.MinerName;
-  LApplyPayload := not (FState in [uisLoading, uisError]);
+  LApplyPayload := not (FState in [uisLoading, uisError]) and not FNode.HasStorageFailure;
   if FNetworkSettingsInitialized and (FDesiredNetworkActive = AActive) and
     (FDesiredNetworkPort = APort) and (FDesiredMinerName = LMinerName) and
     (FDesiredApplyMinerPayload = LApplyPayload) and
@@ -472,10 +487,13 @@ begin
 end;
 
 class procedure TUserInterface.StartNetworkSettingsTask;
+var LStopRPCServer: TRPCServer;
 begin
   if FStopping or FDispatchingNetworkSettings or Assigned(FNetworkSettingsTask) or
     not FNetworkSettingsInitialized then Exit;
-  FNetworkSettingsTask := TNetworkSettingsTask.Create(FNode, FNetData,
+  LStopRPCServer := Nil;
+  if Assigned(FNode) and FNode.HasStorageFailure then LStopRPCServer := FRPCServer;
+  FNetworkSettingsTask := TNetworkSettingsTask.Create(FNode, FNetData, LStopRPCServer,
     FDesiredNetworkActive, FDesiredNetworkPort, FNetworkRequestVersion,
     FDesiredMinerName, FDesiredApplyMinerPayload and
       ((not FHasAppliedMinerPayload) or (FAppliedMinerName <> FDesiredMinerName)),
@@ -641,6 +659,7 @@ begin
     FStatusBar0Text := '';
     FStatusBar1Text := '';
     FStatusBar2Text := '';
+    FStorageFailureHandled := False;
     FMessagesNotificationText := '';
     FLastLoggedSafeboxProgress := Default(TProgressInfo);
 
@@ -981,7 +1000,7 @@ begin
   FDesiredNetworkActive := not Offline;
   UpdateMiningConfiguration;
   FPoolMiningServer.OnMiningServerNewBlockFound := NotifyMiningServerNewBlockFoundEvent;
-  FRPCServer.Active := (not Offline) and TSettings.JsonRpcPortEnabled;
+  FRPCServer.Active := (not Offline) and (not FNode.HasStorageFailure) and TSettings.JsonRpcPortEnabled;
   RequestNetworkSettings(not Offline, TSettings.InternetServerPort);
   if not Offline then begin
     FNode.AutoDiscoverNodes(CT_Discover_IPs);
@@ -992,6 +1011,7 @@ begin
 end;
 
 class procedure TUserInterface.OnLoadingCompleted(Sender: TObject);
+var LStatus: TNodeSynchronizationStatus;
 begin
   if FStopping or (Sender <> FLoadingThread) then Exit;
   try
@@ -1000,9 +1020,13 @@ begin
     State := uisLoaded;
   except
     on E : Exception do begin
-      FStateText := 'Unable to load the local blockchain: ' + E.Message;
+      if FNode.HasStorageFailure then begin
+        LStatus := FNode.GetSynchronizationStatus;
+        ApplyStorageFailure(LStatus.StorageFailure);
+      end else
+        FStateText := 'Unable to load the local blockchain: ' + E.Message;
       TLog.NewLog(lterror, ClassName, FStateText);
-      FRPCServer.Active := false;
+      if not FNode.HasStorageFailure then FRPCServer.Active := false;
       FDesiredMining.Active := false;
       FDesiredMining.HasKey := false;
       State := uisError;
@@ -1020,12 +1044,39 @@ begin
   else Result := Default(TNodeSynchronizationStatus);
 end;
 
+class procedure TUserInterface.ApplyStorageFailure(const AFailure: TNodeStorageFailure);
+var LWasError: Boolean;
+begin
+  if not AFailure.HasFailure or FStorageFailureHandled then Exit;
+  LWasError := FState=uisError;
+  FStateText := FormatStorageFailure(AFailure);
+  FDesiredMining.Active := False;
+  FDesiredMining.HasKey := False;
+  // Force one stop snapshot even if networking was already off. This also
+  // retires an active RPC listener without changing persisted user settings.
+  FNetworkSettingsInitialized := False;
+  RequestNetworkSettings(False,TSettings.InternetServerPort);
+  State := uisError;
+  // A deferred loader event may have selected Error before this queued record
+  // supplied its diagnostic text. Publish that first text even if state is equal.
+  if LWasError then NotifyStateChanged(Nil);
+  if Assigned(FMainForm) then begin
+    FMainForm.SyncControl.ShowSplash := False;
+    ShowSyncDialog;
+  end;
+  FStorageFailureHandled := True;
+end;
+
 class procedure TUserInterface.RefreshNodeState;
 var LStatus: TNodeSynchronizationStatus;
 begin
-  if FStopping or FDispatchingLoaded or (not FStarted) or
-    (FState in [uisLoading, uisError]) then Exit;
+  if FStopping or FDispatchingLoaded or (not FStarted) then Exit;
   LStatus := GetSynchronizationStatus;
+  if LStatus.StorageFailure.HasFailure then begin
+    ApplyStorageFailure(LStatus.StorageFailure);
+    Exit;
+  end;
+  if FState in [uisLoading, uisError] then Exit;
   // Physical work and final pending replay remain synchronization even when
   // acquisition is disabled. Let the node end that state before showing the
   // configured offline caption; the CLI flag still prevents all networking.
@@ -1132,7 +1183,10 @@ begin
     UpdateMiningConfiguration;
   end;
   if Assigned(FRPCServer) then begin
-    FRPCServer.Active := (not Offline) and (not (FState in [uisLoading, uisError])) and TSettings.JsonRpcPortEnabled;
+    // The storage-error stop snapshot owns listener retirement on its worker.
+    // A later settings event must not join that listener on the UI thread.
+    if not FNode.HasStorageFailure then
+      FRPCServer.Active := (not Offline) and (not (FState in [uisLoading, uisError])) and TSettings.JsonRpcPortEnabled;
     FRPCServer.ValidIPs := TSettings.JsonRpcAllowedIPs;
   end;
   if Assigned(FNetData) then begin
@@ -1185,7 +1239,7 @@ begin
   FDesiredMining.MinerName := TSettings.MinerName;
   FDesiredMining.Active := false;
   FDesiredMining.HasKey := false;
-  if (not Offline) and TSettings.JsonRpcMinerServerActive then begin
+  if (not Offline) and (not FNode.HasStorageFailure) and TSettings.JsonRpcMinerServerActive then begin
     // Wallet selection/creation/rotation stays on its UI owner with the exact
     // existing policy. Only this copied public key crosses to the worker.
     if TWallet.Keys.TryGetMiningKey(TSettings.MinerPrivateKeyType,
@@ -1795,6 +1849,9 @@ end;
 
 class procedure TUserInterface.SetState(AState : TUserInterfaceState);
 begin
+  // Connectivity, progress and deferred loader events cannot clear a latched
+  // storage error; only constructing a fresh node after restart can do that.
+  if Assigned(FNode) and FNode.HasStorageFailure then AState := uisError;
   if AState = FState then
     exit;
   FState := AState;

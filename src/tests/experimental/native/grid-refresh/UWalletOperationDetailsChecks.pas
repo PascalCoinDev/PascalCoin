@@ -1,4 +1,4 @@
-unit UWalletOperationDetailsChecks;
+﻿unit UWalletOperationDetailsChecks;
 
 { Copyright © 2026 Herman Schoenfeld <https://sphere10.com>. MIT license.
   Exercises the real wallet grid, input handlers and explicit Details action.
@@ -391,6 +391,7 @@ end;
 procedure TOperationDetailsChecks.CheckUnavailable(const AScale: String);
 var
   LBefore: Integer;
+  LAdmissionDeadline: UInt64;
 begin
   LBefore := FWallet.DetailsCount;
   FWallet.OperationsGrid.ClearSelection(True);
@@ -422,7 +423,14 @@ begin
   FModel.GateFetches := True;
   try
     FWallet.OperationsGrid.RefreshGrid;
-    Require(FWallet.OperationsGrid.IsUpdating, 'Controlled operation page did not start a worker');
+    DetailsAction.Update;
+    Require(not DetailsButton.Enabled and not FWallet.miOperationInfo.Enabled,
+      'Quiet-period admission left stale operation Details enabled');
+    // The configured quiet-period throttle owns admission; pump its timer
+    // before asserting the held worker state, without bypassing production.
+    LAdmissionDeadline := GetTickCount64+2000;
+    while not FWallet.OperationsGrid.IsUpdating and (GetTickCount64<LAdmissionDeadline) do Pump(5);
+    Require(FWallet.OperationsGrid.IsUpdating, 'Controlled operation page did not start a worker after quiet-period admission');
     DetailsAction.Update;
     Require(not DetailsButton.Enabled and not FWallet.miOperationInfo.Enabled,
       'A running page fetch did not disable both Details entry points');
@@ -442,6 +450,7 @@ procedure TOperationDetailsChecks.CheckToolbarBounds(const AScale: String);
 var
   LButton: TBitBtn;
   LHistory: TComboBox;
+  LButtonRect, LHistoryRect: Types.TRect;
 begin
   LButton := DetailsButton;
   Require(FWallet.OperationsGrid.FindComponent('OperationsHistory') is TComboBox,
@@ -456,6 +465,12 @@ begin
     'The Details button is clipped by its native parent');
   Require(LHistory.Left + LHistory.Width <= LButton.Left,
     'The Details button overlaps the history picker');
+  Require((LButton.Height=LHistory.Height) and (LButton.Width=LButton.Height),
+    'Details must be square and match the native history picker height');
+  Require(GetWindowRect(LButton.Handle,LButtonRect) and GetWindowRect(LHistory.Handle,LHistoryRect),
+    'Cannot inspect native history/Details rectangles');
+  Require((LButtonRect.Top=LHistoryRect.Top) and (LButtonRect.Bottom=LHistoryRect.Bottom),
+    'History and Details native top/bottom edges are not aligned');
   Require(not LButton.Glyph.Empty, 'The Details button has no visible information glyph');
   Log('PASS ' + AScale + ': Details icon and history picker fit without overlap');
 end;

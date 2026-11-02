@@ -3,9 +3,10 @@
 This runnable mock wallet uses the real main form, wallet control, typed source
 factories and visual grids. Only account/history records are generated. Paging,
 snapshot caches, the balance worker, native selection and background completion
-remain production code. Both wallet grids configure `RefreshThrottle.Mode` as
-`temNone`: account selections and idle backend events refresh immediately.
-The reusable throttle remains tested separately in the mirrored common grid tests.
+remain production code. Accounts use `RefreshThrottle.Mode = temNone`. Operations
+use the existing `temNotifyOnEventBurstFinished` mode with a 250 ms interval:
+each request resets the quiet deadline, and only the latest request is fetched
+after silence. The reusable throttle also has mirrored common grid tests.
 
 The node synchronization lifecycle owns **Please Wait / Synchronizing** and
 `RefreshSuspended`. Requests retain their latest parameters while paused, but
@@ -54,7 +55,7 @@ Run the existing script from the repository root:
 & .\src\tests\experimental\RunWalletGridRefreshTests.ps1 -Demo
 ```
 
-The automatic demo runs background wallet-key notifications, immediate selection/loading, 20 consecutive native clicks,
+The automatic demo runs background wallet-key notifications, selection/loading with 250 ms operations admission, 20 consecutive native clicks,
 idle backend refresh, held-worker coalescing, zero queries during node synchronization
 and current revision/page publication after resume. It closes its owned controller
 normally. The existing private-desktop broker keeps the user's input desktop intact;
@@ -65,9 +66,9 @@ Focused environment selectors use the same executable and actual wallet composit
 | Selector | Coverage |
 | --- | --- |
 | `PASCAL_WALLET_KEY_NOTIFICATIONS_ONLY=1` | A real worker invokes wallet-key notifications without UI pumping. Both native key combos remain untouched until their posted messages run; destroying receivers before delivery is safe. No keys or transactions are changed. |
-| `PASCAL_WALLET_CONSECUTIVE_SELECTION_ONLY=1` | Twenty distinct alternating account clicks, mostly 25 ms after the prior publication, plus two spaced clicks. Each requires one query, one correct publication, prompt card hiding and no late duplicate/error-card reopen. No per-click quiet wait. |
-| `PASCAL_WALLET_SELECTION_COMPLETION_ONLY=1` | Two consecutive accounts with 268 generated operations each. Actual held providers show loading, then clear it as soon as current rows publish; the second click admits immediately. |
-| `PASCAL_WALLET_REFRESH_LIFECYCLE_ONLY=1` | Idle backend input admits immediately; held providers retain one latest replay; node synchronization permits zero queries despite backend/page inputs and resumes the latest revision/page. |
+| `PASCAL_WALLET_CONSECUTIVE_SELECTION_ONLY=1` | Twenty alternating account clicks, mostly 25 ms after publication, plus two spaced clicks and a six-click burst. Each independent click publishes once; the burst fetches only its latest selection after 250 ms silence. Loading clears on publication without stale callbacks. |
+| `PASCAL_WALLET_SELECTION_COMPLETION_ONLY=1` | Two consecutive accounts with 268 generated operations each. No provider runs before 250 ms silence; held providers show loading, then clear it when current rows publish. |
+| `PASCAL_WALLET_REFRESH_LIFECYCLE_ONLY=1` | Accounts admit immediately and operations after 250 ms silence; held providers retain one latest replay. Node synchronization permits zero queries despite backend/page inputs and resumes the latest revision/page. |
 | `PASCAL_WALLET_SELECTION_ONLY=1` | Selection/loading plus initial overview dashes, retained completed totals, genuine zero, and native banner/event presentation. |
 
 The consecutive observer counts every callback, including incorrect/stale
@@ -141,8 +142,8 @@ Set `PASCAL_WALLET_TOOLS_ONLY=1` and `PASCAL_WALLET_HISTORY_DEPTH_ONLY=1`
 to exercise the actual Recent Operations picker and native account-row clicks.
 The query fixture records the depth received by `FetchAll`: 2,016 for 7 Days,
 8,640 for 30 Days and `High(Cardinal)` for Maximum. Every selection must retain
-that depth and query the clicked account. Wallet refreshes use `temNone`; these
-cases keep the production selection/provider wiring and impose no quiet wait.
+that depth and query the clicked account. These cases retain the production
+selection/provider wiring, including the operations grid's 250 ms quiet interval.
 
 The separate [stored-history checks](../stored-history/README.md) verify that
 these query settings bound actual storage reads and retain pending rows.

@@ -693,8 +693,8 @@ begin
   LDuration := TComboBox(LWallet.OperationsGrid.FindComponent('OperationsHistory'));
   Require(Assigned(LDuration.OnChange), 'The actual history picker is unwired');
   for I := 0 to High(CDepths) do begin
-    // Reset optional throttle state without replacing the actual refresh
-    // callbacks; the main wallet now uses immediate temNone admission.
+    // Reset a preceding request without replacing production callbacks;
+    // the operations picker still waits for its configured 250 ms silence.
     LWallet.OperationsGrid.RefreshThrottle.Cancel;
     LCompleted := FMain.Model.Metrics(mdkOperations).CompletedCount;
     LDuration.ItemIndex := I;

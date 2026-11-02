@@ -1,13 +1,13 @@
-unit UWalletConsecutiveSelectionChecks;
+﻿unit UWalletConsecutiveSelectionChecks;
 
 { Copyright © 2026 Herman Schoenfeld <https://sphere10.com>.
   Distributed under the MIT software license; see the accompanying LICENSE. }
 
-{ Native regression for immediate consecutive account selection.
-  Historical tests intentionally required a second selection to wait for quiet.
-  This test changes that acceptance expectation explicitly; it does not relabel
-  the earlier evidence. Only records are synthetic. The real wallet handler,
-  typed providers, snapshot cache, grid worker and native controls remain wired. }
+{ Native regression for account-selection refreshes through the existing grid
+  throttle. Independent selections publish within a short bound; a scroll burst
+  fetches only its final account after 250 ms of silence. Records alone are
+  synthetic; the wallet handler,
+  typed providers, cache, worker and native controls remain wired. }
 
 {$IFDEF FPC}{$mode delphi}{$ENDIF}
 
@@ -40,6 +40,7 @@ type
     procedure CheckCard;
     procedure Pump(AMilliseconds: Cardinal);
     procedure NativeClick(ARow: Integer);
+    procedure CheckRapidBurst;
   public
     constructor Create(AMain: TMockMainForm);
     destructor Destroy; override;
@@ -172,6 +173,51 @@ begin
     'Actual native click did not select precisely its intended account');
 end;
 
+procedure TConsecutiveSelectionObserver.CheckRapidBurst;
+var I: Integer; LUntil: UInt64; LPanel: TPanel; LMetrics: TMockFetchMetrics;
+begin
+  FIndex := 21;
+  FPublications := 0;
+  FAllPublications := 0;
+  FIncorrectPublications := 0;
+  FPublicationTick := 0;
+  FCardHideTick := 0;
+  FAdmissionTick := 0;
+  FCardReopened := False;
+  FBaselineFetches := FMain.Model.Metrics(mdkOperations).FetchCount;
+  LPanel := TPanel(FMain.MockWallet.OperationsGrid.FindComponent('LoadingOverlay'));
+  Require(Assigned(LPanel),'Real operations loading panel is absent');
+  Require(FMain.MockWallet.OperationsGrid.RefreshThrottle.Mode=temNotifyOnEventBurstFinished,
+    'Actual wallet operations grid is not using its existing burst-finished throttle');
+  for I := 0 to 5 do begin
+    FExpectedAccount := I mod 2;
+    FInputTick := GetTickCount64;
+    NativeClick(FExpectedAccount);
+    Pump(80);
+    Require(FMain.Model.Metrics(mdkOperations).FetchCount=FBaselineFetches,
+      'Operations provider was queried before account selection became quiet');
+    Require(FPublicationTick=0,'An intermediate account was published during scrolling');
+  end;
+  while GetTickCount64-FInputTick<230 do begin
+    Pump(2);
+    Require(FMain.Model.Metrics(mdkOperations).FetchCount=FBaselineFetches,
+      'Selection throttle did not reset its quiet interval on every input');
+  end;
+  LUntil := GetTickCount64+1500;
+  while ((FPublicationTick=0) or (FCardHideTick=0)) and (GetTickCount64<LUntil) do Pump(2);
+  Require((FPublicationTick<>0) and CurrentRowsMatch,'Final selected account was not published');
+  LMetrics := FMain.Model.Metrics(mdkOperations);
+  Require((LMetrics.FetchCount=FBaselineFetches+1) and (FPublications=1) and
+    (FAllPublications=1) and (FIncorrectPublications=0),
+    'Scroll burst did not coalesce to exactly one final-account fetch/publication');
+  Require((FAdmissionTick>=FInputTick+240) and (FAdmissionTick<FInputTick+1000),
+    'Latest operations fetch did not follow the configured quiet interval');
+  Require((FCardHideTick<>0) and not FCardReopened,
+    'Completed latest-account publication retained or reopened its loading card');
+  FLog.Add(Format('PASS scroll burst: six native selections, one latest query after %dms, loading hidden after %dms',
+    [FAdmissionTick-FInputTick,FCardHideTick-FInputTick]));
+end;
+
 procedure TConsecutiveSelectionObserver.Run(const ALogPath: String);
 const
   ClickCount = 20;
@@ -220,7 +266,7 @@ begin
   LWrongPublicationCount := 0;
   LWrongIdentityCount := 0;
   LWrongCardCount := 0;
-  FLog.Add('CONTRACT newly requested foreground account selections publish immediately; historical policy delayed selections within throttle quiet interval');
+  FLog.Add('CONTRACT operations RefreshThrottle burst-finished250ms only; existing loading behavior unchanged; no product selection timer');
   FLog.Add('SCOPE actual main/mock wallet composition and native clicks; only account/history records synthetic; no signing/network/data clone');
   FMain.Model.DelayMilliseconds := 0;
   FMain.MockWallet.OperationsSource.OperationsPerAccount := 268;
@@ -287,7 +333,8 @@ begin
     Require((LSlow = 0) and (LWrongFetchCount = 0) and (LWrongPublicationCount = 0) and
       (LWrongIdentityCount = 0) and (LWrongCardCount = 0),
       'Consecutive native selections failed the newly requested immediate-response policy');
-    FLog.Add('PASS all 20 consecutive native account selections: current rows, immediate admission/publication/card completion without per-click quiet waits');
+    FLog.Add('PASS 20 independent selections: bounded publication, current rows, one fetch and no stale loading card');
+    CheckRapidBurst;
   finally
     FIndex := 0;
     FLog.SaveToFile(ALogPath);

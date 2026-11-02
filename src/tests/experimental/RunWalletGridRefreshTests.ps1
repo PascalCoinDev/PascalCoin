@@ -12,10 +12,10 @@ Use -NetworkOff for the real
 connectivity toggle and deferred-refresh lifecycle regression. Use -Backlog for
 the actual buffered-response processor, outgoing/incoming transport ownership,
 explicit shutdown, inherited data sources and committed footer/status checks
-using five historical blocks. One build runs seven fresh private processes.
+using five historical blocks. One build runs eight fresh private processes.
 Use -LargeBacklog with -LargeDataRoot for the opt-in matching public-chain
 fixture. It reuses an explicitly owned Data junction while creating fresh
-settings and one watch-only key; it is not part of the seven small scenarios.
+settings and one watch-only key; it is not part of the eight small scenarios.
 The other targets use typed
 mock sources and real wallet controls. Network cases restrict peers to loopback;
 all targets use fresh isolated wallet settings. Existing wallet keys and the input desktop
@@ -165,7 +165,7 @@ try {
     $env:TMP = $temporaryData
     if ($LargeBacklog) { $env:PASCALCOIN_LARGE_BACKLOG_ROOT = $ownedLargeRoot }
     $cases = if ($Backlog) {
-        @('direct', 'outgoing', 'outgoing-shutdown', 'incoming',
+        @('direct', 'synchronization', 'outgoing', 'outgoing-shutdown', 'incoming',
           'incoming-settings', 'incoming-shutdown', 'connected-miner')
     } elseif ($AllDemoCases) {
         $allDemoCaseNames

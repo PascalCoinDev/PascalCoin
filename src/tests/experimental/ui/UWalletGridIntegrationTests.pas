@@ -49,7 +49,7 @@ type
   published
     // The controller has a process lifetime. Keep these scenarios together in
     // the dedicated runner rather than changing globals in the general suite.
-    procedure MainGridsRefreshImmediatelyAndPauseForNodeWork;
+    procedure MainGridsCoalesceOperationsAndPauseForNodeWork;
   end;
 
 implementation
@@ -204,6 +204,7 @@ begin
     LAccounts := FModel.Metrics(mdkAccounts);
     LOperations := FModel.Metrics(mdkOperations);
     if FWallet.AccountsGrid.IsUpdating or FWallet.OperationsGrid.IsUpdating or
+      FWallet.AccountsGrid.RefreshThrottle.Waiting or FWallet.OperationsGrid.RefreshThrottle.Waiting or
       (LAccounts.ActiveFetches <> 0) or (LOperations.ActiveFetches <> 0) or
       (LAccounts.FetchCount <> LLastAccounts.FetchCount) or
       (LOperations.FetchCount <> LLastOperations.FetchCount) or
@@ -283,8 +284,14 @@ procedure TWalletGridIntegrationTests.CheckRefreshState(const ACheckpoint: Strin
 
   begin
     LNodeSynchronizing := TUserInterface.SynchronizationStatus.State=nssSynchronizing;
-    AssertEquals(ACheckpoint+': '+AName+' no wallet throttle',Ord(temNone),Ord(AGrid.RefreshThrottle.Mode));
-    AssertFalse(ACheckpoint+': '+AName+' no quiet-time wait',AGrid.RefreshThrottle.Waiting);
+    if AGrid=FWallet.AccountsGrid then begin
+      AssertEquals(ACheckpoint+': accounts admit immediately',Ord(temNone),Ord(AGrid.RefreshThrottle.Mode));
+      AssertFalse(ACheckpoint+': accounts have no quiet-time wait',AGrid.RefreshThrottle.Waiting);
+    end else begin
+      AssertEquals(ACheckpoint+': operations deliver after burst silence',Ord(temNotifyOnEventBurstFinished),Ord(AGrid.RefreshThrottle.Mode));
+      AssertTrue(ACheckpoint+': operations quiet interval is exactly 250 ms',AGrid.RefreshThrottle.Interval.TotalMilliseconds=250);
+      if AExpectIdle then AssertFalse(ACheckpoint+': completed operations are no longer waiting',AGrid.RefreshThrottle.Waiting);
+    end;
     AssertEquals(ACheckpoint+': '+AName+' node manual card',LNodeSynchronizing,AGrid.LoadingVisible);
     AssertEquals(ACheckpoint+': '+AName+' node query suspension',LNodeSynchronizing,AGrid.RefreshSuspended);
     AssertTrue('The loading animation retains an enabled grid owner', AGrid.Enabled);
@@ -297,7 +304,7 @@ procedure TWalletGridIntegrationTests.CheckRefreshState(const ACheckpoint: Strin
     AssertTrue('The actual grid owns its loading card', Assigned(LPanel));
     // Automatic page loading retains its own delayed card after a manual hold
     // ends. Its visibility is independent of the synchronization presentation.
-    if not AAutomaticUpdating and not AGrid.IsUpdating then
+    if not AAutomaticUpdating and not AGrid.IsUpdating and not AGrid.RefreshThrottle.Waiting then
       AssertEquals(ACheckpoint + ': ' + AName + ' visible loading card', LNodeSynchronizing, LPanel.Visible);
     if LNodeSynchronizing then begin
       LTitle := AGrid.FindComponent('LoadingStatus') as TLabel;
@@ -340,7 +347,7 @@ procedure TWalletGridIntegrationTests.CheckRefreshState(const ACheckpoint: Strin
 begin
   CheckGrid(FWallet.AccountsGrid, 'accounts');
   CheckGrid(FWallet.OperationsGrid, 'operations');
-  Log(ACheckpoint + ': wallet inputs are immediate; node owns synchronization');
+  Log(ACheckpoint + ': accounts immediate, operations wait for 250 ms silence; node owns synchronization');
 end;
 
 function TWalletGridIntegrationTests.NotifyChange(ARevision: Integer): QWord;
@@ -450,8 +457,9 @@ begin
   AssertTrue(Assigned(FWallet.OperationsGrid.OnSelection));
   AssertEquals('The real wallet account grid admits inputs immediately',Ord(temNone),
     Ord(FWallet.AccountsGrid.RefreshThrottle.Mode));
-  AssertEquals('The real wallet operations grid admits inputs immediately',Ord(temNone),
+  AssertEquals('The real wallet operations grid coalesces a burst until silence',Ord(temNotifyOnEventBurstFinished),
     Ord(FWallet.OperationsGrid.RefreshThrottle.Mode));
+  AssertTrue('The real operations quiet interval is exactly 250 ms',FWallet.OperationsGrid.RefreshThrottle.Interval.TotalMilliseconds=250);
   CheckRenderedRevision(FModel.Revision);
   CheckRefreshState('Initial loaded grids', true);
 
@@ -567,7 +575,8 @@ begin
   AssertTrue('A held ordinary query shows its actual loading card',LOverlay.Visible);
   FModel.ReleaseFetches;
   Settle;
-  AssertTrue('Publication does not wait for a quiet interval',GetTickCount64-LInputTick < 2500);
+  AssertTrue('Operations admission waits at least 250 ms after the input',FWallet.LastOperationRefreshTick-LInputTick >= 250);
+  AssertTrue('Publication does not add an obsolete multi-second delay',GetTickCount64-LInputTick < 2500);
   LAccounts := FModel.Metrics(mdkAccounts).FetchCount;
   LOperations := FModel.Metrics(mdkOperations).FetchCount;
   CheckRenderedRevision(500);
@@ -575,7 +584,7 @@ begin
   PumpFor(250);
   AssertEquals('A completed input has one admission',LBaseRefresh+1,FWallet.AccountRefreshCount);
   CheckFetchCounts('Completion does not manufacture a trailing page',LAccounts,LOperations);
-  Log('Single input starts immediately, displays loading only while active and clears it on publication');
+  Log('Accounts start immediately; operations start after 250 ms quiet and clear loading on publication');
 end;
 
 procedure TWalletGridIntegrationTests.CheckContinuousInputs;
@@ -600,18 +609,19 @@ begin
     FWallet.AccountRefreshCount > LBaseRefresh+1);
   AssertTrue('Idle account providers are not delayed until a quiet deadline',
     FModel.Metrics(mdkAccounts).FetchCount > LAccounts);
-  AssertTrue('Idle operations providers are not delayed until a quiet deadline',
-    FModel.Metrics(mdkOperations).FetchCount > LOperations);
+  AssertEquals('Continuous inputs restart operations silence without querying during the burst',
+    LOperations,FModel.Metrics(mdkOperations).FetchCount);
+  AssertTrue('Operations are still waiting after the continuous burst',FWallet.OperationsGrid.RefreshThrottle.Waiting);
   AssertTrue('Only one account provider can run at a time',
     FModel.Metrics(mdkAccounts).ActiveFetches <= 1);
   AssertTrue('Only one operations provider can run at a time',
     FModel.Metrics(mdkOperations).ActiveFetches <= 1);
   LLastInput := NotifyChange(1999);
   Settle;
-  AssertTrue('The latest burst input does not wait for silence',GetTickCount64-LLastInput < 2500);
+  AssertTrue('The latest burst input completes after its bounded quiet interval',GetTickCount64-LLastInput < 2500);
   CheckRenderedRevision(1999);
   CheckRefreshState('Latest continuous-input pages are ready',true);
-  Log('Continuous node inputs admit immediately; busy requests coalesce and final rows publish without a quiet wait');
+  Log('Continuous inputs refresh accounts and reset the operations quiet deadline; the latest operations page follows silence');
 end;
 
 procedure TWalletGridIntegrationTests.CheckSilentProcessingGap;
@@ -721,7 +731,7 @@ end;
 procedure TWalletGridIntegrationTests.CheckImmediateInputsAndIndependentGrids;
 var
   LAccountAdmissions,LOperationAdmissions,LLatestPage: Integer;
-  LInputTick: QWord;
+  LInputTick,LDeadline: QWord;
 begin
   NotifyChange(4500);
   Settle;
@@ -735,19 +745,22 @@ begin
   TGridInputAccess(FWallet.AccountsGrid).Search('mock%');
   FMain.SetBounds(FMain.Left,FMain.Top,FMain.Width+24,FMain.Height+48);
   LLatestPage := FWallet.AccountsGrid.PageIndex;
-  PumpFor(250);
+  PumpFor(100);
   AssertTrue('Account page/filter/resize inputs enter admission immediately',
     FWallet.AccountRefreshCount > LAccountAdmissions);
-  AssertTrue('A resized operations viewport enters admission immediately',
-    FWallet.OperationRefreshCount > LOperationAdmissions);
+  AssertEquals('A resized operations viewport waits for its quiet interval',LOperationAdmissions,FWallet.OperationRefreshCount);
+  AssertTrue('The operations viewport has a queued quiet-period request',FWallet.OperationsGrid.RefreshThrottle.Waiting);
+  LDeadline := GetTickCount64+1800;
+  while (FWallet.OperationRefreshCount=LOperationAdmissions) and (GetTickCount64<LDeadline) do PumpFor(5);
+  AssertEquals('The resized operations viewport delivers once after silence',LOperationAdmissions+1,FWallet.OperationRefreshCount);
   AssertTrue('Account client changes cannot create parallel providers',
     FModel.Metrics(mdkAccounts).ActiveFetches <= 1);
   AssertTrue('Operations resize cannot create parallel providers',
     FModel.Metrics(mdkOperations).ActiveFetches <= 1);
-  CheckRefreshState('Mixed actual client inputs have no quiet wait');
+  CheckRefreshState('Mixed actual client inputs retain one operations quiet delivery');
   FModel.ReleaseFetches;
   Settle;
-  AssertTrue('Latest client parameters do not wait for silence',GetTickCount64-LInputTick < 2500);
+  AssertTrue('Latest client parameters complete within the bounded quiet interval',GetTickCount64-LInputTick < 2500);
   AssertEquals('The latest requested account page is retained',LLatestPage,FWallet.AccountsGrid.PageIndex);
   CheckRenderedRevision(4500);
   LAccountAdmissions := FWallet.AccountRefreshCount;
@@ -759,7 +772,7 @@ begin
   AssertEquals('The independent operations input is delivered once',LOperationAdmissions+1,FWallet.OperationRefreshCount);
   AssertEquals('The provider receives the selected thirty-day depth',
     Integer(TTimeSpan.FromDays(30).TotalBlockCount),Integer(FWallet.OperationsSource.LastFetchBlockDepth));
-  CheckRefreshState('Independent history input completes without a timer',true);
+  CheckRefreshState('Independent history input completes after its operations quiet interval',true);
   Log('Actual page/filter/resize inputs and independent history-depth changes passed');
 end;
 
@@ -786,7 +799,7 @@ begin
   Log('Actual get-account view, hidden node input and immediate returning view passed');
 end;
 
-procedure TWalletGridIntegrationTests.MainGridsRefreshImmediatelyAndPauseForNodeWork;
+procedure TWalletGridIntegrationTests.MainGridsCoalesceOperationsAndPauseForNodeWork;
 begin
   CheckProductionWiringAndCachedPaging;
   CheckEventDrivenOverview;

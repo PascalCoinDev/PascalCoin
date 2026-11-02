@@ -434,13 +434,17 @@ end;
 procedure TCTRLSyncronization.OnAppStarted(Sender: TObject);
 begin
   ShowSplash := TUserInterface.State = uisLoading;
-  btnBack.Enabled := TUserInterface.State <> uisLoading;
+  btnBack.Enabled := not (TUserInterface.State in [uisLoading, uisError]);
   UpdateBlockChainState;
 end;
 
 procedure TCTRLSyncronization.OnLoading(Sender: TObject; const AProgress : TProgressInfo);
 var pct : String;
 begin
+  if TUserInterface.State=uisError then begin
+    UpdateNodeStatus;
+    Exit;
+  end;
   pct := FormatProgressInfo(AProgress);
   if FLoadingText.Caption <> pct then
     FLoadingText.Caption := pct;
@@ -449,6 +453,12 @@ end;
 
 procedure TCTRLSyncronization.OnLoaded(Sender: TObject);
 begin
+  if TUserInterface.State=uisError then begin
+    ShowSplash := False;
+    btnBack.Enabled := False;
+    UpdateNodeStatus;
+    Exit;
+  end;
   ShowSplash := false;
   btnBack.Enabled:=true;
   // Capture the restored values before the normal loaded handler enables
@@ -552,7 +562,10 @@ begin
        else
          SetStatusText(clRed, 'Disconnected');
      end;
-     uisError: SetStatusText(clRed, Format('Error: %s', [TUserInterface.StateText]));
+     uisError: begin
+       FChainStatusText := TUserInterface.StateText;
+       SetStatusText(clRed, Format('Error: %s', [TUserInterface.StateText]));
+     end;
   end;
 
   // A disk restore owns the bank/mempool locks and may deliver UI progress.
@@ -589,6 +602,13 @@ begin
   if not Assigned(TUserInterface.Node) then Exit;
   S := TUserInterface.SynchronizationStatus;
   FDisplayedSynchronizationStatus := S;
+  if S.StorageFailure.HasFailure then begin
+    FChainStatusText := FormatStorageFailure(S.StorageFailure);
+    // Details and the banner use the same error projection; the footer keeps
+    // the underlying diagnostic without a duplicated status prefix.
+    SetStatusText(clRed,'Error: '+FChainStatusText);
+    Exit;
+  end;
   FHasNodeSnapshot := True;
   FSnapshotBlockCount := S.LocalBlockCount;
   if S.LocalBlockCount > 0 then begin
@@ -640,7 +660,13 @@ begin
   if FSnapshotStopping or (not TUserInterface.Started) or TUserInterface.Stopping then Exit;
   UpdateNodeStatus;
   UpdateMiningStatus;
-  if TUserInterface.State in [uisLoading, uisError] then Exit;
+  if TUserInterface.State=uisError then begin
+    FDisplayedSynchronizationStatus := TUserInterface.SynchronizationStatus;
+    FSnapshotPending := False;
+    if Assigned(FSnapshotWorker) then TSyncNodeSnapshotThread(FSnapshotWorker).Cancel;
+    Exit;
+  end;
+  if TUserInterface.State=uisLoading then Exit;
   ApplySynchronizationStatus;
   FSnapshotChanged.Invoke(Self);
   S := TUserInterface.SynchronizationStatus;

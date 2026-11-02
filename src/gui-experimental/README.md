@@ -63,10 +63,11 @@ skips that pool's operation scan. Queries run on the grid's background worker,
 which displays the loading card until the requested result is ready.
 
 A new account or history range cooperatively cancels the previous traversal;
-its canceled result cannot replace the current selection. Both main-wallet grids
-use immediate refresh admission (`temNone`): account changes do not wait for a
-quiet interval. An active worker retires cooperatively before the latest request
-runs. The loading card clears when that current page is published.
+its canceled result cannot replace the current selection. The accounts grid
+refreshes immediately. The operations grid uses its owned 250 ms burst throttle
+to fetch the latest retained request after that quiet interval. Each new request
+restarts the wait. An active worker retires cooperatively before the latest
+query runs, and the loading card clears when that page is published.
 
 The [history adapter](core.utils/UDataSources.pas) currently collects the matching
 pending and stored records before display paging, retaining exact totals and a
@@ -176,9 +177,10 @@ begin
 end;
 ```
 
-Both [main-wallet grids](UCTRLWallet.pas) use immediate refresh admission without
-a quiet-period timer. The shared [visual grid](../libraries/sphere10/UVisualGrid.pas)
-coalesces requests while busy and queues worker completion directly to the UI.
+The [accounts grid](UCTRLWallet.pas) admits refreshes immediately; its operations
+grid uses the existing 250 ms trailing throttle to combine rapid selections.
+The shared [visual grid](../libraries/sphere10/UVisualGrid.pas) retains the latest
+request while busy and queues worker completion directly to the UI.
 Overview totals start from page completion and publish through their
 [data source's completion event](core.utils/UDataSources.pas). Animation,
 delayed layout and existing Explorer task-completion timers are separate.
@@ -198,7 +200,7 @@ cannot depend on a later polling tick. Classic forms do not subscribe to it.
 ```mermaid
 flowchart LR
     node["Block / operation events"] --> requests["Wallet refresh requests"]
-    requests --> admission["Immediate admission; retain latest while busy"]
+    requests --> admission["Accounts: immediate; operations: 250 ms quiet"]
     admission -->|"Not suspended; worker available"| fetch["Page worker"]
     fetch -->|"Queued completion"| page["Publish page once"]
     facts["Node connectivity / selected target / transfers"] --> status["Cached synchronization status event"]
@@ -218,6 +220,7 @@ The node's synchronization states have explicit meanings:
 | `nssDisconnected` | No peers or physical backlog remain; load local pages even while behind. |
 | `nssIdle` | Connected, with no physical backlog (including retired-session work) and no selected target ahead. |
 | `nssSynchronizing` | Download/validation/application work remains, including received blocks after network-off, or a selected connected peer's target is ahead; suspend grid reads. |
+| `nssStorageError` | Persistence failed; pause synchronization and grid reads, retaining the first storage error until restart. |
 
 [`TNodeNotifyEvents.OnSynchronizationChanged`](../core/UNode.pas) delivers a typed
 status record on the main thread. Network producers only update facts and publish
@@ -362,10 +365,11 @@ modeless window's activation and keyboard focus.
   account's rows and balance context. The history grid and full-query account
   fallback reuse raw and filtered/sorted snapshots for subsequent pages.
   Account/history-depth settings remain responsive during background fetching.
-- Both main-wallet grids explicitly use `RefreshThrottle.Mode = temNone`.
-  Account selection, filtering, paging and backend updates have no artificial
-  quiet-time delay. Busy or hidden grids retain the latest page/filter/size
-  request; an older canceled worker retires before its replacement starts.
+- The accounts grid refreshes immediately. The operations grid coalesces requests
+  through `RefreshThrottle` after 250 ms without another request. Every new
+  selection, filter, page or size request restarts that wait. Busy or hidden grids
+  retain the latest input; an older canceled worker retires before its replacement
+  starts. Loading has no additional minimum display time.
 - Internal result/layout replay is not a new client input. Complete first-page
   results can be reused after capacity changes. Wallet history membership is
   resolved on its worker. Overview aggregate work pauses during node
@@ -485,14 +489,22 @@ before atomically replacing the previous file. The saver captures a final dirty
 batch during shutdown. Failed publication preserves the previous complete file
 and reports the I/O error; workers are joined without forced thread termination.
 
+Safebox checkpoints also publish through a validated temporary file and atomic
+replacement. A failed save preserves the previous checkpoint. Startup skips
+invalid candidates and restores the newest eligible valid copy; if none is valid,
+it reports the error without replacing the chain with an empty one. A storage
+failure pauses synchronization until restart and displays its stage, file and
+cause. Later progress or network toggles cannot clear that error.
+
 ## Regression tests
 
-Current Windows validation includes 525 passing FPCUnit cases, 56 current native
-core/transport/history cases in each actual compiler, 14 formatter cases and 36
-Delphi literal checks. Four actual main-form processes cover sparse and dense
-copied data in both compilers, with real source queries, received-block draining,
-coherent committed footer facts and final stored-block reopen. See the
-[test guide](../tests/experimental/README.md) for scope and historical limits.
+The suites cover wallet operations, shared framework utilities, source queries,
+received-block draining, committed footer facts and stored-block recovery. The
+storage regression group contains 27 cases, and the node lifecycle group contains
+17; both run in FPCUnit and dedicated Delphi/FPC probes. Native backlog checks
+include a two-batch download with a quiet gap, keeping both synchronization cards
+visible until the selected target is reached. See the
+[test guide](../tests/experimental/README.md) for entry points and fixture limits.
 
 From the repository root:
 

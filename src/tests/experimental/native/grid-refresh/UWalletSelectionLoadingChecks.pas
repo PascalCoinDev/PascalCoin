@@ -271,10 +271,12 @@ var
   LStarted, LUntil: UInt64;
 begin
   LGrid := AMain.MockWallet.OperationsGrid;
-  AwaitGrid(AMain.MockWallet.AccountsGrid, False);
-  AwaitGrid(LGrid, False);
+  AwaitGrid(AMain.MockWallet.AccountsGrid, True);
+  AwaitGrid(LGrid, True);
   Require((AMain.MockWallet.AccountsGrid.RefreshThrottle.Mode = temNone) and
-    (LGrid.RefreshThrottle.Mode = temNone), 'Wallet grids must disable refresh throttling');
+    (LGrid.RefreshThrottle.Mode = temNotifyOnEventBurstFinished) and
+    (LGrid.RefreshThrottle.Interval.TotalMilliseconds=250),
+    'Accounts must admit immediately; operations require 250 ms burst silence');
   AMain.MockWallet.OperationsSource.OperationsPerAccount := 268;
   AMain.Model.DelayMilliseconds := 0;
   LPanel := TPanel(LGrid.FindComponent('LoadingOverlay'));
@@ -286,21 +288,26 @@ begin
     AMain.Model.GateFetches := True;
     try
       ClickAccount(AMain, LAccount);
+      PumpFor(100);
+      Require(LGrid.RefreshThrottle.Waiting and
+        (AMain.Model.Metrics(mdkOperations).FetchCount=LBefore),
+        'Native selection queried operations before the 250 ms quiet interval');
       LUntil := GetTickCount64 + 1000;
       while (AMain.Model.Metrics(mdkOperations).FetchCount = LBefore) and
         (GetTickCount64 < LUntil) do
         PumpFor(5);
       Require(LGrid.IsUpdating and
         (AMain.Model.Metrics(mdkOperations).FetchCount = LBefore + 1),
-        'Native selection did not immediately admit exactly one real provider');
+        'Native selection did not admit exactly one provider after its quiet interval');
+      Require(GetTickCount64-LStarted>=250,'Native selection bypassed operations quiet admission');
       PumpFor(250);
       Require(LPanel.Visible and LCircle.Active,
         'A genuinely held selected-account query has no animated loading feedback');
-      Require(not LGrid.RefreshThrottle.Waiting, 'Wallet selection started a quiet timer');
+      Require(not LGrid.RefreshThrottle.Waiting, 'The operations quiet timer did not finish before its held provider ran');
     finally
       AMain.Model.ReleaseFetches;
     end;
-    AwaitGrid(LGrid, False);
+    AwaitGrid(LGrid, True);
     Require(GetTickCount64 - LStarted < 2000,
       'Fast selected-account history waited for an obsolete throttle interval');
     RequireSelectedAccount(AMain, Cardinal(LAccount));
@@ -310,7 +317,7 @@ begin
     Require((AMain.Model.Metrics(mdkOperations).FetchCount = LBefore + 1) and
       not LPanel.Visible and not LCircle.Active,
       'Selection completion duplicated its query or reopened loading');
-    Log(ALogPath, Format('PASS immediate native account=%d: 268 operations, accepted page=%d rows, completion=%dms, loading cleared without quiet wait',
+    Log(ALogPath, Format('PASS native account=%d after 250 ms quiet: 268 operations, accepted page=%d rows, completion=%dms, loading cleared on publication',
       [LAccount, LGrid.RowCount, GetTickCount64 - LStarted]));
   end;
 end;
@@ -328,7 +335,8 @@ var
     LPrefix: String;
   begin
     Result := False;
-    if A.IsUpdating or O.IsUpdating or (A.RowCount = 0) or (O.RowCount = 0) then
+    if A.IsUpdating or O.IsUpdating or A.RefreshThrottle.Waiting or O.RefreshThrottle.Waiting or
+      (A.RowCount = 0) or (O.RowCount = 0) then
       Exit;
     LPrefix := 'mock revision=' + IntToStr(LRevision) + ' ';
     Result := (Pos(LPrefix, String(A.Rows[0].Name)) = 1) and
@@ -342,7 +350,7 @@ var
       PumpFor(5);
     Require(CurrentRevisionVisible, 'Real wallet grids did not publish the latest backend revision');
     Require(not A.RefreshThrottle.Waiting and not O.RefreshThrottle.Waiting,
-      'A wallet backend event started an obsolete quiet timer');
+      'The current pages did not settle after their configured operations quiet interval');
   end;
 
   procedure RequireSyncCards;
@@ -364,8 +372,9 @@ begin
   AMain.MockWallet.OperationsSource.OperationsPerAccount := 268;
   AwaitGrid(A, False);
   AwaitGrid(O, False);
-  Require((A.RefreshThrottle.Mode = temNone) and (O.RefreshThrottle.Mode = temNone),
-    'Lifecycle checks require the product unthrottled configuration');
+  Require((A.RefreshThrottle.Mode = temNone) and (O.RefreshThrottle.Mode = temNotifyOnEventBurstFinished) and
+    (O.RefreshThrottle.Interval.TotalMilliseconds=250),
+    'Lifecycle checks require immediate accounts and 250 ms quiet operations');
   LBeforeA := AMain.Model.Metrics(mdkAccounts).FetchCount;
   LBeforeO := AMain.Model.Metrics(mdkOperations).FetchCount;
   AMain.Model.Advance(200);
@@ -377,7 +386,7 @@ begin
   Require((AMain.Model.Metrics(mdkAccounts).FetchCount > LBeforeA) and
     (AMain.Model.Metrics(mdkOperations).FetchCount > LBeforeO),
     'An idle backend event did not reach both production providers');
-  Log(ALogPath, 'PASS idle backend event immediately refreshes both actual wallet grids');
+  Log(ALogPath, 'PASS idle backend event refreshes accounts immediately and operations after 250 ms quiet');
 
   // Ordinary backend inputs coalesce while one real provider is held. They do
   // not start parallel workers, and completion admits one latest pending page.
@@ -413,7 +422,7 @@ begin
   Require((AMain.Model.Metrics(mdkAccounts).FetchCount = LBeforeA + 2) and
     (AMain.Model.Metrics(mdkOperations).FetchCount = LBeforeO + 2),
     'Held backend inputs did not coalesce to exactly one latest replay');
-  Log(ALogPath, 'PASS held old providers retain one latest backend request without timer admission or parallel queries');
+  Log(ALogPath, 'PASS held old providers retain one latest backend request after operations quiet admission without parallel queries');
 
   LScopeActive := False;
   try
@@ -458,7 +467,7 @@ begin
     not TPanel(O.FindComponent('LoadingOverlay')).Visible,
     'Current resumed pages retain an ordinary/manual/error loading card');
   PumpFor(200);
-  Log(ALogPath, 'PASS node completion immediately publishes the latest revision/page and releases both synchronization cards');
+  Log(ALogPath, 'PASS node completion publishes the latest revision/page, settles operations quiet admission and releases synchronization cards');
 end;
 
 procedure CheckWalletSelectionLoadingAndBanner(AMain: TMockMainForm; const ALogPath: String);

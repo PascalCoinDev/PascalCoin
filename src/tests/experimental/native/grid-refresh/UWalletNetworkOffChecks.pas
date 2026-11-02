@@ -183,6 +183,7 @@ begin
   repeat
     Pump(10);
     if Grid(mdkAccounts).IsUpdating or Grid(mdkOperations).IsUpdating or
+      Grid(mdkAccounts).RefreshThrottle.Waiting or Grid(mdkOperations).RefreshThrottle.Waiting or
       (FModel.Metrics(mdkAccounts).ActiveFetches <> 0) or
       (FModel.Metrics(mdkOperations).ActiveFetches <> 0) or
       (FModel.Metrics(mdkAccounts).FetchCount <> LLastAccounts) or
@@ -223,10 +224,13 @@ end;
 
 procedure TNetworkOffChecks.CheckGridState(AKind: TMockDataKind);
 begin
-  Require(Grid(AKind).RefreshThrottle.Mode = temNone,
-    'The actual wallet must not restore its removed quiet-time policy');
-  Require(not Grid(AKind).RefreshThrottle.Waiting,
-    'Wallet input must not create a throttle waiting state');
+  if AKind=mdkAccounts then begin
+    Require(Grid(AKind).RefreshThrottle.Mode=temNone,'The accounts grid must admit immediately');
+    Require(not Grid(AKind).RefreshThrottle.Waiting,'Accounts must not enter a quiet-period wait');
+  end else
+    Require((Grid(AKind).RefreshThrottle.Mode=temNotifyOnEventBurstFinished) and
+      (Grid(AKind).RefreshThrottle.Interval.TotalMilliseconds=250),
+      'The operations grid must use its existing 250 ms trailing quiet interval');
   Require(Grid(AKind).LoadingVisible =
     (TUserInterface.SynchronizationStatus.State=nssSynchronizing),
     'The manual card must follow actual node synchronization');
@@ -327,9 +331,11 @@ begin
   LOperations := FModel.Metrics(mdkOperations).FetchCount;
   LLastInput := Burst(1000);
   CheckNodePresentation;
-  Require((FMain.MockWallet.AccountRefreshCount > LAccountAdmissions) and
-    (FMain.MockWallet.OperationRefreshCount > LOperationAdmissions),
-    'Busy grids must record new backend inputs without a quiet-time wait');
+  Require(FMain.MockWallet.AccountRefreshCount>LAccountAdmissions,
+    'Busy accounts must record each delivered backend input immediately');
+  Require((FMain.MockWallet.OperationRefreshCount=LOperationAdmissions) and
+    Grid(mdkOperations).RefreshThrottle.Waiting,
+    'Repeated backend input must restart operations silence instead of firing during the burst');
   ClickConnectivity(false);
   Pump(250);
   Require((FModel.Metrics(mdkAccounts).FetchCount = LAccounts) and
@@ -341,7 +347,7 @@ begin
     (FModel.Metrics(mdkOperations).FetchCount = LOperations + 1),
     'Worker retirement must issue one latest coalesced page per grid');
   Require(GetTickCount64 - LLastInput < 2500,
-    'Busy-worker retirement imposed a quiet-time delay on the latest pages');
+    'Busy-worker retirement added an obsolete multi-second delay to the latest pages');
   CheckNodePresentation;
   CheckRows(1006);
   CheckConnections;
@@ -362,7 +368,7 @@ begin
     (FModel.Metrics(mdkOperations).FetchCount = LOperations + 1),
     'A completed independent input must not manufacture another page query');
   CheckNodePresentation;
-  Log('PASS actual network-off: busy-worker coalescing, immediate latest pages and independent inputs');
+  Log('PASS actual network-off: immediate accounts, 250 ms quiet operations, busy-worker coalescing and independent inputs');
 end;
 
 procedure TNetworkOffChecks.ActiveWorkThenNetworkOff;
@@ -409,8 +415,9 @@ begin
     FWorkActive := false;
   end;
   WaitForFetches;
+  WaitForRefresh(LAccountAdmissions+1,LOperationAdmissions+1,1800);
   Require(GetTickCount64 - LEndTick < 1800,
-    'Backlog completion must resume the retained pages immediately');
+    'Backlog completion must resume retained pages without an obsolete multi-second delay');
   CheckNodePresentation;
   Require(not Grid(mdkAccounts).LoadingVisible and not Grid(mdkOperations).LoadingVisible,
     'Both manual cards must clear when physical processing finishes');

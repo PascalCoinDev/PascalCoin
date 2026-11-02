@@ -104,10 +104,13 @@ type
     procedure miSendPASCClick(Sender: TObject);
     procedure miEnlistAccountsForSaleClick(Sender: TObject);
     procedure miDelistAccountsFromSaleClick(Sender: TObject);
+  private type
+    TAccountKeyBoxList = TObjectList<TBox<TAccountKey>>;
   private
     FNodeNotifyEvents: TNodeNotifyEvents;
     FStopping: Boolean;
-    FSynchronizing: Boolean;
+    FQueriesSuspended: Boolean;
+    FStorageErrorDisplayed: Boolean;
     FAccountsMode: TCTRLWalletAccountsMode;
     FOperationsMode: TCTRLWalletOperationsMode;
     FOperationsHistory: TCTRLWalletOperationsHistory;
@@ -116,8 +119,10 @@ type
     FOperationsGrid: TVisualGrid;
     FOperationDetailsAction: TAction;
     FOperationDetailsButton: TBitBtn;
+    FLayoutOperationActionsActive, FScalingOperationActions: Boolean;
     FBalance : TBalanceSummary;
     FHasBalanceSummary: Boolean;
+    FAccountKeyBoxes: TAccountKeyBoxList;
     FAccountsDataSource: TMyAccountsDataSource;
     FOperationsDataSource: TAccountsOperationsDataSource;
     function TryGetSelectedOperationHash(out AOperationHash: String): Boolean;
@@ -131,11 +136,17 @@ type
     procedure OnSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
     procedure OnBalanceSummaryCompleted(Sender: TObject);
     procedure UpdateOperationDetailsAction(Sender: TObject);
+    procedure LayoutOperationActions(Sender: TObject);
     procedure OnOperationsGridFinishedUpdating(Sender: TObject);
     function GetSelectedAccounts : TArray<Cardinal>;
     procedure LayoutOverviewLabels;
     procedure CM_PrivateKeysChanged(var AMsg: TMessage); message CM_WalletControlKeysChanged;
   protected
+    {$IFDEF FPC}
+    procedure ChangeScale(M, D: Integer); override;
+    {$ELSE}
+    procedure ChangeScale(M, D: Integer; isDpiChange: Boolean); override;
+    {$ENDIF}
     // Keep source configuration, invalidation and grid wiring in this control;
     // descendants can supply another typed backend through the same lifecycle.
     function CreateAccountsDataSource: TMyAccountsDataSource; virtual;
@@ -165,7 +176,7 @@ implementation
 
 uses
   UUserInterface, UCellRenderers, UBlockChain, UWallet, UCrypto,
-  UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections, UWIZOperation,
+  Generics.Defaults, UCommon.Data, UCommon.Collections, UWIZOperation,
   Variants, Clipbrd;
 
 type
@@ -193,6 +204,10 @@ begin
     Align := alLeft;
   end;
   {$ENDIF}
+  // The combo borrows its key boxes. Its native HWND can be destroyed before
+  // this embedded form, so ownership must survive outside Items.Objects.
+  FAccountKeyBoxes := TAccountKeyBoxList(AutoDispose(TAccountKeyBoxList.Create(True)));
+
   // event registrations
   FNodeNotifyEvents := TNodeNotifyEvents.Create(self);
   FNodeNotifyEvents.WatchKeys := TWallet.Keys.AccountsKeyList;
@@ -384,10 +399,13 @@ begin
   FOperationDetailsButton := TBitBtn.Create(Self);
   FOperationDetailsButton.Name := 'OperationDetailsButton';
   FOperationDetailsButton.Parent := LOperationActions;
-  FOperationDetailsButton.Align := alRight;
-  FOperationDetailsButton.Width := LOperationActions.Height;
+  FOperationDetailsButton.Align := alNone;
+  FOperationDetailsButton.Anchors := [akLeft,akTop];
+  FOperationDetailsButton.Width := cmbDuration.Height;
   FOperationDetailsButton.Action := FOperationDetailsAction;
   FOperationDetailsButton.Caption := '';
+  FOperationDetailsButton.Margin := -1;
+  FOperationDetailsButton.Spacing := 0;
   FOperationDetailsButton.ShowHint := True;
   // A small portable information glyph needs no extra runtime image file.
   with FOperationDetailsButton.Glyph do begin
@@ -408,6 +426,8 @@ begin
   end;
   LOperationActions.Width := cmbDuration.Width + 4 + FOperationDetailsButton.Width;
   FOperationsGrid.WidgetControl := LOperationActions;
+  LOperationActions.OnResize := LayoutOperationActions;
+  LayoutOperationActions(LOperationActions);
   cmbDuration.Items.BeginUpdate;
   try
     cmbDuration.AddItem('7 Days', TObject(woh7Days));
@@ -418,10 +438,11 @@ begin
     cmbDuration.ItemIndex := 0;
   end;
   cmbDuration.OnChange := cmbDurationChange;
-  // Node synchronization suspends both grids until local data is ready.
-  // Outside that lifecycle, selections and updates need no quiet-time delay.
+  // Node lifecycle owns query suspension. The operations grid's existing
+  // throttle coalesces rapid selection/filter requests to their latest input.
   FAccountsGrid.RefreshThrottle.Mode := temNone;
-  FOperationsGrid.RefreshThrottle.Mode := temNone;
+  FOperationsGrid.RefreshThrottle.Interval := TTimeSpan.FromMilliseconds(250);
+  FOperationsGrid.RefreshThrottle.Mode := temNotifyOnEventBurstFinished;
   OnSynchronizationChanged(Self, TUserInterface.SynchronizationStatus);
   // VCL does not publish the group box's resize event for form resources.
   TOverviewGroupBoxAccess(GroupBox1).OnResize := FormResize;
@@ -430,9 +451,6 @@ begin
 end;
 
 procedure TCTRLWallet.FormDestroy(Sender: TObject);
-var
-  i: Integer;
-  disposed: TDisposables;
 begin
   FStopping := True;
   if Assigned(FAccountsDataSource) then
@@ -445,17 +463,15 @@ begin
     FNodeNotifyEvents.OnOperationsChanged := nil;
     FNodeNotifyEvents.OnSynchronizationChanged := nil;
   end;
-  if Assigned(cbAccounts) then begin
-    for i := 0 to cbAccounts.Items.Count - 1 do
-      disposed.AddObject(cbAccounts.Items.Objects[i]);
-    cbAccounts.Items.Clear;
-  end;
+  // AutoDispose releases the owning key-box list even after VCL has already
+  // destroyed the ancestor HWND and discarded the combo's native item data.
 end;
 
 procedure TCTRLWallet.FormResize(Sender: TObject);
 begin
   if not Assigned(FAccountsGrid) or not Assigned(FOperationsGrid) then Exit;
   LayoutOverviewLabels;
+  LayoutOperationActions(Self);
   // Grid data-sources are set here on "first form resize" in order to avoid
   // excessive datasource fetching during initialising sequence. Note, grid
   // refreshes on size changed, blockchain activity and when assigned to grid
@@ -464,6 +480,52 @@ begin
 
   if NOT Assigned(FOperationsGrid.DataSource) then
     FOperationsGrid.DataSource := FOperationsDataSource;
+end;
+
+{$IFDEF FPC}
+procedure TCTRLWallet.ChangeScale(M, D: Integer);
+{$ELSE}
+procedure TCTRLWallet.ChangeScale(M, D: Integer; isDpiChange: Boolean);
+{$ENDIF}
+var LWasScaling: Boolean;
+begin
+  LWasScaling := FScalingOperationActions;
+  FScalingOperationActions := True;
+  try
+    {$IFDEF FPC}
+    inherited ChangeScale(M,D);
+    {$ELSE}
+    inherited ChangeScale(M,D,isDpiChange);
+    {$ENDIF}
+  finally
+    FScalingOperationActions := LWasScaling;
+  end;
+  if not FScalingOperationActions then LayoutOperationActions(Self);
+end;
+
+procedure TCTRLWallet.LayoutOperationActions(Sender: TObject);
+var LHistory: TComboBox; LPanel: TPanel; LHeight, LLeft: Integer;
+begin
+  if FStopping or FLayoutOperationActionsActive or FScalingOperationActions or
+    not Assigned(FOperationsGrid) or not Assigned(FOperationDetailsButton) then Exit;
+  if not (FOperationDetailsButton.Parent is TPanel) then Exit;
+  LHistory := TComboBox(FOperationsGrid.FindComponent('OperationsHistory'));
+  if not Assigned(LHistory) then Exit;
+  LPanel := TPanel(FOperationDetailsButton.Parent);
+  FLayoutOperationActionsActive := True;
+  LPanel.DisableAlign;
+  try
+    // Native combo boxes choose their own height. Match the button to that
+    // actual height instead of stretching it to the header container.
+    LHeight := LHistory.Height;
+    LLeft := LHistory.Left+LHistory.Width+Max(1,MulDiv(4,PixelsPerInch,96));
+    FOperationDetailsButton.SetBounds(LLeft,LHistory.Top,LHeight,LHeight);
+    LPanel.Height := LHistory.Top+LHeight;
+    LPanel.Width := LLeft+LHeight;
+  finally
+    LPanel.EnableAlign;
+    FLayoutOperationActionsActive := False;
+  end;
 end;
 
 procedure TCTRLWallet.LayoutOverviewLabels;
@@ -528,9 +590,9 @@ end;
 
 procedure TCTRLWallet.RefreshTotals;
 begin
-  // Synchronization owns the pause; completed pages and summary events can
-  // update the overview immediately once that lifecycle has finished.
-  if FSynchronizing then Exit;
+  // The node owns query suspension. A storage error retains the last totals
+  // until restart; ordinary synchronization resumes completed snapshots.
+  if FQueriesSuspended then Exit;
   if FAccountsDataSource.TryGetBalanceSummary(FBalance) then begin
     FHasBalanceSummary := True;
     lblTotalPASC.Caption := TAccountComp.FormatMoney(FBalance.TotalPASC);
@@ -550,7 +612,20 @@ var
   last_key: TAccountKey;
   key: TWalletKey;
   str: String;
-  disposed: TDisposables;
+
+  procedure AddKey(const ACaption: String; const AKey: TAccountKey);
+  var LBox: TBox<TAccountKey>;
+  begin
+    LBox := TBox<TAccountKey>.Create(AKey);
+    try
+      FAccountKeyBoxes.Add(LBox);
+    except
+      LBox.Free;
+      raise;
+    end;
+    cbAccounts.Items.AddObject(ACaption,LBox);
+  end;
+
 begin
   // determine current selection
   if cbAccounts.ItemIndex >= 1 then begin
@@ -571,10 +646,10 @@ begin
   // update combo items
   cbAccounts.items.BeginUpdate;
   try
-    // free existing items
-    for i := 0 to cbAccounts.Items.Count - 1 do
-      disposed.AddObject(cbAccounts.Items.Objects[i]);
+    // Clear borrowed references before releasing their independently owned boxes.
     cbAccounts.Items.Clear;
+    FAccountKeyBoxes.Clear;
+    AddKey('Show All',Default(TAccountKey));
     // add new items
     for i := 0 to TWallet.Keys.Count - 1 do begin
       // get i'th key
@@ -588,10 +663,9 @@ begin
       end;
       if not Assigned(key.PrivateKey) then
         str := str + '(*)';
-      cbAccounts.Items.AddObject(str, TBox<TAccountKey>.Create(key.AccountKey));
+      AddKey(str,key.AccountKey);
     end;
-    cbAccounts.Items.InsertObject(0, 'Show All', TBox<TAccountKey>.Create);
-    cbAccounts.Items.AddObject('Get An Account', TBox<TAccountKey>.Create);
+    AddKey('Get An Account',Default(TAccountKey));
   finally
     cbAccounts.Items.EndUpdate;
   end;
@@ -767,27 +841,41 @@ begin
 end;
 
 procedure TCTRLWallet.OnSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
-var LWasSynchronizing: Boolean;
+var LWasSuspended, LStorageError, LCardChanged: Boolean;
+  LTitle, LSubtitle: String;
 begin
   if FStopping or TUserInterface.Stopping then Exit;
-  LWasSynchronizing := FSynchronizing;
-  FSynchronizing := AStatus.State = nssSynchronizing;
+  LWasSuspended := FQueriesSuspended;
+  // A queued older status cannot resume reads after the first storage error.
+  // Only a new control/node lifetime may clear this restart-only suspension.
+  LStorageError := FStorageErrorDisplayed or AStatus.StorageFailure.HasFailure or
+    (AStatus.State=nssStorageError);
+  LCardChanged := (not LWasSuspended) or (FStorageErrorDisplayed<>LStorageError);
+  FStorageErrorDisplayed := LStorageError;
+  FQueriesSuspended := LStorageError or (AStatus.State=nssSynchronizing);
   if not Assigned(FAccountsGrid) or not Assigned(FOperationsGrid) then Exit;
-  if FSynchronizing then begin
+  if FQueriesSuspended then begin
     FAccountsGrid.RefreshSuspended := True;
     FOperationsGrid.RefreshSuspended := True;
-    if not LWasSynchronizing then begin
+    if LCardChanged then begin
       FAccountsDataSource.InvalidateWalletData;
       FAccountsDataSource.CancelBalanceSummary;
       FOperationsDataSource.InvalidateWalletAccounts;
     end;
-    if not FAccountsGrid.LoadingVisible then
-      FAccountsGrid.ShowLoading('Please Wait', 'Synchronizing');
-    if not FOperationsGrid.LoadingVisible then
-      FOperationsGrid.ShowLoading('Please Wait', 'Synchronizing');
-  end else if LWasSynchronizing then begin
-    // Resume one latest request after the node finishes its local work.
-    // No quiet timer may delay the page or keep its loading card visible.
+    if LStorageError then begin
+      LTitle := 'Storage error';
+      LSubtitle := 'Restart required';
+    end else begin
+      LTitle := 'Please Wait';
+      LSubtitle := 'Synchronizing';
+    end;
+    if LCardChanged or not FAccountsGrid.LoadingVisible then
+      FAccountsGrid.ShowLoading(LTitle,LSubtitle);
+    if LCardChanged or not FOperationsGrid.LoadingVisible then
+      FOperationsGrid.ShowLoading(LTitle,LSubtitle);
+  end else if LWasSuspended then begin
+    // Resume one latest request after ordinary synchronization, never after a
+    // storage failure. Its retained rows remain unavailable until restart.
     FAccountsGrid.HideLoading;
     FOperationsGrid.HideLoading;
     FAccountsGrid.RefreshSuspended := False;
@@ -795,6 +883,7 @@ begin
   end;
   UpdateOperationDetailsAction(Self);
 end;
+
 
 procedure TCTRLWallet.OnBalanceSummaryCompleted(Sender: TObject);
 begin
@@ -963,10 +1052,10 @@ var
 begin
   Result := False;
   AOperationHash := '';
-  if FStopping or TUserInterface.Stopping or FSynchronizing or
+  if FStopping or TUserInterface.Stopping or FQueriesSuspended or
     not Assigned(FOperationsGrid) then Exit;
   if FOperationsGrid.IsUpdating or FOperationsGrid.LoadingVisible or
-    FOperationsGrid.RefreshSuspended then Exit;
+    FOperationsGrid.RefreshThrottle.Waiting or FOperationsGrid.RefreshSuspended then Exit;
   rows := FOperationsGrid.SelectedRows;
   if Length(rows) <> 1 then exit;
   value := rows[0].__KEY;

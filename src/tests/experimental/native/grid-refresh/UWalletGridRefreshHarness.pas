@@ -445,7 +445,7 @@ begin
         else if SameText(GetEnvironmentVariable('PASCAL_WALLET_REFRESH_LIFECYCLE_ONLY'), '1') then
         begin
           CheckWalletRefreshLifecycle(FMain, ChangeFileExt(FLogPath, '.refresh-lifecycle.log'));
-          LMarker := 'PASS actual wallet node lifecycle and immediate refresh checks';
+          LMarker := 'PASS actual wallet node lifecycle and 250 ms operations refresh checks';
         end
         else if SameText(GetEnvironmentVariable('PASCAL_WALLET_SELECTION_COMPLETION_ONLY'), '1') then
         begin
@@ -463,7 +463,7 @@ begin
           CheckWalletSelectionCompletion(FMain, ChangeFileExt(FLogPath, '.selection-completion.log'));
           CheckConsecutiveNativeSelections(FMain, ChangeFileExt(FLogPath, '.consecutive-selection.log'));
           CheckWalletRefreshLifecycle(FMain, ChangeFileExt(FLogPath, '.refresh-lifecycle.log'));
-          LMarker := 'PASS actual wallet immediate selection, background coalescing and synchronization lifecycle checks';
+          LMarker := 'PASS actual wallet 250 ms operations admission, background coalescing and synchronization lifecycle checks';
         end;
         FPassed := True;
         AutomaticPassed := True;

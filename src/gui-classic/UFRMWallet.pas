@@ -296,6 +296,7 @@ type
     Procedure UpdateOperations;
     Procedure UpdateConfigChanged(Sender:TObject);
     Procedure UpdateNodeStatus;
+    procedure OnNodeSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
     Procedure UpdateAvailableConnections;
     procedure Activate; override;
     Function ForceMining : Boolean; virtual;
@@ -1363,6 +1364,7 @@ begin
   TSettings.OnChanged.Add(UpdateConfigChanged);
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnBlocksChanged := OnNewAccount;
+  FNodeNotifyEvents.OnSynchronizationChanged := OnNodeSynchronizationChanged;
   FNodeNotifyEvents.OnNodeMessageEvent := OnNodeMessageEvent;
   FNodeNotifyEvents.OnKeyActivity := OnNodeKeysActivity;
   FAccountsGrid := TAccountsGrid.Create(Self);
@@ -1510,6 +1512,7 @@ begin
   //
   step := 'Assigning nil events';
   FLog.OnNewLog :=Nil;
+  FNodeNotifyEvents.OnSynchronizationChanged := Nil;
   FNodeNotifyEvents.Node := Nil;
   FOperationsAccountGrid.Node := Nil;
   FOperationsExplorerGrid.Node := Nil;
@@ -2654,6 +2657,10 @@ begin
   OnNetStatisticsChanged(Nil);
   if Assigned(FNode) then begin
     LSynchronization := FNode.GetSynchronizationStatus;
+    if LSynchronization.StorageFailure.HasFailure then begin
+      StatusBar.Panels[2].Text := FormatStorageFailure(LSynchronization.StorageFailure);
+      Exit;
+    end;
     if not LSynchronization.PendingOperationsAvailable then begin
       StatusBar.Panels[2].Text := Format('Blocks: %d | Last account time:%s',[
         LSynchronization.LocalBlockCount,FormatDateTime('dd/mm/yyyy hh:nn:ss',
@@ -2673,13 +2680,28 @@ begin
   end;
 end;
 
+procedure TFRMWallet.OnNodeSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
+begin
+  if (csDestroying in ComponentState) or not Assigned(FNode) then Exit;
+  // Failure visibility is event-driven. Keep classic's ordinary status/update
+  // behavior unchanged, while reporting storage faults before any timer tick.
+  if AStatus.StorageFailure.HasFailure then UpdateConnectionStatus;
+end;
+
 procedure TFRMWallet.UpdateNodeStatus;
 Var status, LBankDiagnostic : String;
   LProgress : TProgressInfo;
+  LStatus: TNodeSynchronizationStatus;
 begin
+  LStatus := Default(TNodeSynchronizationStatus);
+  if Assigned(FNode) then LStatus := FNode.GetSynchronizationStatus;
   If Not Assigned(FNode) then begin
     lblNodeStatus.Font.Color := clRed;
     lblNodeStatus.Caption := 'Initializing...';
+  end else if LStatus.StorageFailure.HasFailure then begin
+    // A failed local write is restart-only, never synchronization or peer loss.
+    lblNodeStatus.Font.Color := clRed;
+    lblNodeStatus.Caption := FormatStorageFailure(LStatus.StorageFailure);
   end else if not FNode.PendingOperationsAvailable then begin
     lblNodeStatus.Font.Color := clGreen;
     lblNodeStatus.Caption := 'Blockchain synchronization is active';

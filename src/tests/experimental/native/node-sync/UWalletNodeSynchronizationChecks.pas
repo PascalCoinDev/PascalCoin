@@ -13,11 +13,12 @@ function RunWalletNodeSynchronizationProbe: Integer;
 
 implementation
 
-uses Windows, Classes, SysUtils, SyncObjs, Forms, StdCtrls, Variants,
+uses Windows, Classes, SysUtils, SyncObjs, Forms, StdCtrls, Variants, Graphics, Controls, ExtCtrls, Types,
+  {$IFDEF FPC}LMessages,{$ENDIF}
   UNode, UNetProtocol, UThread, UAccounts, UPCDataTypes, UBlockChain, UCrypto,
   UConst, UOpTransaction, UWallet, UUserInterface, UWalletStartup,
   UFRMMainForm, UCTRLWallet, UDataSources, UCoreObjects, UCommon.Data,
-  UVisualGrid, UMemory, UPCAbstractMem;
+  UVisualGrid, UMemory, UCommon.UI, UPCAbstractMem, UProgressDisplay, UCTRLBanner;
 
 type
   TQueryKind = (qkPage, qkAggregate);
@@ -84,11 +85,15 @@ type
   TCoreSynchronizationMain = class(TFRMMainForm)
   private
     FObserved: TCoreQueryObservations;
+    FSynchronizeBeforeFirstWallet, FInitialSynchronizationActive: Boolean;
     function GetCoreWallet: TCoreSynchronizationWallet;
   protected
     function CreateWalletControl: TCTRLWallet; override;
   public
+    procedure EndInitialSynchronization;
     property Observed: TCoreQueryObservations read FObserved write FObserved;
+    property SynchronizeBeforeFirstWallet: Boolean read FSynchronizeBeforeFirstWallet write FSynchronizeBeforeFirstWallet;
+    property InitialSynchronizationActive: Boolean read FInitialSynchronizationActive;
     property CoreWallet: TCoreSynchronizationWallet read GetCoreWallet;
   end;
 
@@ -111,6 +116,19 @@ type
     destructor Destroy; override;
   end;
 
+  TStorageFailureReporter = class(TPCThread)
+  private
+    FNode: TNode;
+    FFileName: String;
+  protected
+    procedure BCExecute; override;
+  public
+    Completed: TEvent;
+    ErrorMessage: String;
+    constructor Create(ANode: TNode; const AFileName: String);
+    destructor Destroy; override;
+  end;
+
   TWalletNodeSynchronizationChecks = class
   private
     FMain: TCoreSynchronizationMain;
@@ -128,10 +146,14 @@ type
     procedure WaitIdle;
     procedure WaitSuspended(AValue: Boolean);
     procedure StartSynchronization;
+    procedure RequireBannerStatus(const ACheckpoint: String; const AExpected: String);
+    procedure RequireSynchronizationCards(const ACheckpoint: String; ACapture: Boolean = False);
+    procedure CheckInitialSynchronization;
     procedure CheckAccountCacheOrdering;
     procedure SeedActualAccounts;
     procedure ChooseSmallKey;
     procedure CheckHeldRead(AKind: TQueryKind);
+    procedure CheckStorageFailure;
   public
     constructor Create(const ALogPath: String);
     destructor Destroy; override;
@@ -293,7 +315,23 @@ end;
 
 function TCoreSynchronizationMain.CreateWalletControl: TCTRLWallet;
 begin
+  if FSynchronizeBeforeFirstWallet then begin
+    FSynchronizeBeforeFirstWallet := False;
+    // Enter the real node lifecycle before the lazy control can read its first
+    // snapshot. This covers manual loading requested before grid parenting.
+    TUserInterface.Node.BeginBlockChainUpdate;
+    FInitialSynchronizationActive := True;
+    Require(TUserInterface.Node.GetSynchronizationStatus.State=nssSynchronizing,
+      'The actual node must already be synchronizing before wallet construction');
+  end;
   Result := TCoreSynchronizationWallet.CreateObserved(Self,FObserved);
+end;
+
+procedure TCoreSynchronizationMain.EndInitialSynchronization;
+begin
+  if not FInitialSynchronizationActive then Exit;
+  FInitialSynchronizationActive := False;
+  TUserInterface.Node.EndBlockChainUpdate;
 end;
 
 function TCoreSynchronizationMain.GetCoreWallet: TCoreSynchronizationWallet;
@@ -359,6 +397,43 @@ begin
   finally Completed.SetEvent; end;
 end;
 
+constructor TStorageFailureReporter.Create(ANode: TNode; const AFileName: String);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FNode := ANode;
+  FFileName := AFileName;
+  Completed := TEvent.Create(Nil,True,False,'');
+end;
+
+destructor TStorageFailureReporter.Destroy;
+begin
+  Terminate;
+  if Suspended then Start;
+  WaitFor;
+  Completed.Free;
+  inherited;
+end;
+
+procedure TStorageFailureReporter.BCExecute;
+var LError: EWriteError;
+begin
+  try
+    try
+      LError := EWriteError.Create('Synthetic checkpoint write failure');
+      try
+        FNode.ReportStorageFailure(sfsCheckpoint,FFileName,LError);
+      finally
+        LError.Free;
+      end;
+    except
+      on E: Exception do ErrorMessage := E.ClassName+': '+E.Message;
+    end;
+  finally
+    Completed.SetEvent;
+  end;
+end;
+
 constructor TWalletNodeSynchronizationChecks.Create(const ALogPath: String);
 begin
   inherited Create;
@@ -376,6 +451,7 @@ destructor TWalletNodeSynchronizationChecks.Destroy;
 begin
   FObserved.ReleaseAll;
   if Assigned(FMain) then begin
+    FMain.EndInitialSynchronization;
     if TUserInterface.Started then
       TUserInterface.Node.SetSynchronizationNetworkActive(False);
     TUserInterface.ExitApplication;
@@ -465,6 +541,185 @@ begin
   LNode.SetSynchronizationPeerConnected(FPeer,True);
   LNode.SetSynchronizationTarget(FPeer,LNode.GetSynchronizationStatus.LocalBlockCount+20);
   WaitSuspended(True);
+end;
+
+procedure TWalletNodeSynchronizationChecks.RequireBannerStatus(const ACheckpoint: String; const AExpected: String);
+var LBanner: TCTRLBanner; I: Integer;
+begin
+  LBanner := nil;
+  for I := 0 to FMain.ComponentCount-1 do
+    if FMain.Components[I] is TCTRLBanner then
+      LBanner := TCTRLBanner(FMain.Components[I]);
+  Require(Assigned(LBanner),ACheckpoint+': the actual banner is missing');
+  Require(LBanner.NodeStatusLabel.Caption=AExpected,ACheckpoint+': the banner status caption changed');
+  // Do not call FormResize here: that would repair the missing deferred
+  // AutoSize notification instead of testing the real first-show event path.
+  Require(LBanner.NodeStatusLabel.Left=LBanner.lblClientVersion.Left+
+    LBanner.lblClientVersion.Width+LBanner.imLogo.Left,
+    ACheckpoint+': status did not follow the actual version label width');
+  Require((LBanner.NodeStatusLabel.Alignment=taLeftJustify) and
+    (LBanner.NodeStatusLabel.Font.Color=clWhite),ACheckpoint+': status must stay white and left aligned');
+end;
+
+procedure TWalletNodeSynchronizationChecks.RequireSynchronizationCards(const ACheckpoint: String; ACapture: Boolean);
+var
+  LGrids: array[0..1] of TVisualGrid;
+  LPanel: TPanel;
+  LCircle: TLoadingCircle;
+  LTitle, LSubtitle: TLabel;
+  LPanelBounds, LParentBounds: TRect;
+  LBitmap: TBitmap;
+  LBag: TDisposables;
+  I, X, Y, LInk: Integer;
+  {$IFDEF FPC}
+  LCanvasDC: HDC;
+
+  procedure PaintNativeControl(AControl: TWinControl);
+  var
+    LSaved, J: Integer;
+    LOrigin, LWindowOrigin: TPoint;
+    LWindow: TRect;
+  begin
+    if not AControl.HandleAllocated or not IsWindowVisible(AControl.Handle) then Exit;
+    LSaved := SaveDC(LCanvasDC);
+    try
+      GetWindowRect(AControl.Handle,LWindow);
+      LWindowOrigin := LPanel.ScreenToClient(LWindow.TopLeft);
+      SetViewportOrgEx(LCanvasDC,LWindowOrigin.X,LWindowOrigin.Y,nil);
+      SendMessage(AControl.Handle,WM_PRINT,WPARAM(LCanvasDC),PRF_NONCLIENT);
+      LOrigin := LPanel.ScreenToClient(AControl.ClientToScreen(Types.Point(0,0)));
+      SetViewportOrgEx(LCanvasDC,LOrigin.X,LOrigin.Y,nil);
+      IntersectClipRect(LCanvasDC,0,0,AControl.ClientWidth,AControl.ClientHeight);
+      AControl.Perform(LM_ERASEBKGND,WPARAM(LCanvasDC),0);
+      AControl.Perform(LM_PAINT,WPARAM(LCanvasDC),0);
+      if not (AControl is TCustomControl) then
+        SendMessage(AControl.Handle,WM_PRINTCLIENT,WPARAM(LCanvasDC),PRF_CLIENT);
+      for J := 0 to AControl.ControlCount-1 do
+        if AControl.Controls[J] is TWinControl then
+          PaintNativeControl(TWinControl(AControl.Controls[J]));
+    finally
+      RestoreDC(LCanvasDC,LSaved);
+    end;
+  end;
+  {$ENDIF}
+begin
+  Require(TUserInterface.Node.GetSynchronizationStatus.State=nssSynchronizing,
+    ACheckpoint+': the real node ended synchronization unexpectedly');
+  Require(FMain.Mode=wmWallet,ACheckpoint+': the wallet page is not selected');
+  Require(IsWindowVisible(FMain.Handle),ACheckpoint+': the actual main window is hidden');
+  LGrids[0] := FMain.CoreWallet.AccountsGrid;
+  LGrids[1] := FMain.CoreWallet.OperationsGrid;
+  for I := Low(LGrids) to High(LGrids) do begin
+    LPanel := LGrids[I].FindComponent('LoadingOverlay') as TPanel;
+    LCircle := LGrids[I].FindComponent('LoadingCircle') as TLoadingCircle;
+    LTitle := LGrids[I].FindComponent('LoadingStatus') as TLabel;
+    LSubtitle := LGrids[I].FindComponent('LoadingSubtitle') as TLabel;
+    Require(LGrids[I].RefreshSuspended and LGrids[I].LoadingVisible,
+      ACheckpoint+': grid '+IntToStr(I)+' lost its node-owned suspension/card');
+    Require(LPanel.Visible and LPanel.HandleAllocated and IsWindowVisible(LPanel.Handle),
+      ACheckpoint+': grid '+IntToStr(I)+' manual flag is set but the native overlay is hidden');
+    Require(LCircle.Active and LCircle.Visible and LCircle.HandleAllocated and IsWindowVisible(LCircle.Handle),
+      ACheckpoint+': grid '+IntToStr(I)+' native loading circle is not visible and active');
+    Require(LTitle.Visible and (LTitle.Caption='Please Wait') and
+      LSubtitle.Visible and (LSubtitle.Caption='Synchronizing'),
+      ACheckpoint+': grid '+IntToStr(I)+' synchronization captions are missing');
+    Require((LTitle.Width>0) and (LTitle.Height>0) and (LSubtitle.Width>0) and (LSubtitle.Height>0),
+      ACheckpoint+': grid '+IntToStr(I)+' synchronization text has empty bounds');
+    GetWindowRect(LPanel.Handle,LPanelBounds);
+    GetClientRect(LPanel.Parent.Handle,LParentBounds);
+    MapWindowPoints(LPanel.Parent.Handle,0,LParentBounds,2);
+    Require((LPanelBounds.Right>LPanelBounds.Left) and (LPanelBounds.Bottom>LPanelBounds.Top) and
+      (LPanelBounds.Left>=LParentBounds.Left) and (LPanelBounds.Top>=LParentBounds.Top) and
+      (LPanelBounds.Right<=LParentBounds.Right) and (LPanelBounds.Bottom<=LParentBounds.Bottom),
+      ACheckpoint+': grid '+IntToStr(I)+' native overlay lies outside its visible client');
+    if ACapture then begin
+      LBitmap := LBag.AddObject(TBitmap.Create) as TBitmap;
+      LBitmap.PixelFormat := pf24bit;
+      LBitmap.SetSize(LPanel.Width,LPanel.Height);
+      LBitmap.Canvas.Brush.Color := LPanel.Color;
+      LBitmap.Canvas.FillRect(Types.Rect(0,0,LBitmap.Width,LBitmap.Height));
+      {$IFDEF FPC}
+      // Reuse the verified native-child paint route: inactive-desktop form
+      // screenshots can otherwise be black despite visible native controls.
+      LCanvasDC := LBitmap.Canvas.Handle;
+      PaintNativeControl(LPanel);
+      {$ELSE}
+      LPanel.PaintTo(LBitmap.Canvas.Handle,0,0);
+      {$ENDIF}
+      LInk := 0;
+      for Y := 0 to LBitmap.Height-1 do
+        for X := 0 to LBitmap.Width-1 do
+          if (ColorToRGB(LBitmap.Canvas.Pixels[X,Y])<>ColorToRGB(clWhite)) and
+            (ColorToRGB(LBitmap.Canvas.Pixels[X,Y])<>ColorToRGB(clFuchsia)) then Inc(LInk);
+      Require(LInk>100,ACheckpoint+': grid '+IntToStr(I)+' actual overlay painting is blank');
+      LBitmap.SaveToFile(ChangeFileExt(FLogPath,'.'+ACheckpoint+'-grid'+IntToStr(I)+'.bmp'));
+    end;
+  end;
+end;
+
+procedure TWalletNodeSynchronizationChecks.CheckInitialSynchronization;
+var LAccounts, LOperations, LMemberships, I: Integer; LUntil: UInt64;
+  LBanner: TCTRLBanner; LOriginalBounds: TRect;
+begin
+  FPhase := 'synchronizing-before-lazy-wallet';
+  Require(FMain.InitialSynchronizationActive,'The node scope did not precede the first lazy wallet construction');
+  FMain.Show;
+  TUserInterface.ShowWallet;
+  WaitSuspended(True);
+  PumpFor(100);
+  RequireSynchronizationCards('first-show',True);
+  RequireBannerStatus('first-show-100','Synchronizing');
+  LBanner := nil;
+  for I := 0 to FMain.ComponentCount-1 do
+    if FMain.Components[I] is TCTRLBanner then
+      LBanner := TCTRLBanner(FMain.Components[I]);
+  LOriginalBounds := LBanner.BoundsRect;
+  LBanner.ScaleBy(5,4);
+  try
+    PumpFor(25);
+    RequireBannerStatus('first-show-125','Synchronizing');
+  finally
+    LBanner.ScaleBy(4,5);
+    LBanner.BoundsRect := LOriginalBounds;
+  end;
+  LBanner.ScaleBy(3,2);
+  try
+    PumpFor(25);
+    RequireBannerStatus('first-show-150','Synchronizing');
+  finally
+    LBanner.ScaleBy(2,3);
+    LBanner.BoundsRect := LOriginalBounds;
+  end;
+  PumpFor(25);
+  RequireBannerStatus('first-show-return-100','Synchronizing');
+  LAccounts := FObserved.AccountQueries;
+  LOperations := FObserved.OperationQueries;
+  LMemberships := FObserved.AggregateMemberships;
+  Require((LAccounts=0) and (LOperations=0) and (LMemberships=0),
+    'First construction admitted a provider/aggregate during synchronization');
+  FMain.CoreWallet.OperationsHistory := woh30Days;
+  FMain.CoreWallet.AccountsGrid.RefreshGrid;
+  FMain.CoreWallet.OperationsGrid.RefreshGrid;
+  FMain.Width := FMain.Width+40;
+  // No new lifecycle notification repairs presentation during this pause.
+  // The selected synchronization session must retain both native cards.
+  LUntil := GetTickCount64+6200;
+  repeat
+    PumpFor(100);
+    RequireSynchronizationCards('inter-batch-observation');
+  until GetTickCount64>=LUntil;
+  RequireSynchronizationCards('inter-batch-quiet',True);
+  Require((FObserved.AccountQueries=LAccounts) and (FObserved.OperationQueries=LOperations) and
+    (FObserved.AggregateMemberships=LMemberships),'Inter-batch silence admitted a provider during synchronization');
+  FMain.EndInitialSynchronization;
+  WaitSuspended(False);
+  WaitIdle;
+  Require((FObserved.AccountQueries>LAccounts) and (FObserved.OperationQueries>LOperations),
+    'Node completion did not resume the actual latest grid requests');
+  Require(not (FMain.CoreWallet.AccountsGrid.FindComponent('LoadingOverlay') as TPanel).Visible and
+    not (FMain.CoreWallet.OperationsGrid.FindComponent('LoadingOverlay') as TPanel).Visible,
+    'Completed initial synchronization retained an actual overlay');
+  Log('PASS node synchronizing before lazy wallet construction: both native cards/captions/bounds visible, inter-batch quiet retains cards without queries, completion resumes');
 end;
 
 procedure TWalletNodeSynchronizationChecks.CheckAccountCacheOrdering;
@@ -594,6 +849,7 @@ begin
       ' elapsed=' + UIntToStr(GetTickCount64-LStarted));
     Require(FMain.CoreWallet.AccountsGrid.LoadingVisible and
       FMain.CoreWallet.OperationsGrid.LoadingVisible,'Both actual grids must retain the synchronization card');
+    RequireSynchronizationCards('held-read-'+IntToStr(Ord(AKind)));
     LAccounts := FObserved.AccountQueries;
     LOperations := FObserved.OperationQueries;
     LMemberships := FObserved.AggregateMemberships;
@@ -605,6 +861,7 @@ begin
       TUserInterface.Node.NotifyBlocksChanged;
       PumpFor(6200);
     end else PumpFor(500);
+    RequireSynchronizationCards('held-read-quiet-'+IntToStr(Ord(AKind)));
     Require(FObserved.AccountQueries = LAccounts,'No account query may execute while NodeSync is active');
     Require(FObserved.OperationQueries = LOperations,'No operations query may execute while NodeSync is active');
     Require(FObserved.AggregateMemberships = LMemberships,'No aggregate may restart while NodeSync is active');
@@ -643,6 +900,115 @@ begin
   end;
 end;
 
+procedure TWalletNodeSynchronizationChecks.CheckStorageFailure;
+var LNode: TNode; LReporter: TStorageFailureReporter; LUntil: UInt64;
+  LExpected, LFileName: String; LStatus: TNodeSynchronizationStatus;
+  LBanner: TCTRLBanner; I, LAccounts, LOperations, LMemberships: Integer;
+  LFailure: EWriteError; LProgress: TProgressInfo; LLoading: TProgressNotifyMany;
+  LBitmap: TBitmap;
+
+  procedure AssertPresentation;
+  begin
+    Require(TUserInterface.State=uisError,'Storage error must remain the application state');
+    Require(TUserInterface.StateText=LExpected,'The first storage failure details changed');
+    Require(FMain.Mode=wmSync,'A storage failure must retain the visible error view');
+    Require(FMain.SyncControl.lblNodeStatus.Caption='Error: '+LExpected,'Sync details did not display the exact first storage failure: '+FMain.SyncControl.lblNodeStatus.Caption);
+    Require(FMain.SyncControl.lblNodeStatus.Font.Color=clRed,'Storage error details must be visibly red');
+    Require(FMain.sbStatusBar.Panels[2].Text=LExpected,'The footer replaced the storage failure with connectivity text');
+    Require(LBanner.NodeStatusLabel.Caption='Error: '+LExpected,'The banner did not retain the first storage failure');
+    RequireBannerStatus('storage-error','Error: '+LExpected);
+    Require(FMain.SyncControl.DisplayedSynchronizationStatus.State=nssStorageError,'The sync view retained an older node-state record');
+    Require(not FMain.tbtnConnectivity.Enabled,'The error state must disable the connectivity command');
+    Require(FMain.CoreWallet.AccountsGrid.RefreshSuspended and FMain.CoreWallet.OperationsGrid.RefreshSuspended,'Storage failure resumed a suspended grid');
+    Require((FMain.CoreWallet.AccountsGrid.FindComponent('LoadingStatus') as TLabel).Caption='Storage error','Accounts card did not identify the storage error');
+    Require((FMain.CoreWallet.OperationsGrid.FindComponent('LoadingStatus') as TLabel).Caption='Storage error','Operations card did not identify the storage error');
+    Require((FMain.CoreWallet.AccountsGrid.FindComponent('LoadingSubtitle') as TLabel).Caption='Restart required','Accounts card did not require restart');
+    Require((FMain.CoreWallet.OperationsGrid.FindComponent('LoadingSubtitle') as TLabel).Caption='Restart required','Operations card did not require restart');
+  end;
+
+begin
+  FPhase := 'actual-storage-error';
+  WaitIdle;
+  LNode := TUserInterface.Node;
+  LBanner := Nil;
+  for I := 0 to FMain.ComponentCount-1 do
+    if FMain.Components[I] is TCTRLBanner then LBanner := TCTRLBanner(FMain.Components[I]);
+  Require(Assigned(LBanner),'Actual main banner is missing');
+  FObserved.Gates[qkPage].Arm;
+  FMain.CoreWallet.AccountsGrid.RefreshGrid;
+  WaitEvent(FObserved.Gates[qkPage].Entered,'Storage-failure test did not hold an actual provider read');
+  LFileName := IncludeTrailingPathDelimiter(ExtractFilePath(FLogPath))+'owned-checkpoint.am_safebox';
+  LReporter := TStorageFailureReporter.Create(LNode,LFileName);
+  try
+    LReporter.Start;
+    // Deliberately do not pump UI callbacks while the producer reports failure.
+    // A synchronous main-thread notification would leave this worker blocked.
+    Require(LReporter.Completed.WaitFor(1000)=wrSignaled,'Storage reporting blocked behind a real UI/provider reader');
+    Require(LReporter.ErrorMessage='',LReporter.ErrorMessage);
+    Require(TUserInterface.State<>uisError,'Storage reporting synchronously invoked the UI');
+    LStatus := LNode.GetSynchronizationStatus;
+    Require(LStatus.State=nssStorageError,'The node did not publish its storage-error state');
+    LExpected := FormatStorageFailure(LStatus.StorageFailure);
+    Require(Pos('Synthetic checkpoint write failure',LExpected)>0,'Expected original error text is missing');
+    // Exercise a loader completion racing ahead of the queued failure event.
+    // State is already guarded, but the first diagnostic still must be published.
+    TUserInterface.State := uisLoaded;
+    WaitEvent(FObserved.Gates[qkPage].CancelObserved,'Storage error did not cancel the actual active provider');
+    WaitEvent(FObserved.Gates[qkPage].Exited,'The canceled storage-error query did not retire');
+    LUntil := GetTickCount64+5000;
+    repeat
+      Pump;
+      if (TUserInterface.State=uisError) and (FMain.Mode=wmSync) then Break;
+      Sleep(1);
+    until GetTickCount64>=LUntil;
+    AssertPresentation;
+    LAccounts := FObserved.AccountQueries;
+    LOperations := FObserved.OperationQueries;
+    LMemberships := FObserved.AggregateMemberships;
+    // Use real typed node inputs, including both network settings, and a late
+    // UI loading delivery. None may clear a restart-only storage failure.
+    LNode.SetSynchronizationNetworkActive(False);
+    LNode.SetSynchronizationNetworkActive(True);
+    LNode.SetSynchronizationPeerConnected(FPeer,True);
+    LNode.SetSynchronizationTarget(FPeer,LStatus.LocalBlockCount+30);
+    LProgress := TProgressInfo.Create(psDownloadingBlockchain,1,1);
+    LProgress.BlockNumber := LStatus.LocalBlockCount+1;
+    LNode.SetSynchronizationProgress(LProgress);
+    LLoading := TUserInterface.Loading;
+    LLoading.Invoke(LNode,LProgress);
+    TUserInterface.State := uisLoaded;
+    TUserInterface.ToggleConnectivity;
+    FMain.Mode := wmWallet;
+    FMain.CoreWallet.AccountsGrid.RefreshGrid;
+    FMain.CoreWallet.OperationsGrid.RefreshGrid;
+    FMain.Width := FMain.Width+20;
+    LFailure := EWriteError.Create('A later error must not replace the first failure');
+    try
+      LNode.ReportStorageFailure(sfsBlockStream,'different-owned-file',LFailure);
+    finally
+      LFailure.Free;
+    end;
+    PumpFor(500);
+    AssertPresentation;
+    Require(not LNode.CanRequestBlockChainData,'The failed node resumed block downloads');
+    Require(not TUserInterface.RPCServer.Active,'The failed node reopened its RPC listener');
+    Require(not TUserInterface.PoolMiningServer.Active,'The failed node reopened its miner listener');
+    Require(FObserved.AccountQueries=LAccounts,'A late input resumed accounts after storage failure');
+    Require(FObserved.OperationQueries=LOperations,'A late input resumed operations after storage failure');
+    Require(FObserved.AggregateMemberships=LMemberships,'A late input restarted balance reads after storage failure');
+    LBitmap := FMain.GetFormImage;
+    try
+      LBitmap.SaveToFile(ChangeFileExt(FLogPath,'.storage-error.bmp'));
+    finally
+      LBitmap.Free;
+    end;
+    Log('PASS actual storage failure: nonblocking producer, real read cancellation, persistent banner/sync/footer, restart-only cards, zero late queries');
+  finally
+    FObserved.ReleaseAll;
+    LReporter.Free;
+  end;
+end;
+
 procedure TWalletNodeSynchronizationChecks.Run;
 var LOptions: TWalletStartupOptions; LArguments: array of String;
   LDirectory, LError: String; LID: TGUID; LUntil: UInt64; LQueries: Integer;
@@ -665,6 +1031,7 @@ begin
   FPhase := 'create-actual-main';
   Application.CreateForm(TCoreSynchronizationMain,FMain);
   FMain.Observed := FObserved;
+  FMain.SynchronizeBeforeFirstWallet := True;
   FPhase := 'start-actual-controller';
   TUserInterface.StartApplication(FMain);
   FPhase := 'await-actual-startup';
@@ -677,14 +1044,14 @@ begin
   until GetTickCount64 >= LUntil;
   Require(Assigned(FMain.CoreWallet) and (TUserInterface.State <> uisLoading) and
     (TUserInterface.State <> uisError),'The actual fresh controller did not load');
+  CheckInitialSynchronization;
   SeedActualAccounts;
   FPhase := 'actual-page-cancellation';
   CheckHeldRead(qkPage);
   FPhase := 'actual-aggregate-cancellation';
   CheckHeldRead(qkAggregate);
+  CheckStorageFailure;
   FPhase := 'actual-shutdown';
-  StartSynchronization;
-  FMain.CoreWallet.AccountsGrid.RefreshGrid;
   LQueries := FObserved.AccountQueries + FObserved.OperationQueries;
   TUserInterface.ExitApplication;
   FMain := nil;

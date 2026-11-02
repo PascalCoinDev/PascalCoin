@@ -6,7 +6,7 @@ unit UWalletProgressDisplayTests;
 
 interface
 
-uses Classes, SysUtils, fpcunit, testregistry, UAccounts, UProgressDisplay;
+uses Classes, SysUtils, fpcunit, testregistry, UAccounts, UNode, UProgressDisplay;
 
 type
   TWalletProgressDisplayTests = class(TTestCase)
@@ -30,6 +30,11 @@ type
     procedure OriginalPercentageIsNotClipped;
     procedure OriginalPercentageRoundingAndLocaleArePreserved;
     procedure ZeroBlockMetadataIsNotDiscarded;
+    procedure EmptyStorageFailureHasNoPresentation;
+    procedure StorageFailurePreservesOriginalDetails;
+    procedure EveryStorageFailureStageHasPresentation;
+    procedure StorageFailureFormattingDoesNotMutateData;
+    procedure StorageFailureWithoutOptionalDetailsRemainsClear;
   end;
 
 implementation
@@ -278,6 +283,66 @@ begin
   AssertEquals('Reading blockchain block 0/0 ', FormatProgressInfo(L));
   L := TProgressInfo.Create(psReadingSafebox);
   AssertEquals('Reading Safebox block 0/0 ', FormatProgressInfo(L));
+end;
+
+procedure TWalletProgressDisplayTests.EmptyStorageFailureHasNoPresentation;
+var LFailure: TNodeStorageFailure;
+begin
+  LFailure := Default(TNodeStorageFailure);
+  AssertEquals('',FormatStorageFailure(LFailure));
+  LFailure.ErrorMessage := 'Unused stale detail';
+  LFailure.FileName := 'old-checkpoint';
+  AssertEquals('',FormatStorageFailure(LFailure));
+end;
+
+procedure TWalletProgressDisplayTests.StorageFailurePreservesOriginalDetails;
+var LFailure: TNodeStorageFailure;
+begin
+  LFailure := Default(TNodeStorageFailure);
+  LFailure.HasFailure := True;
+  LFailure.Stage := sfsCheckpoint;
+  LFailure.FileName := 'owned'+PathDelim+'checkpoint6.am_safebox';
+  LFailure.ErrorClass := 'EWriteError';
+  LFailure.ErrorMessage := 'Stream write error';
+  AssertEquals('Storage error (restart required) during checkpoint save: EWriteError: Stream write error ['+LFailure.FileName+']',FormatStorageFailure(LFailure));
+end;
+
+procedure TWalletProgressDisplayTests.EveryStorageFailureStageHasPresentation;
+const LExpected: array[TNodeStorageFailureStage] of String = ('local storage','safebox flush','checkpoint save','block storage','pending operations save','local blockchain restore');
+var LFailure: TNodeStorageFailure; LStage: TNodeStorageFailureStage;
+begin
+  LFailure := Default(TNodeStorageFailure);
+  LFailure.HasFailure := True;
+  for LStage := Low(TNodeStorageFailureStage) to High(TNodeStorageFailureStage) do begin
+    LFailure.Stage := LStage;
+    AssertEquals('Storage error (restart required) during '+LExpected[LStage],FormatStorageFailure(LFailure));
+  end;
+end;
+
+procedure TWalletProgressDisplayTests.StorageFailureFormattingDoesNotMutateData;
+var LFailure: TNodeStorageFailure;
+begin
+  LFailure := Default(TNodeStorageFailure);
+  LFailure.HasFailure := True;
+  LFailure.Stage := sfsBlockStream;
+  LFailure.FileName := 'owned'+PathDelim+'BlockChainStream.blocks';
+  LFailure.ErrorClass := 'EOSError';
+  LFailure.ErrorMessage := 'Original operating system detail';
+  FormatStorageFailure(LFailure);
+  AssertTrue(LFailure.HasFailure);
+  AssertEquals(Ord(sfsBlockStream),Ord(LFailure.Stage));
+  AssertEquals('owned'+PathDelim+'BlockChainStream.blocks',LFailure.FileName);
+  AssertEquals('EOSError',LFailure.ErrorClass);
+  AssertEquals('Original operating system detail',LFailure.ErrorMessage);
+end;
+
+procedure TWalletProgressDisplayTests.StorageFailureWithoutOptionalDetailsRemainsClear;
+var LFailure: TNodeStorageFailure;
+begin
+  LFailure := Default(TNodeStorageFailure);
+  LFailure.HasFailure := True;
+  LFailure.Stage := sfsUnknown;
+  AssertEquals('Storage error (restart required) during local storage',FormatStorageFailure(LFailure));
 end;
 
 initialization

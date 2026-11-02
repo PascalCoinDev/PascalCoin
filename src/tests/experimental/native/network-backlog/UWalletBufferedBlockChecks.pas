@@ -21,11 +21,11 @@ function RunLargeBufferedBlockProbe: Integer;
 
 implementation
 
-uses Windows, Classes, SysUtils, SyncObjs, Forms, StdCtrls, Controls, Generics.Collections,
+uses Windows, Classes, SysUtils, SyncObjs, Forms, StdCtrls, Controls, ExtCtrls, Types, Generics.Collections,
   blcksock, UNode, UNetProtocol, UThread, UBlockChain, UAccounts, UPCDataTypes,
   UFileStorage, UCrypto, UConst, UWallet, UUserInterface, UWalletStartup,
   UFRMMainForm, UCTRLWallet, UCTRLSyncronization, UAppParams, UCommon,
-  USettings, UMemory, UTime, UPoolMining, UJSONFunctions, ULog
+  USettings, UMemory, UVisualGrid, UCommon.UI, UTime, UPoolMining, UJSONFunctions, ULog
   {$IFDEF LARGE_BACKLOG_PROBE}, UDataSources, UCommon.Data, UOrderedList, UBaseTypes{$ENDIF};
 
 const
@@ -110,6 +110,7 @@ type
     FIncomingOwner: Boolean;
     FShutdownAfterFirst: Boolean;
     FExerciseSettings: Boolean;
+    FSynchronizationLifecycle: Boolean;
     FConnectedMiner, FMonitorMinerNotifications: Boolean;
     FMiner: TPoolMinerClient;
     FMinerPort: Word;
@@ -145,6 +146,8 @@ type
     function ActualWriterHeld: Boolean;
     procedure CheckExplicitShutdown;
     procedure CheckCommittedDisplay(AExpected: Integer);
+    procedure CheckNativeSynchronizationCards(const ACheckpoint: String);
+    procedure CheckSynchronizationResponses;
     procedure CheckNoNewRequests;
     procedure CheckReopenedStorage(AExpected: Integer);
     function Wallet: TWalletAccess;
@@ -309,6 +312,7 @@ begin
   FShutdownAfterFirst := AShutdownAfterFirst;
   FExerciseSettings := AExerciseSettings;
   FConnectedMiner := AConnectedMiner;
+  FSynchronizationLifecycle := SameText(GetEnvironmentVariable('PASCALCOIN_BACKLOG_CASE'),'synchronization');
   FLog := TStringList.Create;
   FPreviousException := Application.OnException;
   Application.OnException := OnException;
@@ -397,7 +401,7 @@ begin
     S := TUserInterface.Node.GetSynchronizationStatus;
     LDisplayed := FMain.SyncControl.DisplayedSynchronizationStatus;
     if (LDisplayed.LocalBlockCount = Cardinal(AExpected)) and
-      (LDisplayed.State = nssSynchronizing) and not LDisplayed.NetworkActive and
+      (LDisplayed.State = nssSynchronizing) and (LDisplayed.NetworkActive=FSynchronizationLifecycle) and
       (Pos('Blocks: '+IntToStr(AExpected)+' |',FMain.sbStatusBar.Panels[2].Text) = 1) and
       Wallet.AccountsGrid.RefreshSuspended and Wallet.OperationsGrid.RefreshSuspended and
       Wallet.AccountsGrid.LoadingVisible and Wallet.OperationsGrid.LoadingVisible then Break;
@@ -405,7 +409,7 @@ begin
   until GetTickCount64 >= LDeadline;
   Require(TUserInterface.Node.Bank.BlocksCount = Cardinal(AExpected),'Actual bank count differs from completed commits');
   Require((S.State = nssSynchronizing) and (S.ActiveTransfers > 0) and
-    not S.NetworkActive,'Already received work must keep synchronizing after network-off');
+    (S.NetworkActive=FSynchronizationLifecycle),'Received work did not retain the expected node synchronization state');
   Require((S.LocalBlockCount = Cardinal(AExpected)) and
     (S.LastBlockTimestamp = CHistoricTimes[AExpected-1]),
     'The node cached metadata must describe the completed bank commit');
@@ -421,15 +425,144 @@ begin
     UnivDateTime2LocalDateTime(UnixToUnivDateTime(CHistoricTimes[AExpected-1])));
   Require((LFooter = FMain.SyncControl.ChainStatusText) and
     (Pos('Blocks: '+IntToStr(AExpected)+' |',LFooter) = 1) and
-    (Pos(LTime,LFooter) > 0) and (Pos('Network off',LFooter) > 0),
+    (Pos(LTime,LFooter) > 0) and (FSynchronizationLifecycle or (Pos('Network off',LFooter) > 0)),
     'Footer count/time/network policy must use the same committed record as sync labels');
   Require(Wallet.AccountsGrid.RefreshSuspended and Wallet.OperationsGrid.RefreshSuspended and
     Wallet.AccountsGrid.LoadingVisible and Wallet.OperationsGrid.LoadingVisible,
     Format('Both actual main grids must remain suspended/covered until backlog drains: paused=%s/%s cards=%s/%s',
       [BoolToStr(Wallet.AccountsGrid.RefreshSuspended,True),BoolToStr(Wallet.OperationsGrid.RefreshSuspended,True),
        BoolToStr(Wallet.AccountsGrid.LoadingVisible,True),BoolToStr(Wallet.OperationsGrid.LoadingVisible,True)]));
+  CheckNativeSynchronizationCards('committed-'+IntToStr(AExpected));
   Require(GetActiveWindow = FDialog.Handle,'A committed-block update raised the main form over its modeless dialog');
-  Log('COMMITTED '+IntToStr(AExpected)+' synced while network-off; '+LFooter);
+  Log('COMMITTED '+IntToStr(AExpected)+' synchronizing networkActive='+BoolToStr(S.NetworkActive,True)+'; '+LFooter);
+end;
+
+procedure TBufferedBlockChecks.CheckNativeSynchronizationCards(const ACheckpoint: String);
+var LGrids: array[0..1] of TVisualGrid; LPanel: TPanel; LCircle: TLoadingCircle;
+  LTitle, LSubtitle: TLabel; LBounds, LClient: TRect; I: Integer;
+begin
+  LGrids[0] := Wallet.AccountsGrid;
+  LGrids[1] := Wallet.OperationsGrid;
+  for I := Low(LGrids) to High(LGrids) do begin
+    LPanel := LGrids[I].FindComponent('LoadingOverlay') as TPanel;
+    LCircle := LGrids[I].FindComponent('LoadingCircle') as TLoadingCircle;
+    LTitle := LGrids[I].FindComponent('LoadingStatus') as TLabel;
+    LSubtitle := LGrids[I].FindComponent('LoadingSubtitle') as TLabel;
+    Require(LGrids[I].RefreshSuspended and LGrids[I].LoadingVisible,
+      ACheckpoint+': real GET_BLOCKS lost its grid suspension/card');
+    Require(LPanel.Visible and LPanel.HandleAllocated and IsWindowVisible(LPanel.Handle),
+      ACheckpoint+': manual flag did not produce a visible native overlay');
+    Require(LCircle.Active and LCircle.Visible and LCircle.HandleAllocated and IsWindowVisible(LCircle.Handle),
+      ACheckpoint+': the native synchronization spinner is hidden');
+    Require(LTitle.Visible and (LTitle.Caption='Please Wait') and LSubtitle.Visible and
+      (LSubtitle.Caption='Synchronizing'),ACheckpoint+': synchronization text was replaced by ordinary loading');
+    GetWindowRect(LPanel.Handle,LBounds);
+    GetClientRect(LPanel.Parent.Handle,LClient);
+    MapWindowPoints(LPanel.Parent.Handle,0,LClient,2);
+    Require((LBounds.Right>LBounds.Left) and (LBounds.Bottom>LBounds.Top) and
+      (LBounds.Left>=LClient.Left) and (LBounds.Top>=LClient.Top) and
+      (LBounds.Right<=LClient.Right) and (LBounds.Bottom<=LClient.Bottom),
+      ACheckpoint+': native synchronization overlay lies outside its grid client');
+  end;
+end;
+
+procedure TBufferedBlockChecks.CheckSynchronizationResponses;
+var LFirst, LSecond: TMemoryStream; LBlock: TPCOperationsComp;
+  LSplit: Int64; LCount: Cardinal; LDeadline: UInt64; LStatus: TNodeSynchronizationStatus;
+  LBag: TDisposables; LError: String; I: Integer;
+
+  procedure AwaitBatch;
+  var LUntil: UInt64;
+  begin
+    LUntil := GetTickCount64+5000;
+    repeat
+      Pump;
+      Require(FTask.ErrorMessage='',FTask.ErrorMessage);
+      if FTask.Completed.WaitFor(0)=wrSignaled then Break;
+      Sleep(1);
+    until GetTickCount64>=LUntil;
+    Require(FTask.Completed.WaitFor(0)=wrSignaled,'The actual GET_BLOCKS response did not finish');
+    FreeAndNil(FTask);
+  end;
+
+begin
+  // Split the immutable resource at a decoder-confirmed block boundary. Both
+  // responses retain the exact historic block bytes and production validation.
+  LFirst := LBag.AddObject(TMemoryStream.Create) as TMemoryStream;
+  LSecond := LBag.AddObject(TMemoryStream.Create) as TMemoryStream;
+  LBlock := LBag.AddObject(TPCOperationsComp.Create(TUserInterface.Node.Bank)) as TPCOperationsComp;
+  FData.Position := SizeOf(Cardinal);
+  for I := 0 to 1 do
+    Require(LBlock.LoadBlockFromStream(FData,LError),LError);
+  LSplit := FData.Position;
+  LCount := 2;
+  LFirst.WriteBuffer(LCount,SizeOf(LCount));
+  FData.Position := SizeOf(Cardinal);
+  LFirst.CopyFrom(FData,LSplit-FData.Position);
+  LCount := CHistoricCount-2;
+  LSecond.WriteBuffer(LCount,SizeOf(LCount));
+  FData.Position := LSplit;
+  LSecond.CopyFrom(FData,FData.Size-FData.Position);
+  LBag.RemoveObject(LBlock);
+  FreeAndNil(LBlock);
+  // Select this actual connected loopback peer through the same public node
+  // API used by Send_GetBlocks; never synthesize a synchronization state.
+  TUserInterface.Node.SetSynchronizationTarget(FConnection,CHistoricCount);
+  try
+    FTask := TReceivedBatchTask.Create(TBufferedResponseConnection(FConnection),LFirst);
+    FTask.StartOwned;
+    for I := 1 to 2 do begin
+      WaitCommit(I);
+      CheckCommittedDisplay(I);
+      FObservation.ContinueBatch.SetEvent;
+    end;
+    AwaitBatch;
+    LStatus := TUserInterface.Node.GetSynchronizationStatus;
+    Require((LStatus.State=nssSynchronizing) and LStatus.NetworkActive and
+      (LStatus.ActiveTransfers=0) and (LStatus.LocalBlockCount=2) and
+      (LStatus.TargetBlockCount=CHistoricCount),'The selected real peer target did not retain synchronization between responses');
+    LDeadline := GetTickCount64+6200;
+    repeat
+      Pump;
+      CheckNativeSynchronizationCards('real-response-gap');
+      Sleep(20);
+    until GetTickCount64>=LDeadline;
+    Log('PASS actual GET_BLOCKS gap: local2/target5, zero active transfers, both native Synchronizing cards retained for6.2s');
+    FTask := TReceivedBatchTask.Create(TBufferedResponseConnection(FConnection),LSecond);
+    FTask.StartOwned;
+    for I := 3 to CHistoricCount do begin
+      WaitCommit(I);
+      CheckCommittedDisplay(I);
+      FObservation.ContinueBatch.SetEvent;
+    end;
+    AwaitBatch;
+    LDeadline := GetTickCount64+5000;
+    repeat
+      Pump;
+      LStatus := TUserInterface.Node.GetSynchronizationStatus;
+      if (LStatus.State=nssIdle) and not Wallet.AccountsGrid.RefreshSuspended and
+        not Wallet.OperationsGrid.RefreshSuspended and not Wallet.AccountsGrid.IsUpdating and
+        not Wallet.OperationsGrid.IsUpdating and not Wallet.OperationsGrid.RefreshThrottle.Waiting then Break;
+      Sleep(1);
+    until GetTickCount64>=LDeadline;
+    Require((LStatus.State=nssIdle) and (LStatus.LocalBlockCount=CHistoricCount),
+      'The actual final GET_BLOCKS response did not complete the selected target');
+    Require(not Wallet.AccountsGrid.RefreshSuspended and not Wallet.OperationsGrid.RefreshSuspended and
+      not (Wallet.AccountsGrid.FindComponent('LoadingOverlay') as TPanel).Visible and
+      not (Wallet.OperationsGrid.FindComponent('LoadingOverlay') as TPanel).Visible,
+      'Completed real GET_BLOCKS synchronization retained a suspended grid or overlay');
+    Log('PASS actual GET_BLOCKS target completion: local5/target5, idle, both grids resumed and native cards removed');
+  finally
+    FObservation.ReleaseAll;
+    FreeAndNil(FTask);
+  end;
+  FreeAndNil(FConnection);
+  FreeAndNil(FAccepted);
+  FreeAndNil(FListener);
+  TUserInterface.ExitApplication;
+  FMain := nil;
+  FDialog := nil;
+  CheckReopenedStorage(CHistoricCount);
 end;
 
 procedure TBufferedBlockChecks.CheckNoNewRequests;
@@ -1083,7 +1216,7 @@ begin
   FData.Position := 0;
   if FExerciseSettings then ConfigureMiningFixture;
   if FConnectedMiner then ConnectControlledMiner;
-  FObservation := TCommitObservation.Create(not FIncomingOwner);
+  FObservation := TCommitObservation.Create(not FIncomingOwner and not FSynchronizationLifecycle);
   FObservation.CheckDeferredOperationsAtCommit := FConnectedMiner;
   if FIncomingOwner then OpenIncomingConnection
   else begin
@@ -1103,11 +1236,16 @@ begin
   end;
   // The separate direct-entry case covers synchronous external callers. Here
   // the client's real receiver owns that socket and may be reading already.
-  if not (FOutgoingOwner or FIncomingOwner) then CheckOnlineCallerRequest;
+  if not (FOutgoingOwner or FIncomingOwner or FSynchronizationLifecycle) then CheckOnlineCallerRequest;
+  FMain.Show;
   FDialog := TForm.CreateNew(FMain);
   FDialog.Caption := 'Owned modeless focus regression';
   FDialog.Show;
   SetActiveWindow(FDialog.Handle);
+  if FSynchronizationLifecycle then begin
+    CheckSynchronizationResponses;
+    Exit;
+  end;
   if FConnectedMiner then begin
     FExternalRelease := TDelayedGateRelease.Create(FObservation,True);
     FExternalRelease.Start;
@@ -1209,7 +1347,7 @@ begin
   // The public runner compiles once, then gives each scenario a fresh process
   // and controller through the existing one-logfile private-desktop broker.
   LScenario := LowerCase(GetEnvironmentVariable('PASCALCOIN_BACKLOG_CASE'));
-  if (LScenario = '') or (LScenario = 'direct') then
+  if (LScenario = '') or (LScenario = 'direct') or (LScenario = 'synchronization') then
     Result := RunChecks(False,False,False,False,False)
   else if LScenario = 'outgoing' then Result := RunOutgoingBufferedBlockProbe
   else if LScenario = 'outgoing-shutdown' then Result := RunOutgoingShutdownProbe

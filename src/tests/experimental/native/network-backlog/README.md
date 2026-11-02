@@ -18,7 +18,7 @@ Run the Free Pascal target from the checkout root:
   -OutputDirectory <local-folder>
 ```
 
-The output directory must be new. The script compiles once and runs all seven
+The output directory must be new. The script compiles once and runs all eight
 scenarios in separate fresh processes. The existing broker creates a private
 desktop and passes the probe one new absolute log-file path. Each scenario must
 exit naturally with a clean FPC heap report. The probe refuses the input desktop.
@@ -30,6 +30,7 @@ wallets. Each project also has a corresponding Free Pascal `.lpr` entry point.
 | Delphi project | Scenario |
 |---|---|
 | `BufferedBlockBacklogProbe.dproj` | Direct protected response entry, real online/offline nested request admission and per-commit UI assertions. |
+| `BufferedBlockBacklogProbe.dproj`, `PASCALCOIN_BACKLOG_CASE=synchronization` | Two real responses containing two then three historic blocks. Both native synchronization cards must remain visible through commits and a quiet gap longer than six seconds, then clear when the selected peer target is reached. |
 | `OutgoingBufferedBlockProbe.dproj` | Actual client-owned receive thread; OFF must not let automatic client destruction truncate its buffered batch. |
 | `OutgoingShutdownProbe.dproj` | Actual application shutdown while that outgoing batch is held; stop between complete blocks and join naturally. |
 | `IncomingBufferedBlockProbe.dproj` | Actual listener/socket worker; the real toolbar OFF action must return promptly while all received blocks drain. |
@@ -38,7 +39,7 @@ wallets. Each project also has a corresponding Free Pascal `.lpr` entry point.
 | `ConnectedMinerProbe.dproj` | One actual loopback miner consumes a production job. Real block/operation notifications must reach the UI promptly while the bank writer is held; settings retain the same reward key. |
 
 The primary executable also accepts a test-only process environment variable,
-`PASCALCOIN_BACKLOG_CASE`, with values `direct`, `outgoing`, `outgoing-shutdown`,
+`PASCALCOIN_BACKLOG_CASE`, with values `direct`, `synchronization`, `outgoing`, `outgoing-shutdown`,
 `incoming`, `incoming-settings`, `incoming-shutdown` or `connected-miner`. An absent value selects
 `direct`. The PowerShell runner sets and restores this variable around each
 child; no environment setting is required for the individually named projects.
@@ -52,7 +53,11 @@ must stop between complete blocks and reopen the complete first block.
 The checks cover:
 
 - Node status remains synchronizing, and both main grids stay suspended and
-  covered until the batch drains.
+  covered until the batch drains. Native overlay and spinner visibility, exact
+  captions and containment within each grid are checked at the commit gates.
+- The online `synchronization` case retains its selected peer target between
+  two actual `GET_BLOCKS` responses. With no active transfer during the gap,
+  both native cards must remain visible until the final target is committed.
 - The footer and basic sync labels display the same committed block count and
   timestamp from the cached node record, while a modeless dialog keeps focus.
 - Network-off rejects new connections, block requests and nested request waits,
@@ -77,7 +82,7 @@ same real main form and outgoing transport owner with a matching owned chain
 copy at block count **841529** and **185831** pending operations. The embedded
 [five public blocks](../../fixtures/mainnet-blocks-841529-841533.json) advance
 the chain to **841534** through normal proof-of-work, operation, bank and storage
-validation. This is separate from the seven fresh, small-chain scenarios.
+validation. This is separate from the eight fresh, small-chain scenarios.
 
 Prepare a new app root with no `WalletKeys.dat` or `AppParams.prm`. Its `Data`
 directory must be a junction to the explicitly owned public-chain copy, with a
@@ -118,5 +123,5 @@ These checks verify the combined UI/data/transport lifecycle; they are not a
 live-network download-rate benchmark.
 The dense FPC entry point keeps range and overflow checks but does not enable
 heap tracing, so its allocation behavior matches the shipping program. Its
-receipt does not assert zero unfreed blocks. The seven small scenarios and the
+receipt does not assert zero unfreed blocks. The eight small scenarios and the
 full wallet suite retain their separate heap-traced checks.

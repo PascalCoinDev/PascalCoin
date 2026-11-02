@@ -69,12 +69,18 @@ uses Math, UCommon, UCommon.UI, UUserInterface, USettings, UCTRLSyncronization;
 {$R *.dfm}
 {$ENDIF}
 
+type
+  TVersionLabelAccess = class(TLabel);
+
 { TCTRLBanner }
 
 procedure TCTRLBanner.FormCreate(Sender: TObject);
 var
   i: Integer;
 begin
+  // LCL can defer the version label's AutoSize until this hidden form is shown.
+  // Reflow status after its real width replaces the design-time placeholder.
+  TVersionLabelAccess(lblClientVersion).OnResize := FormResize;
   {$IFNDEF FPC}
   // VCL's label default depends on the current Windows theme.
   lblClientVersion.Transparent := True;
