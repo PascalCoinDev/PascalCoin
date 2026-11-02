@@ -53,10 +53,10 @@ jobs:
       run: |
         if [[ ! -x .ci-threading/bin/ThreadingTests ]]; then exit 0; fi
         if [[ "$RUNNER_OS" == "Linux" ]]; then
-          gdb --batch -ex 'set pagination off' -ex run -ex 'thread apply all bt' \
+          gdb --batch -ex 'set pagination off' -ex run -ex 'thread apply all bt 40' \
             --args ./.ci-threading/bin/ThreadingTests .ci-threading/debug-results.log
         else
-          lldb --batch -o run -o 'thread backtrace all' \
+          lldb --batch -o run -k 'thread backtrace all -c 40' \
             -- ./.ci-threading/bin/ThreadingTests .ci-threading/debug-results.log
         fi
 
@@ -66,6 +66,7 @@ jobs:
       with:
         name: Threading-${{ runner.os }}
         path: .ci-threading/*.log*
+        include-hidden-files: true
 
     - name: Build the Pascal daemon
       run: lazbuild -B "src/pascalcoin_daemon.lpi"

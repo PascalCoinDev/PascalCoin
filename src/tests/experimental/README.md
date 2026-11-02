@@ -23,6 +23,8 @@ The same compiler arguments work on Windows; run `ThreadingTests.exe` there.
 The runner returns a nonzero code on failure and writes the test and heap reports
 beside the supplied log path. Unix initializes the RTL thread manager before the
 tests; Darwin's pointer-shaped thread IDs exercise the same ownership checks.
+Keep `heaptrc` before `cthreads` so heap tracing is installed before POSIX
+thread-local storage is relocated.
 
 ## Wallet and native tests
 

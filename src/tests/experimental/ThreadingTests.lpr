@@ -6,8 +6,10 @@ program ThreadingTests;
 {$mode delphi}{$H+}
 
 uses
+  // Install heap tracing before POSIX threads relocate the main thread's heap.
+  heaptrc,
   {$IFDEF UNIX}cthreads,{$ENDIF}
-  heaptrc, SysUtils, fpcunit, testregistry, plaintestreport,
+  SysUtils, fpcunit, testregistry, plaintestreport,
   UThreadConcurrencyTests, UConcurrency.Tests, UMemory;
 
 procedure Trace(const AMessage: String);
