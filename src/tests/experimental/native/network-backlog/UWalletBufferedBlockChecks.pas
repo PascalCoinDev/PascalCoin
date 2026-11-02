@@ -68,7 +68,7 @@ type
     CommitCount, ConnectionDestroyed: LongInt;
     FirstOffRequestID: Cardinal;
     ProcessingThread: TThread;
-    NotifyOperationsAtCommit: Boolean;
+    CheckDeferredOperationsAtCommit: Boolean;
     FirstCommitTick: UInt64;
     Committed, ContinueBatch: TEvent;
     constructor Create(AOfflineAtCommit: Boolean);
@@ -138,6 +138,7 @@ type
     procedure CheckIncomingNetworkOff;
     procedure ConfigureMiningFixture;
     procedure ConnectControlledMiner;
+    procedure QueueMinerOperationsNotification;
     procedure AwaitMinerBlockJob(AExpectedBlock: Cardinal);
     procedure OnMinerBlockNotification(Sender: TObject);
     procedure OnMinerOperationsNotification(Sender: TObject);
@@ -215,14 +216,16 @@ begin
   LCount := InterlockedIncrement(CommitCount);
   if LCount = 1 then begin
     FirstCommitTick := GetTickCount64;
-    if NotifyOperationsAtCommit then begin
-      // Use the actual producer path recursively inside the same writer scope.
-      // An empty admission changes no balances but emits its real operations event.
+    if CheckDeferredOperationsAtCommit then begin
+      // Catch-up intentionally rejects even empty pending admission. Its real
+      // operations notification was queued before the received batch started.
       LOperations := TOperationsHashTree.Create;
       try
-        Require(TNode.Node.AddOperations(nil,LOperations,nil,LError) = 0,LError);
+        Require(TNode.Node.AddOperations(nil,LOperations,nil,LError) = -1,
+          'Pending admission must remain unavailable during received-block processing');
+        Require(LError = 'Pending operations are unavailable during blockchain synchronization',
+          'Pending admission must report the deferred-state reason');
       finally LOperations.Free; end;
-      TNode.Node.NotifyBlocksChanged;
     end;
     // Exercise the real switch from its actual bank-commit callback. The
     // outgoing destroy worker remains free to run; this fixture holds no net lock.
@@ -562,9 +565,15 @@ begin
               (LHeader.operation = CT_NetOp_GetBlocks) and
               (LHeader.request_id = CResponseID) then begin
               Require(LPayload.Size = FData.Size,'The real response changed the historic payload');
+              if FConnectedMiner then QueueMinerOperationsNotification;
               Require(FAccepted.SendBuffer(PByte(LWire.Memory)+LAt,
                 Integer(LWire.Position-LAt)) = Integer(LWire.Position-LAt),
                 'The raw loopback peer could not send the complete real response frame');
+              if FConnectedMiner then
+                // Do not pump the queued notification until the real bank
+                // callback holds its writer; no producer waits for the UI.
+                Require(FObservation.Committed.WaitFor(3000) = wrSignaled,
+                  'The connected-miner processor did not reach its committed writer gate');
               LFound := True;
               Break;
             end;
@@ -725,6 +734,20 @@ begin
   FMinerObserver.Node := TUserInterface.Node;
   Log('MINER actual connected client consumed production miner-notify job block='+
     IntToStr(FMiner.MinerValuesForWork.block));
+end;
+
+procedure TBufferedBlockChecks.QueueMinerOperationsNotification;
+var LOperations: TOperationsHashTree; LError: String;
+begin
+  // Queue through the public producer while pending state is coherent. The UI
+  // must not dispatch this notification until the received block holds WRITE.
+  Require(TUserInterface.Node.PendingOperationsAvailable,
+    'The controlled operations producer must run before catch-up starts');
+  LOperations := TOperationsHashTree.Create;
+  try
+    Require(TUserInterface.Node.AddOperations(nil,LOperations,nil,LError) = 0,LError);
+  finally LOperations.Free; end;
+  Log('MINER queued actual operations notification before received-block processing');
 end;
 
 function TBufferedBlockChecks.ActualWriterHeld: Boolean;
@@ -1061,7 +1084,7 @@ begin
   if FExerciseSettings then ConfigureMiningFixture;
   if FConnectedMiner then ConnectControlledMiner;
   FObservation := TCommitObservation.Create(not FIncomingOwner);
-  FObservation.NotifyOperationsAtCommit := FConnectedMiner;
+  FObservation.CheckDeferredOperationsAtCommit := FConnectedMiner;
   if FIncomingOwner then OpenIncomingConnection
   else begin
     FListener := TTCPBlockSocket.Create;
