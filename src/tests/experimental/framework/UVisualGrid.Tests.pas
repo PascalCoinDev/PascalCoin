@@ -30,8 +30,7 @@ type
   TSelectionSource = class(TCustomDataSource<Integer>)
   protected
     function GetColumns: TDataColumns; override;
-    function GetItemField(constref AItem: Integer;
-      const AColumnName: String): Variant; override;
+    function GetItemField(constref AItem: Integer; const AColumnName: String): Variant; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
   end;
 
@@ -45,8 +44,7 @@ begin
   Result := TDataColumns.Create(TDataColumn.From('Id',True));
 end;
 
-function TSelectionSource.GetItemField(constref AItem: Integer;
-  const AColumnName: String): Variant;
+function TSelectionSource.GetItemField(constref AItem: Integer; const AColumnName: String): Variant;
 begin
   Result := AItem;
 end;

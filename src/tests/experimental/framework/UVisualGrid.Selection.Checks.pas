@@ -14,8 +14,7 @@ type
   TGridSelectionScenario = (ssNativeClickEvents, ssRepeatedClickToggle,
     ssConsumerClearSelection, ssProgrammaticAndNoHandler);
 
-procedure CheckVisualGridSelection(AScenario: TGridSelectionScenario;
-  ALog: TStrings = nil);
+procedure CheckVisualGridSelection(AScenario: TGridSelectionScenario; ALog: TStrings = nil);
 
 implementation
 
@@ -28,8 +27,7 @@ type
   TSelectionSource = class(TCustomDataSource<Integer>)
   protected
     function GetColumns: TDataColumns; override;
-    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-      const AColumnName: String): Variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const AColumnName: String): Variant; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
   end;
 
@@ -38,8 +36,7 @@ type
     Grid: TVisualGrid;
     Pages, Rows: TArray<Integer>;
     ClearOnNextSelection: Boolean;
-    procedure Selected(Sender: TObject;
-      {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
+    procedure Selected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
     procedure Reset;
   end;
 
@@ -60,8 +57,7 @@ begin
   Result := TDataColumns.Create(TDataColumn.From('Id', True));
 end;
 
-function TSelectionSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-  const AColumnName: String): Variant;
+function TSelectionSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const AColumnName: String): Variant;
 begin
   Result := AItem;
 end;
@@ -80,8 +76,7 @@ begin
   Rows := nil;
 end;
 
-procedure TSelectionObserver.Selected(Sender: TObject;
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
+procedure TSelectionObserver.Selected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
 var
   LIndex: Integer;
 begin
@@ -133,8 +128,7 @@ var
   LSource: TSelectionSource;
   LObserver: TSelectionObserver;
 
-  procedure RequireEvent(ACount, AIndex, APage, ARow: Integer;
-    const AContext: String);
+  procedure RequireEvent(ACount, AIndex, APage, ARow: Integer; const AContext: String);
   begin
     Require(Length(LObserver.Pages) = ACount,
       AContext + ': expected ' + IntToStr(ACount) + ' events, received ' +

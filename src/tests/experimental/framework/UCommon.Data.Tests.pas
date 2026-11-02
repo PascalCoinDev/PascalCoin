@@ -53,8 +53,7 @@ type
     Entered, ReleaseFetch: TEvent;
     constructor Create;
     destructor Destroy; override;
-    function Fetch(AIndex, ASize: Integer; const AFilter: TFilterCriteria;
-      AOperand: TFilterOperand; var ATable: TDataTable): TPageFetchResult;
+    function Fetch(AIndex, ASize: Integer; const AFilter: TFilterCriteria; AOperand: TFilterOperand; var ATable: TDataTable): TPageFetchResult;
   end;
 
   TSnapshotTestThread = class(TThread)
@@ -89,8 +88,7 @@ begin
     TDataColumn.From(UnicodeBinding(True)));
 end;
 
-function TUnicodeBindingSource.GetItemField(constref AItem: Integer;
-  const ABindingName: String): Variant;
+function TUnicodeBindingSource.GetItemField(constref AItem: Integer; const ABindingName: String): Variant;
 begin
   if ABindingName = UnicodeBinding(False) then Result := AItem
   else if ABindingName = UnicodeBinding(True) then
@@ -124,15 +122,13 @@ begin
   Result := TDataColumns.Create(TDataColumn.From('Value', True));
 end;
 
-function TCountingSnapshotSource.GetItemField(constref AItem: Integer;
-  const ABindingName: String): Variant;
+function TCountingSnapshotSource.GetItemField(constref AItem: Integer; const ABindingName: String): Variant;
 begin
   Inc(FieldCalls);
   Result := AItem;
 end;
 
-function TCountingSnapshotSource.ApplyColumnSort(constref ALeft, ARight: Integer;
-  constref AFilter: TColumnFilter): Integer;
+function TCountingSnapshotSource.ApplyColumnSort(constref ALeft, ARight: Integer; constref AFilter: TColumnFilter): Integer;
 begin
   Inc(SortCalls);
   Result := inherited ApplyColumnSort(ALeft, ARight, AFilter);
@@ -157,8 +153,7 @@ begin
   end;
 end;
 
-function TCountingSnapshotSource.Fetch(AIndex, ASize: Integer;
-  const AFilter: TFilterCriteria; AOperand: TFilterOperand; var ATable: TDataTable): TPageFetchResult;
+function TCountingSnapshotSource.Fetch(AIndex, ASize: Integer; const AFilter: TFilterCriteria; AOperand: TFilterOperand; var ATable: TDataTable): TPageFetchResult;
 begin
   Result := FetchPage(TPageFetchParams.Create(AIndex, ASize, AFilter, AOperand), ATable);
 end;

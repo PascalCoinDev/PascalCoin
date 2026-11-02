@@ -369,12 +369,7 @@ type
     function EstimateSize(const AVal: TValue): SizeInt; override;
     function Fetch(const AKey: TKey): TValue; override;
   public
-    constructor Create(AOwner: TComponent; const AValueFetcher: ICacheValueFetcher<TKey, TValue>;
-      const ASizeEstimator: ICacheSizeEstimator<TValue>; const AItemDisposePolicy: TCacheItemDisposePolicy;
-      const AReapPolicy: TCacheReapPolicy; const AExpirationPolicy: TCacheExpirationPolicy;
-      const ANullPolicy: TCacheNullValuePolicy; const AMaxCapacity: SizeInt;
-      const AExpirationDuration: TTimeSpan; AReapLevel: Double = 0.1;
-      AStaleValuePolicy: TCacheStaleValuePolicy = svpAssumeNeverStale); overload;
+    constructor Create(AOwner: TComponent; const AValueFetcher: ICacheValueFetcher<TKey, TValue>; const ASizeEstimator: ICacheSizeEstimator<TValue>; const AItemDisposePolicy: TCacheItemDisposePolicy; const AReapPolicy: TCacheReapPolicy; const AExpirationPolicy: TCacheExpirationPolicy; const ANullPolicy: TCacheNullValuePolicy; const AMaxCapacity: SizeInt; const AExpirationDuration: TTimeSpan; AReapLevel: Double = 0.1; AStaleValuePolicy: TCacheStaleValuePolicy = svpAssumeNeverStale); overload;
   end;
 
   { A whole-source cache. A first read loads every entry; an ordinary missing,
@@ -392,11 +387,7 @@ type
     function ShouldFetch(const AKey: TKey; AItem: TCachedItem<TValue>) : boolean; override;
     procedure BulkFetch(AValues: TCacheBulkValues<TKey, TValue>); virtual; abstract;
   public
-    constructor Create(AOwner: TComponent; const AExpirationPolicy: TCacheExpirationPolicy;
-      const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean = false;
-      ANullValuePolicy: TCacheNullValuePolicy = nvpCacheNormally;
-      AStaleValuePolicy: TCacheStaleValuePolicy = svpAssumeNeverStale;
-      const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
+    constructor Create(AOwner: TComponent; const AExpirationPolicy: TCacheExpirationPolicy; const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean = false; ANullValuePolicy: TCacheNullValuePolicy = nvpCacheNormally; AStaleValuePolicy: TCacheStaleValuePolicy = svpAssumeNeverStale; const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
     function Get(const AKey: TKey): TCachedItem<TValue>; override;
     function ContainsCachedItem(const AKey: TKey): Boolean; override;
     function GetAllCachedValues: TArray<TValue>; override;
@@ -417,11 +408,7 @@ type
   protected
     procedure BulkFetch(AValues: TCacheBulkValues<TKey, TValue>); override;
   public
-    constructor Create(AOwner: TComponent; const AFetcher: ICacheBulkValueFetcher<TKey, TValue>;
-      const AExpirationPolicy: TCacheExpirationPolicy; const AExpirationDuration: TTimeSpan;
-      AFetchOnceOnly: Boolean = false; ANullValuePolicy: TCacheNullValuePolicy = nvpCacheNormally;
-      AStaleValuePolicy: TCacheStaleValuePolicy = svpAssumeNeverStale;
-      const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
+    constructor Create(AOwner: TComponent; const AFetcher: ICacheBulkValueFetcher<TKey, TValue>; const AExpirationPolicy: TCacheExpirationPolicy; const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean = false; ANullValuePolicy: TCacheNullValuePolicy = nvpCacheNormally; AStaleValuePolicy: TCacheStaleValuePolicy = svpAssumeNeverStale; const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
   end;
 
   { Borrows both the supplied dictionary and its object values. Keep the source
@@ -432,8 +419,7 @@ type
   protected
     procedure BulkFetch(AValues: TCacheBulkValues<TKey, TValue>); override;
   public
-    constructor Create(AOwner: TComponent; AValues: TDictionary<TKey, TValue>;
-      const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
+    constructor Create(AOwner: TComponent; AValues: TDictionary<TKey, TValue>; const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
   end;
 
 implementation
@@ -1252,12 +1238,7 @@ end;
 
 { TBulkFetchCacheBase }
 
-constructor TBulkFetchCacheBase<TKey, TValue>.Create(AOwner: TComponent;
-  const AExpirationPolicy: TCacheExpirationPolicy;
-  const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean;
-  ANullValuePolicy: TCacheNullValuePolicy;
-  AStaleValuePolicy: TCacheStaleValuePolicy;
-  const AKeyComparer: IEqualityComparer<TKey>);
+constructor TBulkFetchCacheBase<TKey, TValue>.Create(AOwner: TComponent; const AExpirationPolicy: TCacheExpirationPolicy; const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean; ANullValuePolicy: TCacheNullValuePolicy; AStaleValuePolicy: TCacheStaleValuePolicy; const AKeyComparer: IEqualityComparer<TKey>);
 begin
   inherited Create(AOwner,idpNone,TCacheReapPolicy.crpNone,
     AExpirationPolicy,ANullValuePolicy,High(SizeInt),AExpirationDuration,0.1,AStaleValuePolicy);
@@ -1385,13 +1366,7 @@ end;
 
 { TBulkFetchActionCache }
 
-constructor TBulkFetchActionCache<TKey, TValue>.Create(AOwner: TComponent;
-  const AFetcher: ICacheBulkValueFetcher<TKey, TValue>;
-  const AExpirationPolicy: TCacheExpirationPolicy;
-  const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean;
-  ANullValuePolicy: TCacheNullValuePolicy;
-  AStaleValuePolicy: TCacheStaleValuePolicy;
-  const AKeyComparer: IEqualityComparer<TKey>);
+constructor TBulkFetchActionCache<TKey, TValue>.Create(AOwner: TComponent; const AFetcher: ICacheBulkValueFetcher<TKey, TValue>; const AExpirationPolicy: TCacheExpirationPolicy; const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean; ANullValuePolicy: TCacheNullValuePolicy; AStaleValuePolicy: TCacheStaleValuePolicy; const AKeyComparer: IEqualityComparer<TKey>);
 begin
   inherited Create(AOwner,AExpirationPolicy,AExpirationDuration,AFetchOnceOnly,
     ANullValuePolicy,AStaleValuePolicy,AKeyComparer);
@@ -1469,8 +1444,7 @@ end;
 
 { TPreloadedCache }
 
-constructor TPreloadedCache<TKey, TValue>.Create(AOwner: TComponent;
-  AValues: TDictionary<TKey, TValue>; const AKeyComparer: IEqualityComparer<TKey>);
+constructor TPreloadedCache<TKey, TValue>.Create(AOwner: TComponent; AValues: TDictionary<TKey, TValue>; const AKeyComparer: IEqualityComparer<TKey>);
 begin
   inherited Create(AOwner,TCacheExpirationPolicy.epNone,
     TTimeSpan.MaxValue,True,TCacheNullValuePolicy.nvpCacheNormally,

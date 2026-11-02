@@ -113,8 +113,7 @@ const
     FColumnsLock: TCriticalSection;
   protected
     {$IFNDEF FPC}
-    function FixupIdent(const AText : String) : String; override;
-    {$ENDIF}
+    function FixupIdent(const AText : String) : String; override; {$ENDIF}
     class function MapColumns(AClassID : PtrInt; const AColumns: TDataColumns): TColumnMapToIndex;
   public
     function GetProperty(var Dest: TVarData; const V: TVarData; const Name: string): Boolean; override;
@@ -404,8 +403,7 @@ begin
   FillChar(V, SizeOf(V), #0);
 end;
 
-procedure TDataRow.Copy(var Dest: TVarData; const Source: TVarData;
-  const Indirect: Boolean);
+procedure TDataRow.Copy(var Dest: TVarData; const Source: TVarData; const Indirect: Boolean);
 var
   LDestRow: TDataRowData absolute Dest;
   LSourceRow: TDataRowData absolute Source;
@@ -422,8 +420,7 @@ begin
   end;
 end;
 
-function TDataRow.DoFunction(var Dest: TVarData; const V: TVarData;
-  const Name: string; const Arguments: TVarDataArray): Boolean;
+function TDataRow.DoFunction(var Dest: TVarData; const V: TVarData; const Name: string; const Arguments: TVarDataArray): Boolean;
 var
   LRow: TDataRowData absolute V;
 begin
@@ -987,9 +984,7 @@ end;
 
 { TSearchExpressionService }
 
-class procedure TSearchExpressionService.Parse(const AExpression: utf8string;
-  const AExpressionKind: TExpressionKind; out
-  AExpressionRecord: TExpressionRecord);
+class procedure TSearchExpressionService.Parse(const AExpression: utf8string; const AExpressionKind: TExpressionKind; out AExpressionRecord: TExpressionRecord);
 const
   MAX_VALUES = 2;
 type

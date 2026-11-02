@@ -63,8 +63,7 @@ type
       {$IFNDEF FPC}FGuardian: IInterface;{$ENDIF}
       {$IFNDEF DELPHI_SYDNEY_PLUS}
       class procedure Initialize(var ADisposables: TDisposables); static;
-      class procedure Finalize(var ADisposables: TDisposables); static;
-      {$ENDIF}
+      class procedure Finalize(var ADisposables: TDisposables); static; {$ENDIF}
       procedure RegisterPointer(Ptr: Pointer; ADisposePolicy: TDisposePolicy);
       procedure UnregisterPointer(Ptr: Pointer);
     public

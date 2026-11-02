@@ -16,10 +16,8 @@ type
     psDiscardOldWorker, psDisabledPaging, psModeChangeScrollOrigin,
     psSuspendedModeScrollOrigin, psHeldModeScrollOrigin);
 
-procedure CheckVisualGridPaging(AScenario: TGridPagingScenario;
-  ALog: TStrings = nil);
-procedure ChooseVisualGridPageMode(AGrid: TVisualGrid; AIndex: Integer;
-  AKeyboard: Boolean = False);
+procedure CheckVisualGridPaging(AScenario: TGridPagingScenario; ALog: TStrings = nil);
+procedure ChooseVisualGridPageMode(AGrid: TVisualGrid; AIndex: Integer; AKeyboard: Boolean = False);
 
 implementation
 
@@ -32,11 +30,9 @@ type
   TPagingSource = class(TCustomDataSource<Integer>)
   protected
     function GetColumns: TDataColumns; override;
-    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-      const ABindingName: String): Variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const ABindingName: String): Variant; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
-    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-      var ADataTable: TDataTable): TPageFetchResult; override;
+    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult; override;
   public
     Count, Calls: Integer;
     LastParams: TPageFetchParams;
@@ -313,8 +309,7 @@ begin
   Result := TDataColumns.Create(TDataColumn.From('Id', True), TDataColumn.From('Name'));
 end;
 
-function TPagingSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-  const ABindingName: String): Variant;
+function TPagingSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const ABindingName: String): Variant;
 begin
   if ABindingName = 'Id' then Result := AItem
   else Result := Format('record %.4d', [AItem]);
@@ -326,8 +321,7 @@ begin
   for I := 0 to Count - 1 do AContainer.Add(I);
 end;
 
-function TPagingSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-  var ADataTable: TDataTable): TPageFetchResult;
+function TPagingSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
 begin
   Inc(Calls);
   LastParams := AParams;
@@ -455,8 +449,7 @@ begin
     LPoint.Y + AControl.Height);
 end;
 
-procedure CheckFooterGeometry(AGrid: TPagingGrid; APpi, ALogicalWidth: Integer;
-  ALog: TStrings);
+procedure CheckFooterGeometry(AGrid: TPagingGrid; APpi, ALogicalWidth: Integer; ALog: TStrings);
 var
   LMode, LFirst, LRect, LOther, LFooter: Types.TRect;
   LOrigin: Types.TPoint;

@@ -146,8 +146,7 @@ type
   protected
     procedure Execute; override;
   public
-    constructor Create(ANotifier : TThreadNotify; AHandler : TNotifyEvent;
-      AOtherNotifier : TThreadNotify = nil; AOtherHandler : TNotifyEvent = nil);
+    constructor Create(ANotifier : TThreadNotify; AHandler : TNotifyEvent; AOtherNotifier : TThreadNotify = nil; AOtherHandler : TNotifyEvent = nil);
   end;
 
   TSynchronizedThrottleInputs = class(TThread)
@@ -233,8 +232,7 @@ begin
   System.FreeMem(Pointer(Self));
 end;
 
-constructor TNotifyProducerThread.Create(ANotifier : TThreadNotify; AHandler : TNotifyEvent;
-  AOtherNotifier : TThreadNotify; AOtherHandler : TNotifyEvent);
+constructor TNotifyProducerThread.Create(ANotifier : TThreadNotify; AHandler : TNotifyEvent; AOtherNotifier : TThreadNotify; AOtherHandler : TNotifyEvent);
 begin
   inherited Create(True);
   FreeOnTerminate := False;
@@ -1092,8 +1090,7 @@ begin
   AssertEquals(1,FFinishedCount);
 end;
 
-procedure TThrottledEventTests.CheckPhysicalTimerReset(
-  AMode : TThrottledEventMode);
+procedure TThrottledEventTests.CheckPhysicalTimerReset( AMode : TThrottledEventMode);
 var LExpected : Integer;
 begin
   FEvent.Mode := AMode;

@@ -117,8 +117,7 @@ type
       procedure FinishBurst(AInvocation: TInvocation);
       procedure ArmBurstTimer;
       procedure Cancel(AInvocation: TInvocation); overload;
-      procedure InvokeCallbacks(const AEvent: TNotifyManyEvent; ASender: TObject;
-        AInvocation: TInvocation; AVersion: UInt64);
+      procedure InvokeCallbacks(const AEvent: TNotifyManyEvent; ASender: TObject; AInvocation: TInvocation; AVersion: UInt64);
       procedure EndWaiting(AInvocation: TInvocation; AFinished: Boolean);
     public
       property Interval : TTimeSpan read FInterval write SetInterval;
@@ -255,7 +254,8 @@ begin
 end;
 
 procedure TApplicationForm.ActivateFirstTime;
-begin;
+begin
+  ;
 end;
 
 procedure TApplicationForm.DoClose(var CloseAction: TCloseAction);
@@ -273,7 +273,8 @@ begin
 end;
 
 procedure TApplicationForm.DoDestroyed;
-begin;
+begin
+  ;
 end;
 
 function TApplicationform.AutoDispose(AObject : TObject) : TObject;
@@ -387,8 +388,7 @@ begin
   end;
 end;
 
-procedure TThrottledEvent.InvokeCallbacks(const AEvent: TNotifyManyEvent; ASender: TObject;
-  AInvocation: TInvocation; AVersion: UInt64);
+procedure TThrottledEvent.InvokeCallbacks(const AEvent: TNotifyManyEvent; ASender: TObject; AInvocation: TInvocation; AVersion: UInt64);
 var LHandlers, LMainHandlers: TArray<TNotifyEvent>; LHandler: TNotifyEvent;
 begin
   // Snapshot the existing event record, not a new event mechanism. Subscription

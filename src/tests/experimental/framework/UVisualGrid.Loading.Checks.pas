@@ -15,8 +15,7 @@ type
     lsManualCardSurvivesInternalLayout, lsErrorAndManualLayers,
     lsSynchronousErrorAndRecovery);
 
-procedure CheckVisualGridLoading(AScenario: TGridLoadingScenario;
-  ALog: TStrings = nil);
+procedure CheckVisualGridLoading(AScenario: TGridLoadingScenario; ALog: TStrings = nil);
 
 implementation
 
@@ -29,11 +28,9 @@ type
   TLoadingSource = class(TCustomDataSource<Integer>)
   protected
     function GetColumns: TDataColumns; override;
-    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-      const ABindingName: String): Variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const ABindingName: String): Variant; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
-    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-      var ADataTable: TDataTable): TPageFetchResult; override;
+    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult; override;
   public
     Count, Calls: Integer;
     UnknownTotal, HoldNext, FailRead, ReplaceBeforeFailure: Boolean;
@@ -108,8 +105,7 @@ begin
   Result := TDataColumns.Create(TDataColumn.From('Id', True));
 end;
 
-function TLoadingSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-  const ABindingName: String): Variant;
+function TLoadingSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const ABindingName: String): Variant;
 begin
   Result := AItem;
 end;
@@ -124,8 +120,7 @@ begin
     AContainer.Add(I);
 end;
 
-function TLoadingSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-  var ADataTable: TDataTable): TPageFetchResult;
+function TLoadingSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
 begin
   Inc(Calls);
   LastParams := AParams;

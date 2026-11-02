@@ -624,8 +624,7 @@ begin
   {$ENDIF}
 end;
 
-procedure TFileToolTests.CheckAppends(const ATexts: array of String;
-  const AExpected: array of Byte);
+procedure TFileToolTests.CheckAppends(const ATexts: array of String; const AExpected: array of Byte);
 var
   LGuid: TGUID;
   LFileName: String;

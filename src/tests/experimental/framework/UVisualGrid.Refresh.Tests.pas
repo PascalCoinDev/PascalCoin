@@ -305,8 +305,7 @@ type
     function GetColumns: TDataColumns; override;
     function GetItemField(constref AItem: Integer; const AName: String): Variant; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
-    function FetchPage(constref AParams: TPageFetchParams;
-      var ADataTable: TDataTable): TPageFetchResult; override;
+    function FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult; override;
   end;
 
   TRequestGridAccess = class(TVisualGrid)
@@ -363,8 +362,7 @@ begin
     TDataColumn.From('Block'), TDataColumn.From('Type'), TDataColumn.From('Payload'));
 end;
 
-function TGridRefreshSource.GetItemField(constref AItem: Integer;
-  const AName: String): Variant;
+function TGridRefreshSource.GetItemField(constref AItem: Integer; const AName: String): Variant;
 begin
   Result := AItem;
 end;
@@ -389,8 +387,7 @@ begin
   for I := 0 to LCount - 1 do AContainer.Add(I);
 end;
 
-function TGridRefreshSource.FetchPage(constref AParams: TPageFetchParams;
-  var ADataTable: TDataTable): TPageFetchResult;
+function TGridRefreshSource.FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
 begin
   LastParams := AParams;
   InterlockedIncrement(PageCallCount);
@@ -467,8 +464,7 @@ begin
   Inc(FCompletions);
 end;
 
-procedure TVisualGridRefreshFixture.Selected(Sender: TObject;
-  constref ASelection: TVisualGridSelection);
+procedure TVisualGridRefreshFixture.Selected(Sender: TObject; constref ASelection: TVisualGridSelection);
 begin
   Inc(FSelections);
 end;

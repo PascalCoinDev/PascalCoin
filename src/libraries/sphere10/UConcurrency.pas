@@ -64,10 +64,8 @@ type
     FDisposed: Boolean;
     function ThreadCounts(AThreadID: TThreadID): TThreadCounts;
     procedure CheckAcquisition(AKind: TLockKind; const ACounts: TThreadCounts);
-    function CanAcquire(AKind: TLockKind; AThreadID: TThreadID;
-      const ACounts: TThreadCounts): Boolean;
-    procedure Grant(AKind: TLockKind; AThreadID: TThreadID;
-      var ACounts: TThreadCounts);
+    function CanAcquire(AKind: TLockKind; AThreadID: TThreadID; const ACounts: TThreadCounts): Boolean;
+    procedure Grant(AKind: TLockKind; AThreadID: TThreadID; var ACounts: TThreadCounts);
     function TryAcquire(AKind: TLockKind; AMillisecondsTimeout: Integer): Boolean;
     procedure ReleaseLock(AKind: TLockKind);
     procedure ChangeWaitCount(AKind: TLockKind; ADelta: Integer);
@@ -267,8 +265,7 @@ begin
     Result := Default(TThreadCounts);
 end;
 
-procedure TReadWriteLock.CheckAcquisition(AKind: TLockKind;
-  const ACounts: TThreadCounts);
+procedure TReadWriteLock.CheckAcquisition(AKind: TLockKind; const ACounts: TThreadCounts);
 var LInvalid: Boolean;
 begin
   if FDisposed then raise ELockDisposedException.Create('The lock is disposed.');
@@ -288,8 +285,7 @@ begin
     raise ELockRecursionException.Create('This acquisition violates the lock recursion policy.');
 end;
 
-function TReadWriteLock.CanAcquire(AKind: TLockKind; AThreadID: TThreadID;
-  const ACounts: TThreadCounts): Boolean;
+function TReadWriteLock.CanAcquire(AKind: TLockKind; AThreadID: TThreadID; const ACounts: TThreadCounts): Boolean;
 begin
   // RTL thread IDs may be integers or pointers; use their typed empty value.
   // Existing owners can recurse without queuing behind a writer that needs
@@ -312,8 +308,7 @@ begin
   end;
 end;
 
-procedure TReadWriteLock.Grant(AKind: TLockKind; AThreadID: TThreadID;
-  var ACounts: TThreadCounts);
+procedure TReadWriteLock.Grant(AKind: TLockKind; AThreadID: TThreadID; var ACounts: TThreadCounts);
 var LFirst: Boolean;
 begin
   LFirst := False;
@@ -351,8 +346,7 @@ begin
   for LWaiter in FWaiters do LWaiter.Signal.SetEvent;
 end;
 
-function TReadWriteLock.TryAcquire(AKind: TLockKind;
-  AMillisecondsTimeout: Integer): Boolean;
+function TReadWriteLock.TryAcquire(AKind: TLockKind; AMillisecondsTimeout: Integer): Boolean;
 var
   LThreadID: TThreadID;
   LCounts: TThreadCounts;

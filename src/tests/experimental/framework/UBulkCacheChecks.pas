@@ -47,10 +47,7 @@ type
     Source: TValues;
     Cache: TTestBulk;
     FetchingCount, FetchedCount, RemovingCount, RemovedCount: Integer;
-    constructor Create(AOnce: Boolean;
-      AExpiry: TCacheExpirationPolicy;
-      AStale: TCacheStaleValuePolicy;
-      ANull: TCacheNullValuePolicy);
+    constructor Create(AOnce: Boolean; AExpiry: TCacheExpirationPolicy; AStale: TCacheStaleValuePolicy; ANull: TCacheNullValuePolicy);
     procedure FillValues(AValues: TValues);
     function FetchValue(const AKey: Integer): String;
     function EstimateValue(const AValue: String): SizeInt;
@@ -81,8 +78,7 @@ type
     constructor Create(ACache: TInterfaceCache; ARejected: PBoolean);
     destructor Destroy; override;
   end;
-  TTrackedValue = class
-    destructor Destroy; override;
+  TTrackedValue = class destructor Destroy; override;
   end;
 
 var DestroyedValues: Integer;
@@ -92,8 +88,7 @@ begin
   if not ACondition then raise Exception.Create(AMessage);
 end;
 
-constructor TContext.Create(AOnce: Boolean; AExpiry: TCacheExpirationPolicy;
-  AStale: TCacheStaleValuePolicy; ANull: TCacheNullValuePolicy);
+constructor TContext.Create(AOnce: Boolean; AExpiry: TCacheExpirationPolicy; AStale: TCacheStaleValuePolicy; ANull: TCacheNullValuePolicy);
 begin
   inherited Create;
   Source := TValues(FResources.AddObject(TValues.Create));

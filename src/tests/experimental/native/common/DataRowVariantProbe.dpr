@@ -17,16 +17,14 @@ type
   protected
     function GetColumns: TDataColumns; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
-    function GetItemField(const AItem: Integer;
-      const ABindingName: String): Variant; override;
+    function GetItemField(const AItem: Integer; const ABindingName: String): Variant; override;
   end;
 
   TUnicodeRows = class(TCustomDataSource<Integer>)
   protected
     function GetColumns: TDataColumns; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
-    function GetItemField(const AItem: Integer;
-      const ABindingName: String): Variant; override;
+    function GetItemField(const AItem: Integer; const ABindingName: String): Variant; override;
   end;
 
 function UnicodeBinding(ASecond: Boolean): String;
@@ -52,8 +50,7 @@ begin
   AContainer.Add(1);
 end;
 
-function TUnicodeRows.GetItemField(const AItem: Integer;
-  const ABindingName: String): Variant;
+function TUnicodeRows.GetItemField(const AItem: Integer; const ABindingName: String): Variant;
 begin
   if ABindingName = UnicodeBinding(False) then Result := AItem
   else if ABindingName = UnicodeBinding(True) then Result := UnicodePayload + IntToStr(AItem)
@@ -77,8 +74,7 @@ begin
   AContainer.Add(29);
 end;
 
-function TNativeRows.GetItemField(const AItem: Integer;
-  const ABindingName: String): Variant;
+function TNativeRows.GetItemField(const AItem: Integer; const ABindingName: String): Variant;
 begin
   if ABindingName = 'Value' then Result := AItem
   else if ABindingName = 'Title' then Result := 'row-' + IntToStr(AItem)

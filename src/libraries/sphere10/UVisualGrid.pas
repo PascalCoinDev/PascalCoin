@@ -522,8 +522,7 @@ uses
     // UI-thread presentation only. The graphic is copied; its owner may free it
     // immediately. A nil/empty graphic uses the existing loading circle.
     // Repeated calls replace this manual state without fetching any data.
-    procedure ShowLoading(const ATitle: String; const ASubtitle: String = '';
-      AImage: TGraphic = nil; ADisableInput: Boolean = True);
+    procedure ShowLoading(const ATitle: String; const ASubtitle: String = ''; AImage: TGraphic = nil; ADisableInput: Boolean = True);
     // Releases only manual presentation, retaining a current fetch/error card
     // and its input restrictions. Neither method changes this grid's Enabled.
     procedure HideLoading;
@@ -957,8 +956,7 @@ begin
   FGrid.FFetchCompletion.Invoke(FGrid, FGrid.FetchDataThreadCompleted);
 end;
 
-constructor TFetchDataThread.Create(AGrid: TCustomVisualGrid;
-  ARefreshColumns: boolean);
+constructor TFetchDataThread.Create(AGrid: TCustomVisualGrid; ARefreshColumns: boolean);
 var LTransferred:Boolean;
 begin
   // Delphi starts an unsuspended thread after the complete constructor returns.
@@ -1023,8 +1021,7 @@ begin
   FPanel.Visible := AValue;
 end;
 
-constructor TCustomVisualGrid.TSearchEdit.Create(AParent: TWinControl;
-  AGrid: TCustomVisualGrid);
+constructor TCustomVisualGrid.TSearchEdit.Create(AParent: TWinControl; AGrid: TCustomVisualGrid);
 begin
   FGrid := AGrid;
   FPanel := TPanel.Create(nil);
@@ -1913,8 +1910,7 @@ begin
   RefreshLoadingPresentation;
 end;
 
-procedure TCustomVisualGrid.ShowLoading(const ATitle: String;
-  const ASubtitle: String; AImage: TGraphic; ADisableInput: Boolean);
+procedure TCustomVisualGrid.ShowLoading(const ATitle: String; const ASubtitle: String; AImage: TGraphic; ADisableInput: Boolean);
 begin
   FLoadingImage.Picture.Assign(AImage);
   FManualLoadingTitle := ATitle;
@@ -2730,8 +2726,7 @@ begin
   QueueRefresh(ARefreshColumns, True, True);
 end;
 
-procedure TCustomVisualGrid.QueueRefresh(ARefreshColumns, AClientInput,
-  ANotify: Boolean);
+procedure TCustomVisualGrid.QueueRefresh(ARefreshColumns, AClientInput, ANotify: Boolean);
 begin
   if FShuttingDown then exit;
   // Old result layout cannot replace newer client page/filter/source intent.
@@ -3097,8 +3092,7 @@ var
     LGroupWidth, LGroupHeight, LGroupRowHeight, LGroupLeft, LGroupTop,
     LLeftWidth, LTopHeight, LHeight, LManualLeft, LManualTop, LX, LY, I: Integer;
 
-  function ControlTextWidth(AControl: TControl; AFont: TFont;
-    const AText: String): Integer;
+  function ControlTextWidth(AControl: TControl; AFont: TFont; const AText: String): Integer;
   var LCanvas: TControlCanvas;
   begin
     // Native child fonts can differ from the composite canvas after scaling
@@ -3241,8 +3235,7 @@ begin
   FBottomRightPanel.SetBounds(LGroupLeft,LGroupTop,LGroupWidth,LGroupHeight);
 end;
 
-function TCustomVisualGrid.CheckRangeForPageSize(var APageSize: Integer
-  ): boolean;
+function TCustomVisualGrid.CheckRangeForPageSize(var APageSize: Integer ): boolean;
 begin
   if APageSize <= 0 then
   begin
@@ -3565,8 +3558,7 @@ begin
     GridSelection(nil, 0, 0);
 end;
 
-function TCustomVisualGrid.SelectionsEquals({$IFDEF FPC}constref{$ELSE}const{$ENDIF} A, B: TVisualGridSelection
-  ): boolean;
+function TCustomVisualGrid.SelectionsEquals({$IFDEF FPC}constref{$ELSE}const{$ENDIF} A, B: TVisualGridSelection ): boolean;
 begin
   Result := A.Page = B.Page;
   if Result then
@@ -3597,8 +3589,7 @@ begin
   ChangePageSize(Value, True, True);
 end;
 
-procedure TCustomVisualGrid.ChangePageSize(Value: Integer;
-  AClientInput, ANotify: Boolean);
+procedure TCustomVisualGrid.ChangePageSize(Value: Integer; AClientInput, ANotify: Boolean);
 begin
   if FPageSize = Value then
     Exit;
@@ -3788,8 +3779,7 @@ begin
     DrawDataCell;
 end;
 
-procedure TCustomVisualGrid.GridMouseDown(Sender: TObject; Button: TMouseButton;
-  Shift: TShiftState; X, Y: Integer);
+procedure TCustomVisualGrid.GridMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   LCol, LRow: Integer;
 begin
@@ -3828,8 +3818,7 @@ begin
   end;
 end;
 
-procedure TCustomVisualGrid.GridMouseUp(Sender: TObject; Button: TMouseButton;
-  Shift: TShiftState; X, Y: Integer);
+procedure TCustomVisualGrid.GridMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   LPopup: TPopupMenu;
   LSelection: TVisualGridSelection;
@@ -3931,8 +3920,7 @@ begin
   end;
 end;
 
-procedure TCustomVisualGrid.GridHeaderClick(Sender: TObject; IsColumn: Boolean;
-  Index: Integer);
+procedure TCustomVisualGrid.GridHeaderClick(Sender: TObject; IsColumn: Boolean; Index: Integer);
 var
   LColumn: TVisualColumn;
 begin

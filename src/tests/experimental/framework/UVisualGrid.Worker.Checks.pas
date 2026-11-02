@@ -27,11 +27,9 @@ type
   public
     Calls, LastPage: LongInt;
     function GetColumns: TDataColumns; override;
-    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-      const AName: String): Variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const AName: String): Variant; override;
     procedure FetchAll(const AItems: TList<Integer>); override;
-    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-      var ATable: TDataTable): TPageFetchResult; override;
+    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ATable: TDataTable): TPageFetchResult; override;
   end;
 
   TWorkerCheck = class(TComponent)
@@ -69,8 +67,7 @@ begin
   Result := TDataColumns.Create(TDataColumn.From('Id',True));
 end;
 
-function TWorkerSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-  const AName: String): Variant;
+function TWorkerSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const AName: String): Variant;
 begin
   Result := AItem;
 end;
@@ -81,8 +78,7 @@ begin
   for I := 0 to 99 do AItems.Add(I);
 end;
 
-function TWorkerSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-  var ATable: TDataTable): TPageFetchResult;
+function TWorkerSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ATable: TDataTable): TPageFetchResult;
 begin
   LastPage := AParams.PageIndex;
   InterlockedIncrement(Calls);
@@ -324,11 +320,9 @@ type
     FReadPrefix: Integer;
   protected
     function GetColumns: TDataColumns; override;
-    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-      const AName: String): Variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const AName: String): Variant; override;
     procedure FetchAll(const AItems: TList<Integer>); override;
-    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-      var ATable: TDataTable): TPageFetchResult; override;
+    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ATable: TDataTable): TPageFetchResult; override;
   public
     Prefix, Calls, HoldNext: LongInt;
     Cooperative, RaiseObsoleteError: Boolean;
@@ -384,8 +378,7 @@ begin
   Result := TDataColumns.Create(TDataColumn.From('Id', True));
 end;
 
-function TActiveCancelSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-  const AName: String): Variant;
+function TActiveCancelSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const AName: String): Variant;
 begin
   Result := AItem;
 end;
@@ -398,8 +391,7 @@ begin
     AItems.Add(FReadPrefix + I);
 end;
 
-function TActiveCancelSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-  var ATable: TDataTable): TPageFetchResult;
+function TActiveCancelSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ATable: TDataTable): TPageFetchResult;
 begin
   FReadPrefix := InterlockedCompareExchange(Prefix, 0, 0);
   InterlockedIncrement(Calls);

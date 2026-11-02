@@ -657,9 +657,7 @@ const
   {$IF DEFINED(LINUX)}
   _SC_NPROCESSORS_ONLN = 83;
 
-  function sysconf(i: cint): clong; cdecl; external Name 'sysconf';
-  {$ENDIF LINUX}
-  {$ENDIF}
+  function sysconf(i: cint): clong; cdecl; external Name 'sysconf'; {$ENDIF LINUX} {$ENDIF}
 
 
 var
@@ -1509,14 +1507,12 @@ begin
   Result := CompareDateTime(Self, aDateTime);
 end;
 
-class function TDateTimeHelper.Create(const aYear, aMonth,
-  aDay: Word): TDateTime;
+class function TDateTimeHelper.Create(const aYear, aMonth, aDay: Word): TDateTime;
 begin
   Result := EncodeDate(aYear, aMonth, aDay);
 end;
 
-class function TDateTimeHelper.Create(const aYear, aMonth, aDay, aHour, aMinute,
-  aSecond, aMillisecond: Word): TDateTime;
+class function TDateTimeHelper.Create(const aYear, aMonth, aDay, aHour, aMinute, aSecond, aMillisecond: Word): TDateTime;
 begin
   Result := EncodeDateTime(aYear, aMonth, aDay, aHour, aMinute, aSecond, aMillisecond);
 end;
@@ -1731,50 +1727,42 @@ begin
   Result := DateUtils.WeeksBetween(Self, aDateTime);
 end;
 
-function TDateTimeHelper.WithinDays(const aDateTime: TDateTime;
-  const aDays: Integer): Boolean;
+function TDateTimeHelper.WithinDays(const aDateTime: TDateTime; const aDays: Integer): Boolean;
 begin
   Result := DateUtils.WithinPastDays(Self, aDateTime, aDays);
 end;
 
-function TDateTimeHelper.WithinHours(const aDateTime: TDateTime;
-  const aHours: Int64): Boolean;
+function TDateTimeHelper.WithinHours(const aDateTime: TDateTime; const aHours: Int64): Boolean;
 begin
   Result := DateUtils.WithinPastHours(Self, aDateTime, aHours);
 end;
 
-function TDateTimeHelper.WithinMilliseconds(const aDateTime: TDateTime;
-  const AMilliseconds: Int64): Boolean;
+function TDateTimeHelper.WithinMilliseconds(const aDateTime: TDateTime; const AMilliseconds: Int64): Boolean;
 begin
   Result := DateUtils.WithinPastMilliSeconds(Self, aDateTime, AMilliseconds);
 end;
 
-function TDateTimeHelper.WithinMinutes(const aDateTime: TDateTime;
-  const aMinutes: Int64): Boolean;
+function TDateTimeHelper.WithinMinutes(const aDateTime: TDateTime; const aMinutes: Int64): Boolean;
 begin
   Result := DateUtils.WithinPastMinutes(Self, aDateTime, aMinutes);
 end;
 
-function TDateTimeHelper.WithinMonths(const aDateTime: TDateTime;
-  const aMonths: Integer): Boolean;
+function TDateTimeHelper.WithinMonths(const aDateTime: TDateTime; const aMonths: Integer): Boolean;
 begin
   Result := DateUtils.WithinPastMonths(Self, aDateTime, aMonths);
 end;
 
-function TDateTimeHelper.WithinSeconds(const aDateTime: TDateTime;
-  const aSeconds: Int64): Boolean;
+function TDateTimeHelper.WithinSeconds(const aDateTime: TDateTime; const aSeconds: Int64): Boolean;
 begin
   Result := DateUtils.WithinPastSeconds(Self, aDateTime, aSeconds);
 end;
 
-function TDateTimeHelper.WithinWeeks(const aDateTime: TDateTime;
-  const aWeeks: Integer): Boolean;
+function TDateTimeHelper.WithinWeeks(const aDateTime: TDateTime; const aWeeks: Integer): Boolean;
 begin
   Result := DateUtils.WithinPastWeeks(Self, aDateTime, aWeeks);
 end;
 
-function TDateTimeHelper.WithinYears(const aDateTime: TDateTime;
-  const aYears: Integer): Boolean;
+function TDateTimeHelper.WithinYears(const aDateTime: TDateTime; const aYears: Integer): Boolean;
 begin
   Result := DateUtils.WithinPastYears(Self, aDateTime, aYears);
 end;

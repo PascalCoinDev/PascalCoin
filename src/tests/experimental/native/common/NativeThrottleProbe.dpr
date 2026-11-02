@@ -27,8 +27,7 @@ type
     procedure TimerFired(Sender: TObject);
     procedure Trace(const Kind: String);
   public
-    constructor Create(AProbe: TProbe; const AName: String;
-      AMode: TThrottledEventMode; const ATimes: TArray<Cardinal>);
+    constructor Create(AProbe: TProbe; const AName: String; AMode: TThrottledEventMode; const ATimes: TArray<Cardinal>);
     procedure Tick(AElapsed: UInt64);
     function Validate: TJSONObject;
   end;
@@ -51,8 +50,7 @@ begin
   SetLength(Result, Finish div Step + 1);
   for I:=0 to High(Result) do Result[I]:=Cardinal(I)*Step;
 end;
-constructor TThrottleCase.Create(AProbe: TProbe; const AName: String;
-  AMode: TThrottledEventMode; const ATimes: TArray<Cardinal>);
+constructor TThrottleCase.Create(AProbe: TProbe; const AName: String; AMode: TThrottledEventMode; const ATimes: TArray<Cardinal>);
 var I: Integer;
 begin
   inherited Create(AProbe); FProbe:=AProbe; FName:=AName; FTimes:=Copy(ATimes);

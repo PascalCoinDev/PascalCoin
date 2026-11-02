@@ -25,8 +25,7 @@ type
     function GetColumns: TDataColumns; override;
     function GetItemField(const AItem: Integer; const AName: String): Variant; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
-    function FetchPage(const AParams: TPageFetchParams;
-      var ADataTable: TDataTable): TPageFetchResult; override;
+    function FetchPage(const AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult; override;
   end;
 
   TProbeGrid = class(TVisualGrid)
@@ -111,8 +110,7 @@ begin
   for I := 0 to ItemCount - 1 do AContainer.Add(I);
 end;
 
-function TProbeSource.FetchPage(const AParams: TPageFetchParams;
-  var ADataTable: TDataTable): TPageFetchResult;
+function TProbeSource.FetchPage(const AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
 begin
   LastParams := AParams;
   InterlockedIncrement(PageCalls);

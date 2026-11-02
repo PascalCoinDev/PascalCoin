@@ -14,8 +14,7 @@ type
   TGridViewportScenario = (vsUniformRows, vsVariableRows, vsDpiScaling,
     vsHorizontalScrollbar, vsUnfetchedRows, vsAutomaticResize);
 
-procedure CheckVisualGridViewport(AScenario: TGridViewportScenario;
-  ALog: TStrings = nil);
+procedure CheckVisualGridViewport(AScenario: TGridViewportScenario; ALog: TStrings = nil);
 procedure CheckVisualGridShowAllCompatibility(ALog: TStrings = nil);
 procedure CheckVisualGridDeferredParenting(ALog: TStrings = nil);
 
@@ -35,8 +34,7 @@ type
   TShowAllSource = class(TCustomDataSource<Integer>)
   protected
     function GetColumns: TDataColumns; override;
-    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-      const ABindingName: String): Variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const ABindingName: String): Variant; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
   public
     Count: Integer;
@@ -47,8 +45,7 @@ begin
   Result := TDataColumns.Create(TDataColumn.From('Id', True));
 end;
 
-function TShowAllSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-  const ABindingName: String): Variant;
+function TShowAllSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const ABindingName: String): Variant;
 begin
   Result := AItem;
 end;
@@ -148,8 +145,7 @@ begin
   end;
 end;
 
-procedure CheckVisualGridViewport(AScenario: TGridViewportScenario;
-  ALog: TStrings);
+procedure CheckVisualGridViewport(AScenario: TGridViewportScenario; ALog: TStrings);
 var
   LForm: TForm;
   LGrid: TViewportGrid;
