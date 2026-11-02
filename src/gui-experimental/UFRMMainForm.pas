@@ -441,8 +441,10 @@ end;
 
 procedure TFRMMainForm.WndProc(var Msg: {$IFDEF FPC}TLMessage{$ELSE}TMessage{$ENDIF});
 begin
+  // LCL supplies LM_* on every widgetset; VCL uses the native WM_* identifier.
   // A native maximize command can bypass a disabled caption button.
-  if FStartupHeightLocked and (Msg.Msg = WM_SYSCOMMAND) and
+  if FStartupHeightLocked and
+    (Msg.Msg = {$IFDEF FPC}LM_SYSCOMMAND{$ELSE}WM_SYSCOMMAND{$ENDIF}) and
     ((Msg.WParam and $FFF0) = SC_MAXIMIZE) then begin
     {$IFDEF FPC}
     // The Win32 LCL widgetset resumes native system-command processing from
