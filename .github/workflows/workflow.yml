@@ -15,6 +15,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
 
     strategy:
+      fail-fast: false
       matrix:
         operating-system: [windows-latest,ubuntu-latest,macos-15-intel]
 #        lazarus-versions: [stable, 2.2.2, 2.2.0, 2.0.12]
@@ -32,19 +33,41 @@ jobs:
         with-cache: false
         lazarus-version: ${{ matrix.lazarus-versions }}
 
+    - name: Test core and framework read/write locks
+      shell: bash
+      run: |
+        mkdir -p .ci-threading/units .ci-threading/bin
+        fpc -B -Mdelphi -Sh -gl -Cr -Co \
+          -FU.ci-threading/units -FE.ci-threading/bin \
+          -Fusrc/core -Fusrc/libraries/sphere10 -Fusrc/libraries/pascalcoin \
+          -Fusrc/libraries/generics.collections -Fisrc/libraries/generics.collections/inc \
+          -Fusrc/tests/experimental/core -Fusrc/tests/experimental/framework \
+          src/tests/experimental/ThreadingTests.lpr
+        ./.ci-threading/bin/ThreadingTests .ci-threading/results.log
+        cat .ci-threading/results.log
+        grep -q '^0 unfreed memory blocks' .ci-threading/results.log.heap.log
+
     - name: Build the Pascal daemon
       run: lazbuild -B "src/pascalcoin_daemon.lpi"
 
     - name: Build reference Pascal Miner
       run: lazbuild -B "src/pascalcoin_miner.lpi"
 
-    - name: Build the Main Wallet Application (Windows/Linux)
+    - name: Build Classic Wallet (Windows/Linux)
       if: ${{ runner.os != 'macOS' }}
       run: lazbuild -B "src/pascalcoin_wallet_classic.lpi"
 
-    - name: Build the Main Wallet Application (macOS)
+    - name: Build Classic Wallet (macOS)
       if: ${{ runner.os == 'macOS' }}
       run: lazbuild -B --ws=cocoa "src/pascalcoin_wallet_classic.lpi"
+
+    - name: Build Experimental Wallet (Windows/Linux)
+      if: ${{ runner.os != 'macOS' }}
+      run: lazbuild -B "src/pascalcoin_wallet_experimental.lpi"
+
+    - name: Build Experimental Wallet (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      run: lazbuild -B --ws=cocoa "src/pascalcoin_wallet_experimental.lpi"
 
     - name: Upload binary (Windows)
       if: ${{ (matrix.operating-system == 'windows-latest')  &&  (matrix.lazarus-versions == 'stable') }}
@@ -56,6 +79,7 @@ jobs:
           src/pascalcoin_daemon.exe
           src/PascalCoinMiner.exe
           src/PascalCoinWalletLazarus.exe
+          src/PascalCoinWalletExperimental.exe
 
     - name: Upload binary (Ubuntu)
       if: ${{ (matrix.operating-system == 'ubuntu-latest')  &&  (matrix.lazarus-versions == 'stable') }}
@@ -67,6 +91,7 @@ jobs:
           src/pascalcoin_daemon
           src/PascalCoinMiner
           src/PascalCoinWalletLazarus
+          src/PascalCoinWalletExperimental
 
     - name: Upload binary (macOS)
       if: ${{ (runner.os == 'macOS')  &&  (matrix.lazarus-versions == 'stable') }}
@@ -78,6 +103,7 @@ jobs:
           src/pascalcoin_daemon
           src/PascalCoinMiner
           src/PascalCoinWalletLazarus
+          src/PascalCoinWalletExperimental
 
   package-release:
     if: contains(github.ref, '/tags/')

@@ -57,6 +57,10 @@ The wallet uses [Sphere 10 Pascal Framework](https://github.com/HermanSchoenfeld
 for caching, concurrency, scoped resources, paged grids and wizards.
 See [Build 5.9](CHANGELOG.md#build-59---2026-10-28) for the full change list.
 
+CI builds the daemon, miner, classic wallet and experimental wallet on Windows,
+Linux and macOS. Each platform artifact includes both wallet executables, which
+can be kept side by side.
+
 | Language      | Project Name | Type    | Version support | Link |
 | ------------- | ------------ | ------- | --------------- | ---- |
 | JavaScript    | SBX          | Library | 5               | [SBX](https://github.com/techworker/sbx) |

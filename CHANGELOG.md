@@ -52,6 +52,7 @@
 - Update GNU gettext and regular-expression compatibility for Delphi.
 - Document wallet features, Sphere 10 Pascal Framework and Delphi/Lazarus build and test commands.
 - Add runners for unit and isolated native regression tests covering shared components, operations, classic wallet, synchronization, loading and shutdown.
+- Build and package both wallet applications in Windows, Linux and macOS CI; run core and framework lock tests on every platform.
 
 ## Build 5.8 - 2024-01-17
 - Accumulative release, including:
