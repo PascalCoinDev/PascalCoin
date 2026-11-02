@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{5FD952E3-C27D-4CB5-8F34-1040A6373B9A}</ProjectGuid>
+    <MainSource>NativeThrottleProbe.dpr</MainSource>
+    <Config>Debug</Config>
+    <Platform>Win64</Platform>
+    <Base>True</Base>
+    <TargetedPlatforms>3</TargetedPlatforms>
+    <AppType>Console</AppType>
+    <FrameworkType>VCL</FrameworkType>
+    <ProjectVersion>20.3</ProjectVersion>
+    <DCC_Namespace>System;Winapi;Vcl;Vcl.Imaging;Data;Xml</DCC_Namespace>
+    <DCC_UnitAlias>Generics.Collections=System.Generics.Collections;Generics.Defaults=System.Generics.Defaults;$(DCC_UnitAlias)</DCC_UnitAlias>
+    <DCC_UnitSearchPath>..\..\..\..\libraries\sphere10</DCC_UnitSearchPath>
+    <DCC_IncludePath>..\..\..\..\libraries\sphere10</DCC_IncludePath>
+    <DCC_DcuOutput>..\..\lib\native-throttle\$(Platform)\$(Config)\dcu</DCC_DcuOutput>
+    <DCC_ExeOutput>..\..\lib\native-throttle\$(Platform)\$(Config)\bin</DCC_ExeOutput>
+    <BRCC_OutputDir>..\..\lib\native-throttle\$(Platform)\$(Config)\res</BRCC_OutputDir>
+    <DCC_RangeChecking>true</DCC_RangeChecking>
+    <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+  </PropertyGroup>
+  <ItemGroup><DelphiCompile Include="$(MainSource)"><MainSource>MainSource</MainSource></DelphiCompile></ItemGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+    <BorlandProject>
+      <Delphi.Personality><Source><Source Name="MainSource">NativeThrottleProbe.dpr</Source></Source></Delphi.Personality>
+      <Platforms><Platform value="Win32">True</Platform><Platform value="Win64">True</Platform></Platforms>
+    </BorlandProject>
+  </ProjectExtensions>
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" />
+</Project>
