@@ -5,6 +5,7 @@ Builds and runs main-wallet refresh and received-block checks on a private deskt
 The default target is the dedicated FPCUnit fixture. Use -Demo to run the native
 interactive demo's automatic scenarios instead. Add -AllDemoCases to include
 every distinct native presentation/logging/dialog group in fresh processes.
+Use -DemoCase <name> with -Demo to run one of those groups instead.
 Use -NetworkOff for the real
 connectivity toggle and deferred-refresh lifecycle regression. Use -Backlog for
 the actual buffered-response processor, outgoing/incoming transport ownership,
@@ -25,6 +26,7 @@ param(
     [string] $OutputDirectory,
     [switch] $Demo,
     [switch] $AllDemoCases,
+    [string] $DemoCase,
     [switch] $NetworkOff,
     [switch] $Backlog,
     [switch] $LargeBacklog,
@@ -35,7 +37,30 @@ $ErrorActionPreference = 'Stop'
 if (@($Demo, $NetworkOff, $Backlog, $LargeBacklog).Where({ $_.IsPresent }).Count -gt 1) {
     throw 'Choose only one of -Demo, -NetworkOff, -Backlog or -LargeBacklog.'
 }
-if ($AllDemoCases -and -not $Demo) { throw '-AllDemoCases requires -Demo.' }
+if (($AllDemoCases -or $DemoCase) -and -not $Demo) { throw '-AllDemoCases and -DemoCase require -Demo.' }
+if ($AllDemoCases -and $DemoCase) { throw 'Choose only one of -AllDemoCases or -DemoCase.' }
+$demoSelectors = [ordered]@{
+    'selection' = @('PASCAL_WALLET_SELECTION_ONLY')
+    'safebox-info' = @('PASCAL_WALLET_SAFEBOX_LOG_ONLY')
+    'sync-paint' = @('PASCAL_WALLET_SYNC_PAINT_ONLY')
+    'tools' = @('PASCAL_WALLET_TOOLS_ONLY')
+    'history-depth' = @('PASCAL_WALLET_TOOLS_ONLY', 'PASCAL_WALLET_HISTORY_DEPTH_ONLY')
+    'operation-input' = @('PASCAL_WALLET_TOOLS_ONLY', 'PASCAL_WALLET_OPERATION_INPUT_ONLY')
+    'block-tools' = @('PASCAL_WALLET_TOOLS_ONLY', 'PASCAL_WALLET_BLOCK_TOOLS_ONLY')
+    'change-info-approval' = @('PASCAL_WALLET_CHANGE_INFO_APPROVAL_ONLY')
+    'change-info-ui' = @('PASCAL_WALLET_CHANGE_INFO_UI_ONLY')
+    'send-ui' = @('PASCAL_WALLET_SEND_UI_ONLY')
+    'operation-messages' = @('PASCAL_WALLET_OPERATION_MESSAGE_ONLY')
+    'advanced-ui' = @('PASCAL_WALLET_ADVANCED_UI_ONLY')
+}
+$allDemoCaseNames = @('default') + @($demoSelectors.Keys)
+if ($DemoCase) {
+    $DemoCase = $DemoCase.ToLowerInvariant()
+    if ($DemoCase -notin $allDemoCaseNames) {
+        throw "Unknown demo case '$DemoCase'. Choose: $($allDemoCaseNames -join ', ')."
+    }
+}
+$useDemoSelectors = $AllDemoCases -or [bool]$DemoCase
 $ownedLargeRoot = $null
 if ($LargeBacklog) {
     if ([string]::IsNullOrWhiteSpace($LargeDataRoot)) { throw '-LargeBacklog requires -LargeDataRoot.' }
@@ -119,26 +144,12 @@ $previousTemp = $env:TEMP
 $previousTmp = $env:TMP
 $previousBacklogCase = $env:PASCALCOIN_BACKLOG_CASE
 $previousLargeDataRoot = $env:PASCALCOIN_LARGE_BACKLOG_ROOT
-$demoSelectors = @{
-    'selection' = @('PASCAL_WALLET_SELECTION_ONLY')
-    'safebox-info' = @('PASCAL_WALLET_SAFEBOX_LOG_ONLY')
-    'sync-paint' = @('PASCAL_WALLET_SYNC_PAINT_ONLY')
-    'tools' = @('PASCAL_WALLET_TOOLS_ONLY')
-    'history-depth' = @('PASCAL_WALLET_TOOLS_ONLY', 'PASCAL_WALLET_HISTORY_DEPTH_ONLY')
-    'operation-input' = @('PASCAL_WALLET_TOOLS_ONLY', 'PASCAL_WALLET_OPERATION_INPUT_ONLY')
-    'block-tools' = @('PASCAL_WALLET_TOOLS_ONLY', 'PASCAL_WALLET_BLOCK_TOOLS_ONLY')
-    'change-info-approval' = @('PASCAL_WALLET_CHANGE_INFO_APPROVAL_ONLY')
-    'change-info-ui' = @('PASCAL_WALLET_CHANGE_INFO_UI_ONLY')
-    'send-ui' = @('PASCAL_WALLET_SEND_UI_ONLY')
-    'operation-messages' = @('PASCAL_WALLET_OPERATION_MESSAGE_ONLY')
-    'advanced-ui' = @('PASCAL_WALLET_ADVANCED_UI_ONLY')
-}
 $selectorNames = @($demoSelectors.Values | ForEach-Object { $_ }) + @(
     'PASCAL_WALLET_KEY_NOTIFICATIONS_ONLY', 'PASCAL_WALLET_CONSECUTIVE_SELECTION_ONLY',
     'PASCAL_WALLET_REFRESH_LIFECYCLE_ONLY', 'PASCAL_WALLET_SELECTION_COMPLETION_ONLY')
 $selectorNames = @($selectorNames | Sort-Object -Unique)
 $previousSelectors = @{}
-if ($AllDemoCases) {
+if ($useDemoSelectors) {
     foreach ($name in $selectorNames) {
         $previousSelectors[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     }
@@ -154,16 +165,16 @@ try {
         @('direct', 'outgoing', 'outgoing-shutdown', 'incoming',
           'incoming-settings', 'incoming-shutdown', 'connected-miner')
     } elseif ($AllDemoCases) {
-        @('default', 'selection', 'safebox-info', 'sync-paint', 'tools',
-          'history-depth', 'operation-input', 'block-tools', 'change-info-approval',
-          'change-info-ui', 'send-ui', 'operation-messages', 'advanced-ui')
+        $allDemoCaseNames
+    } elseif ($DemoCase) {
+        @($DemoCase)
     } else { @('') }
     foreach ($case in $cases) {
         $suffix = if ($case) { "-$case" } else { '' }
         $log = Join-Path $output "tests$suffix.log"
         $brokerLog = Join-Path $output "broker$suffix.log"
         if ($Backlog) { $env:PASCALCOIN_BACKLOG_CASE = $case }
-        if ($AllDemoCases) {
+        if ($useDemoSelectors) {
             # Focused selectors replace the default branch; clear all before each child.
             foreach ($name in $selectorNames) {
                 [Environment]::SetEnvironmentVariable($name, $null, 'Process')
@@ -200,7 +211,7 @@ try {
     $env:TMP = $previousTmp
     $env:PASCALCOIN_BACKLOG_CASE = $previousBacklogCase
     $env:PASCALCOIN_LARGE_BACKLOG_ROOT = $previousLargeDataRoot
-    if ($AllDemoCases) {
+    if ($useDemoSelectors) {
         foreach ($name in $selectorNames) {
             [Environment]::SetEnvironmentVariable($name, $previousSelectors[$name], 'Process')
         }

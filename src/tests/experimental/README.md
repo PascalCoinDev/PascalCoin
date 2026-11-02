@@ -26,6 +26,8 @@ default refresh checks and distinct selection, logging, painting, Tools,
 history limits, operation input, block filters, approval, Send PASC and dialog
 presentation groups. Subset selectors already covered by the default branch are
 not repeated.
+For one native group, use `RunWalletGridRefreshTests.ps1 -Demo -DemoCase
+operation-messages`. `-DemoCase` and `-AllDemoCases` are mutually exclusive.
 Each phase uses its own
 process and fresh data. The controller fixture remains separate because its
 application state lasts for the process. A registration manifest fails if a
@@ -43,6 +45,10 @@ modes and both normal-executable modes against the optimized 5.9 Release wallet.
 The native Windows checks require the real Win32 widgetset. Linux and macOS
 build both wallets and run the portable lock suite below. Delphi-only probes
 and the opt-in large-chain fixture have separate inputs and commands.
+The fixed-size Advanced Operation form needs a Full HD desktop for its 150%
+checks. CI first tests bounded message dialogs on its smaller default desktop,
+then temporarily selects a supported Full HD display mode. The display helper
+refuses local changes; use `native/SetCiDisplayMode.ps1 -InspectOnly` for diagnostics.
 The pending-protocol checks use the existing visibility-only source-copy script:
 three declarations become protected, every method body stays identical, and
 source hashes/equivalence are recorded. That copy is never shipped. Classic uses

@@ -90,6 +90,21 @@ jobs:
       if: ${{ runner.os == 'macOS' }}
       run: lazbuild -B --ws=cocoa --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
 
+    - name: Test bounded message dialogs on the default desktop (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        $compiler = (Get-Command fpc).Source
+        $lazarus = Split-Path -Parent (Get-Command lazbuild).Source
+        & .\src\tests\experimental\RunWalletGridRefreshTests.ps1 -Demo -DemoCase operation-messages -FpcPath $compiler -LazarusDirectory $lazarus -OutputDirectory (Join-Path $env:RUNNER_TEMP 'wallet-message-small')
+        exit $LASTEXITCODE
+
+    - name: Prepare the 150-percent native test viewport (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        & .\src\tests\experimental\native\SetCiDisplayMode.ps1 -ReportPath (Join-Path $env:RUNNER_TEMP 'wallet-display.json')
+
     - name: Test wallet units and native workflows (Windows)
       if: ${{ runner.os == 'Windows' }}
       shell: pwsh
@@ -103,11 +118,25 @@ jobs:
       with:
         name: Wallet-tests-Windows
         if-no-files-found: warn
+        retention-days: 14
         path: |
           ${{ runner.temp }}/wallet-tests/**/*.log
           ${{ runner.temp }}/wallet-tests/**/*.json
           ${{ runner.temp }}/wallet-tests/**/*.png
           ${{ runner.temp }}/wallet-tests/**/*.bmp
+
+    - name: Upload native display checks
+      if: ${{ always() && runner.os == 'Windows' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: Native-display-Windows
+        if-no-files-found: warn
+        retention-days: 14
+        path: |
+          ${{ runner.temp }}/wallet-display.json
+          ${{ runner.temp }}/wallet-message-small/**/*.log
+          ${{ runner.temp }}/wallet-message-small/**/*.json
+          ${{ runner.temp }}/wallet-message-small/**/*.bmp
 
     - name: Upload binary (Windows)
       if: ${{ (matrix.operating-system == 'windows-latest')  &&  (matrix.lazarus-versions == 'stable') }}
