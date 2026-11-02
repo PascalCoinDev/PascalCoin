@@ -670,7 +670,7 @@ end;
 
 procedure TWalletGridIntegrationTests.CheckSlowFetchDuringContinuousInputs;
 var
-  LBaseRefresh,LAccounts,LOperations: Integer;
+  LBaseRefresh,LAccounts,LOperations,LAccountAdmissions,LOperationAdmissions: Integer;
   LDeadline,LLastInput: QWord;
 begin
   LBaseRefresh := FWallet.AccountRefreshCount;
@@ -694,17 +694,20 @@ begin
   AssertTrue('A busy grid records inputs immediately',FWallet.AccountRefreshCount > LBaseRefresh+1);
   CheckFetchCounts('Held providers do not start parallel queries',LAccounts,LOperations);
   CheckRefreshState('Ordinary loading covers held providers');
+  LAccountAdmissions := FWallet.AccountRefreshCount;
+  LOperationAdmissions := FWallet.OperationRefreshCount;
   LLastInput := NotifyChange(3999);
-  // Node delivery is asynchronous. Keep the providers held until both real
-  // admission callbacks have received the final input, not just its producer.
+  // Node delivery is asynchronous. Observe a new admission after the final
+  // input; an earlier callback can share its tick and is not a delivery fence.
+  // Keep both providers held until the final input has reached both grids.
   LDeadline := GetTickCount64+1800;
-  while ((FWallet.LastAccountRefreshTick<LLastInput) or
-    (FWallet.LastOperationRefreshTick<LLastInput)) and
+  while ((FWallet.AccountRefreshCount<=LAccountAdmissions) or
+    (FWallet.OperationRefreshCount<=LOperationAdmissions)) and
     (GetTickCount64<LDeadline) do PumpFor(5);
   AssertTrue('The final input reaches account admission before releasing its provider',
-    FWallet.LastAccountRefreshTick>=LLastInput);
+    FWallet.AccountRefreshCount>LAccountAdmissions);
   AssertTrue('The final input reaches operations admission before releasing its provider',
-    FWallet.LastOperationRefreshTick>=LLastInput);
+    FWallet.OperationRefreshCount>LOperationAdmissions);
   CheckFetchCounts('The final input coalesces behind the held workers',LAccounts,LOperations);
   FModel.ReleaseFetches;
   Settle;
