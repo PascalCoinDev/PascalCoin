@@ -16,9 +16,9 @@ type and data. The node supports payments, transferable accounts, encrypted
 payloads, multioperations, atomic swaps, mining and a JSON-RPC API.
 
 This repository contains the full node, two separate desktop wallets, a daemon
-and a reference miner. PascalCoin's original implementation is by **Albert Molina**.
-The experimental wallet interface was developed primarily by **Herman Schoenfeld**,
-building on Albert's core and the work of the PascalCoin contributors.
+and a reference miner. PascalCoin's original implementation is by **Albert Molina**,
+with significant contributions by **Herman Schoenfeld** (such as the Experimental
+Wallet and core changes), alongside the work of the PascalCoin contributors.
 
 ![Experimental wallet 5.9 in Delphi: wallet totals, owned accounts and recent operations](docs/screenshots/5.9/experimental-delphi-wallet.webp)
 
@@ -121,6 +121,11 @@ lazbuild -B src/pascalcoin_wallet_classic.lpi
 lazbuild -B --build-mode=Release src/pascalcoin_wallet_experimental.lpi
 ```
 
+The experimental project's `Release` mode enables optimization and strips debug
+symbols. Use `--build-mode=Debug` when debugging; omitting the flag selects its
+unoptimized `Default` mode. The classic wallet, daemon and miner retain their
+existing default build settings.
+
 On macOS, add `--ws=cocoa` to both wallet commands. Linux uses GTK2. Outputs are
 under `src` with the executable names listed above. For a source build, place the
 matching OpenSSL 1.1 runtime from `windows-dll` or `linux-libs` beside the programs;
@@ -139,6 +144,26 @@ runtime verification. Delphi executables are
 CI builds use FPC/Lazarus. See the
 [detailed build guide](src/gui-experimental/README.md#build) for compiler options,
 Debug/Release configurations and runtime layout.
+
+For Delphi editions with command-line compilation, open the **RAD Studio Command
+Prompt** and run from the repository root:
+
+```bat
+msbuild src\pascalcoin_wallet_classic.dproj /t:Build /p:Config=Release /p:Platform=Win64
+msbuild src\pascalcoin_wallet_experimental.dproj /t:Build /p:Config=Release /p:Platform=Win64
+```
+
+Community Edition builds through the IDE. Its AutoBuild commands open the project
+and build its selected configuration:
+
+```bat
+bds.exe -b src\pascalcoin_wallet_classic.dproj
+bds.exe -b src\pascalcoin_wallet_experimental.dproj
+```
+
+Select the intended configuration and platform in the IDE; the verified targets
+are listed above. See Embarcadero's [MSBuild guide](https://docwiki.embarcadero.com/RADStudio/Sydney/en/MSBuild)
+and [IDE command options](https://docwiki.embarcadero.com/RADStudio/Alexandria/en/IDE_Command_Line_Switches_and_Options).
 
 The wallet incorporates
 [Sphere 10 Pascal Framework](https://github.com/HermanSchoenfeld/PascalFramework)
