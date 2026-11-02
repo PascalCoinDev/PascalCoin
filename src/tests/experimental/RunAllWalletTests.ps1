@@ -131,9 +131,10 @@ foreach ($phase in $phases) {
         # A failed child is a recorded phase failure, not permission to omit later phases.
         $ErrorActionPreference = 'Continue'
         $PSNativeCommandUseErrorActionPreference = $false
-        $LASTEXITCODE = 1
+        $status = 1
         & $shell @arguments 2>&1 | Tee-Object -FilePath $phaseLog
-        $status = $LASTEXITCODE
+        # Native exit codes are global even when another script invoked this runner.
+        $status = $global:LASTEXITCODE
     } catch {
         $status = 1
         $_ | Out-String | Tee-Object -FilePath $phaseLog -Append
