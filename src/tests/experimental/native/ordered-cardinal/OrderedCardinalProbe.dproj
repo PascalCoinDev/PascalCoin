@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{78D633C7-9AC7-4940-881D-9359630293FD}</ProjectGuid>
+    <MainSource>OrderedCardinalProbe.dpr</MainSource>
+    <Config>Debug</Config><Platform>Win64</Platform><Base>True</Base>
+    <TargetedPlatforms>3</TargetedPlatforms><AppType>Console</AppType>
+    <FrameworkType>None</FrameworkType><ProjectVersion>20.3</ProjectVersion>
+    <DCC_Namespace>System;Winapi</DCC_Namespace>
+    <DCC_UnitSearchPath>..\..\..\..\libraries\abstractmem</DCC_UnitSearchPath>
+    <DCC_IncludePath>..\..\..\..\libraries\abstractmem</DCC_IncludePath>
+    <DCC_DcuOutput>..\..\lib\ordered-cardinal\Delphi\$(Platform)\$(Config)\dcu</DCC_DcuOutput>
+    <DCC_ExeOutput>..\..\lib\ordered-cardinal\Delphi\$(Platform)\$(Config)</DCC_ExeOutput>
+    <DCC_DebugInformation>true</DCC_DebugInformation>
+    <DCC_RangeChecking>true</DCC_RangeChecking><DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+  </PropertyGroup>
+  <ItemGroup><DelphiCompile Include="$(MainSource)"><MainSource>MainSource</MainSource></DelphiCompile></ItemGroup>
+  <ProjectExtensions><Borland.Personality>Delphi.Personality.12</Borland.Personality><BorlandProject><Delphi.Personality><Source><Source Name="MainSource">OrderedCardinalProbe.dpr</Source></Source></Delphi.Personality><Platforms><Platform value="Win32">True</Platform><Platform value="Win64">True</Platform></Platforms></BorlandProject></ProjectExtensions>
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" />
+</Project>
