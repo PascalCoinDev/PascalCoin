@@ -18,7 +18,7 @@ uses
   UChangeAccountInfoReplayTests,
   UBlockSanitizeTests,
   UPendingCatchupTests,
-  UPendingSaveLifecycleTests,
+  UPendingSaveLifecycleTests, UCheckpointStorageTests, UAbstractMemStorageFailureTests,
   UAccountCachePolicyTests,
   UDownloadWorkerLifetimeTests,
   ULegacyConnectionLifetimeTests,

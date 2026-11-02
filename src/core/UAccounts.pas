@@ -2983,8 +2983,12 @@ begin
   // belong to the new storage instance. Construction still defaults to 50,000.
   LAccountCacheLimit := 0;
   LHasAccountCacheLimit := Assigned(FPCAbstractMem);
-  if LHasAccountCacheLimit then
+  if LHasAccountCacheLimit then begin
     LAccountCacheLimit := FPCAbstractMem.AccountCache.MaxRegisters;
+    // Surface write failures before releasing the old owner. Destructors only
+    // clean up; a failed switch must retain its original storage instance.
+    FPCAbstractMem.FlushCache;
+  end;
   FreeAndNil(FPCAbstractMem);
   FPCAbstractMem := TPCAbstractMem.Create(ASafeboxFileName,False);
   if LHasAccountCacheLimit then

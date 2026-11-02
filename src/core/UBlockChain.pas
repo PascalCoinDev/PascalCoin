@@ -1,4 +1,4 @@
-﻿unit UBlockChain;
+unit UBlockChain;
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -614,7 +614,7 @@ uses
   UTime, UConst, UOpTransaction, UPCOrderedLists,
   UPCOperationsSignatureValidator,
   UPCOperationsBlockValidator,
-  UAbstractMemBlockchainStorage,
+  UAbstractMemBlockchainStorage, UFileMem, UAbstractMem, {$IFNDEF USE_ABSTRACTMEM}UPCAbstractMem,{$ENDIF}
   UNode;
 
 { TPCOperationsStorage }
@@ -824,12 +824,18 @@ begin
 end;
 
 function TPCBank.AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var errors: String): Boolean;
-Var i : Integer;
+var i: Integer; LPersistenceFailed: Boolean;
 begin
   TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
   Try
     Result := False;
     errors := '';
+    LPersistenceFailed := False;
+    // Once canonical storage fails, no later buffered/mined block may mutate it.
+    if TNode.NodeExists and (TNode.Node.Bank=Self) and TNode.Node.HasStorageFailure then begin
+      errors := 'Block processing paused after a storage failure; restart required';
+      Exit;
+    end;
     Operations.Lock; // New Protection
     Try
       If Not Operations.ValidateOperationBlock(errors) then begin
@@ -845,8 +851,20 @@ begin
       // WINNER !!!
       // Congrats!
 
-      if Not Operations.SafeBoxTransaction.Commit(Operations.OperationBlock,errors) then begin
-        exit;
+      try
+        if Not Operations.SafeBoxTransaction.Commit(Operations.OperationBlock,errors) then Exit;
+      except
+        on E: Exception do begin
+          // A file-backed commit can evict dirty pages before the later explicit
+          // flush. This is a storage failure, not an invalid peer block.
+          if (E is EStreamError) or (E is EOSError) or (E is EFileMem) or
+            (E is EAbstractMem) or (E is EPCAbstractMem) then begin
+            LPersistenceFailed := True;
+            if TNode.NodeExists and (TNode.Node.Bank=Self) then
+              TNode.Node.ReportStorageFailure(sfsSafeboxFlush,{$IFDEF USE_ABSTRACTMEM}SafeBox.PCAbstractMem.FileName{$ELSE}'safebox'{$ENDIF},E);
+          end;
+          raise;
+        end;
       end;
 
       // Initialize values
@@ -864,14 +882,21 @@ begin
             TCrypto.ToHexaString(SafeBox.SafeBoxHash)]));
       // Save Operations to disk
       if Not FIsRestoringFromFile then begin
-        Storage.SaveBlockChainBlock(Operations);
+        try
+          Storage.SaveBlockChainBlock(Operations);
+        except
+          LPersistenceFailed := True;
+          raise;
+        end;
       end;
       FLastBlockCache.CopyFrom(Operations);
       Operations.Clear(true);
       Result := true;
     Finally
       if Not Result then begin
-        NewLog(Operations, lterror, 'Invalid new block '+inttostr(Operations.OperationBlock.block)+': ' + errors+ ' > '+TPCOperationsComp.OperationBlockToText(Operations.OperationBlock));
+        if LPersistenceFailed then
+          NewLog(Operations,ltError,'Cannot persist block '+IntToStr(Operations.OperationBlock.block)+'; block processing is paused')
+        else NewLog(Operations, lterror, 'Invalid new block '+inttostr(Operations.OperationBlock.block)+': ' + errors+ ' > '+TPCOperationsComp.OperationBlockToText(Operations.OperationBlock));
       end;
       Operations.Unlock;
     End;
@@ -1119,6 +1144,7 @@ var fs: TFileStream;
 begin
   Result := true;
   LBankfilename := GetSafeboxCheckpointingFileName(GetStorageFolder(Orphan),BlocksCount);
+  if LBankfilename='' then raise EWriteError.Create('Cannot create safebox checkpoint directory');
   if (LBankfilename<>'') then begin
     LTC := TPlatform.GetTickCount;
     {$IFDEF USE_ABSTRACTMEM}
@@ -1149,14 +1175,20 @@ begin
     if (Orphan='') And ((BlocksCount MOD (CT_BankToDiskEveryNBlocks*100))=0) then begin
       Laux_newfilename := GetStorageFolder('') + PathDelim+'checkpoint_'+ inttostr(BlocksCount)+CT_Safebox_Extension;
       try
-        {$IFDEF FPC}
-        DoCopyFile(LBankfilename,Laux_newfilename);
+        {$IFDEF USE_ABSTRACTMEM}
+        // Monthly copies have the same publication guarantees as rotating ones.
+        SafeBox.SaveCheckpointing(Laux_newfilename);
         {$ELSE}
-        CopyFile(PWideChar(LBankfilename),PWideChar(Laux_newfilename),False);
+          {$IFDEF FPC}
+          DoCopyFile(LBankfilename,Laux_newfilename);
+          {$ELSE}
+          if not CopyFile(PWideChar(LBankfilename),PWideChar(Laux_newfilename),False) then RaiseLastOSError;
+          {$ENDIF}
         {$ENDIF}
       Except
         On E:Exception do begin
           TLog.NewLog(lterror,ClassName,'Exception copying extra safebox file '+Laux_newfilename+' ('+E.ClassName+'):'+E.Message);
+          raise;
         end;
       end;
     end;
@@ -1460,12 +1492,17 @@ end;
 function TPCBank.OpenSafeBoxCheckpoint(ABlockCount: Cardinal): TCheckPointStruct;
 var fn : TFilename;
   err : AnsiString;
+  {$IFDEF USE_ABSTRACTMEM}
+  LBlocksCount: Integer;
+  {$ENDIF}
 begin
   Result := Nil;
   fn := GetSafeboxCheckpointingFileName(GetStorageFolder(''),ABlockCount);
   If (fn<>'') and (FileExists(fn)) then begin
     {$IFDEF USE_ABSTRACTMEM}
-    Result := TPCAbstractMem.Create(fn,True);
+    // A failed copy from an older run may remain on disk; never serve it.
+    if TPCAbstractMem.AnalyzeFile(fn,LBlocksCount) then
+      Result := TPCAbstractMem.Create(fn,True);
     {$ELSE}
     Result := TFileStream.Create(fn,fmOpenRead+fmShareDenyWrite);
     {$ENDIF}
@@ -1476,96 +1513,185 @@ begin
   end;
 end;
 
-function TPCBank.RestoreBank(AMax_block: Int64; AOrphan : String;
-  ARestoreProgressNotify: TProgressNotify): Boolean;
+function TPCBank.RestoreBank(AMax_block: Int64; AOrphan: String; ARestoreProgressNotify: TProgressNotify): Boolean;
 var
-    sr: TSearchRec;
-    FileAttrs: Integer;
-    folder : AnsiString;
-    Lfilename,auxfn : AnsiString;
-    fs : TFileStream;
-    errors : String;
-    LBlockscount : Cardinal;
-    sbHeader, goodSbHeader : TPCSafeBoxHeader;
-    {$IFDEF USE_ABSTRACTMEM}
-    LTempBlocksCount : Integer;
-    LSafeboxFileName : String;
-    {$ELSE}
-    {$ENDIF}
-begin
-  FBankLock.Acquire;
-  Try
-    {$IFDEF USE_ABSTRACTMEM}
-    Lfilename := '';
-    LSafeboxFileName := GetStorageFolder(AOrphan)+PathDelim+'safebox'+CT_Safebox_Extension;
-    if TPCAbstractMem.AnalyzeFile(LSafeboxFileName,LTempBlocksCount) then begin
-      LBlockscount := LTempBlocksCount;
-    end else begin
-      LBlockscount := 0;
-    end;
-    //
-    FileAttrs := faArchive;
-    folder := GetStorageFolder(''); /// Without Orphan folder
-    if SysUtils.FindFirst(folder+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
-      repeat
-        if (sr.Attr and FileAttrs) = FileAttrs then begin
-          auxfn := folder+PathDelim+sr.Name;
-          if TPCAbstractMem.AnalyzeFile(auxfn,LTempBlocksCount) then begin
-            if (((AMax_block<0) Or (LTempBlocksCount<=AMax_block)) AND (LTempBlocksCount>LBlockscount)) then begin
-              Lfilename := auxfn;
-              LBlockscount := LTempBlocksCount;
-            end;
-          end;
-        end;
-      until FindNext(sr) <> 0;
-      SysUtils.FindClose(sr);
-    end;
-    if (Lfilename='') then begin
-      SafeBox.SetSafeboxFileName(LSafeboxFileName);
-    end else begin
-      SafeBox.SetSafeboxFileName(Lfilename);
-      SafeBox.UpdateSafeboxFileName(LSafeboxFileName);
-    end;
-    {$ELSE}
-    LBlockscount := 0;
-    {$ENDIF}
-    FileAttrs := faArchive;
-    folder := GetStorageFolder(AOrphan);
-    Lfilename := '';
-    if SysUtils.FindFirst(folder+PathDelim+'*.safebox', FileAttrs, sr) = 0 then begin
-      repeat
-        if (sr.Attr and FileAttrs) = FileAttrs then begin
-          auxfn := folder+PathDelim+sr.Name;
-          If LoadBankFileInfo(auxfn,sbHeader) then begin
-            if (((AMax_block<0) Or (sbHeader.endBlock<=AMax_block)) AND (sbHeader.blocksCount>LBlockscount)) And
-              (sbHeader.startBlock=0) And (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1) then begin
-              Lfilename := auxfn;
-              LBlockscount := sbHeader.blocksCount;
-              goodSbHeader := sbHeader;
-            end;
-          end;
-        end;
-      until FindNext(sr) <> 0;
-      SysUtils.FindClose(sr);
-    end;
-    if (Lfilename<>'') then begin
-      TLog.NewLog(ltinfo,Self.ClassName,'Loading SafeBox protocol:'+IntToStr(goodSbHeader.protocol)+' with '+inttostr(LBlockscount)+' blocks from file '+Lfilename);
-      fs := TFileStream.Create(Lfilename,fmOpenRead);
+  sr: TSearchRec;
+  folder, LFilename, auxfn, errors: String;
+  fs: TFileStream;
+  LBlocksCount: Cardinal;
+  sbHeader, goodSbHeader: TPCSafeBoxHeader;
+  LHasCandidates, LHeaderValid: Boolean;
+  {$IFDEF USE_ABSTRACTMEM}
+  LTempBlocksCount: Integer;
+  LSafeboxFileName, LAbstractFileName: String;
+  LReadOnlySafebox: TPCAbstractMem;
+  {$ENDIF}
+
+  function LegacyBodyIsReadable(const AFileName: String; AExpectedBlocks: Cardinal): Boolean;
+  var LProbe: TPCBank; LStream: TFileStream; LErrors: String;
+  begin
+    Result := False;
+    LProbe := TPCBank.Create(Nil);
+    try
       try
-        fs.Position := 0;
-        if not LoadBankFromStream(fs,False,Nil,Nil,ARestoreProgressNotify,errors) then begin
-          TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+Lfilename+ ' Error: '+errors);
+        LStream := TFileStream.Create(AFileName,fmOpenRead+fmShareDenyWrite);
+        try
+          // A complete header is not a complete snapshot. Validate the body in
+          // a separate memory bank before it can displace another good candidate.
+          Result := LProbe.LoadBankFromStream(LStream,True,Nil,Nil,Nil,LErrors);
+          if Result and (LProbe.BlocksCount<>AExpectedBlocks) then begin
+            Result := False;
+            LErrors := 'Safebox body block count does not match its header';
+          end;
+          if not Result then TLog.NewLog(ltError,ClassName,'Cannot inspect safebox '+AFileName+': '+LErrors);
+        finally
+          LStream.Free;
         end;
+      except
+        on E: Exception do begin
+          if (E is EStreamError) or (E is EOSError) or (E is EFileMem) or
+            (E is EAbstractMem) or (E is EPCAbstractMem) then
+            TLog.NewLog(ltError,ClassName,'Cannot inspect safebox '+AFileName+': '+E.ClassName+': '+E.Message)
+          else raise;
+        end;
+      end;
+    finally
+      LProbe.Free;
+    end;
+  end;
+
+begin
+  Result := False;
+  LHasCandidates := False;
+  LBlocksCount := 0;
+  LFilename := '';
+  FBankLock.Acquire;
+  try
+    try
+    {$IFDEF USE_ABSTRACTMEM}
+    LAbstractFileName := '';
+    LSafeboxFileName := GetStorageFolder(AOrphan)+PathDelim+'safebox'+CT_Safebox_Extension;
+    LHasCandidates := FileExists(LSafeboxFileName);
+    // Inspect every candidate read-only before opening any file for mutation.
+    // One incomplete checkpoint must not prevent use of a healthy live file.
+    if TPCAbstractMem.AnalyzeFile(LSafeboxFileName,LTempBlocksCount) and
+      ((AMax_block<0) or (Int64(LTempBlocksCount)-1<=AMax_block)) then begin
+      LAbstractFileName := LSafeboxFileName;
+      LBlocksCount := LTempBlocksCount;
+    end;
+    folder := GetStorageFolder(''); // Checkpoints are shared with orphan restores.
+    if SysUtils.FindFirst(folder+PathDelim+'checkpoint*'+CT_Safebox_Extension,faAnyFile,sr)=0 then begin
+      try
+        repeat
+          if (sr.Attr and faDirectory)=0 then begin
+            LHasCandidates := True;
+            auxfn := folder+PathDelim+sr.Name;
+            if TPCAbstractMem.AnalyzeFile(auxfn,LTempBlocksCount) and
+              ((AMax_block<0) or (Int64(LTempBlocksCount)-1<=AMax_block)) and
+              ((LAbstractFileName='') or (LTempBlocksCount>LBlocksCount)) then begin
+              LAbstractFileName := auxfn;
+              LBlocksCount := LTempBlocksCount;
+            end;
+          end;
+        until FindNext(sr)<>0;
+      finally
+        SysUtils.FindClose(sr);
+      end;
+    end;
+    {$ENDIF}
+    folder := GetStorageFolder(AOrphan);
+    if SysUtils.FindFirst(folder+PathDelim+'*.safebox',faAnyFile,sr)=0 then begin
+      try
+        repeat
+          if (sr.Attr and faDirectory)=0 then begin
+            LHasCandidates := True;
+            auxfn := folder+PathDelim+sr.Name;
+            LHeaderValid := False;
+            try
+              LHeaderValid := LoadBankFileInfo(auxfn,sbHeader);
+            except
+              on E: EStreamError do
+                TLog.NewLog(ltError,ClassName,'Cannot inspect safebox '+auxfn+': '+E.Message);
+              on E: EOSError do
+                TLog.NewLog(ltError,ClassName,'Cannot inspect safebox '+auxfn+': '+E.Message);
+            end;
+            if LHeaderValid and ((AMax_block<0) or (sbHeader.endBlock<=AMax_block)) and
+              (sbHeader.blocksCount>LBlocksCount) and (sbHeader.startBlock=0) and
+              (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1) then begin
+              if LegacyBodyIsReadable(auxfn,sbHeader.blocksCount) then begin
+                LFilename := auxfn;
+                LBlocksCount := sbHeader.blocksCount;
+                goodSbHeader := sbHeader;
+              end;
+            end;
+          end;
+        until FindNext(sr)<>0;
+      finally
+        SysUtils.FindClose(sr);
+      end;
+    end;
+    if LFilename<>'' then begin
+      TLog.NewLog(ltInfo,ClassName,'Loading SafeBox protocol:'+IntToStr(goodSbHeader.protocol)+' with '+IntToStr(LBlocksCount)+' blocks from file '+LFilename);
+      {$IFDEF USE_ABSTRACTMEM}
+      // Restore into memory first; malformed input must not rewrite live storage.
+      SafeBox.SetSafeboxFileName('');
+      {$ENDIF}
+      fs := TFileStream.Create(LFilename,fmOpenRead+fmShareDenyWrite);
+      try
+        if not LoadBankFromStream(fs,True,Nil,Nil,ARestoreProgressNotify,errors) then
+          raise Exception.Create('Cannot restore safebox '+LFilename+': '+errors);
       finally
         fs.Free;
       end;
+      {$IFDEF USE_ABSTRACTMEM}
+      SafeBox.SaveCheckpointing(LSafeboxFileName);
+      SafeBox.SetSafeboxFileName(LSafeboxFileName);
+      {$ENDIF}
+    end else begin
+      {$IFDEF USE_ABSTRACTMEM}
+      if LAbstractFileName<>'' then begin
+        if not SameFileName(LAbstractFileName,LSafeboxFileName) then begin
+          // Keep the recovery checkpoint read-only and intact. Publish a complete
+          // replacement before opening the recovered live safebox for writing.
+          LReadOnlySafebox := TPCAbstractMem.Create(LAbstractFileName,True);
+          try
+            SafeBox.SetSafeboxFileName('');
+            LReadOnlySafebox.SaveToFile(LSafeboxFileName);
+          finally
+            LReadOnlySafebox.Free;
+          end;
+          TLog.NewLog(ltInfo,ClassName,'Recovered safebox from checkpoint '+LAbstractFileName);
+        end;
+        SafeBox.SetSafeboxFileName(LSafeboxFileName);
+      end else if LHasCandidates then begin
+        // Never initialize over evidence of a failed write. Leave all originals
+        // available for recovery instead of silently starting an empty chain.
+        raise Exception.Create('No readable safebox or checkpoint in '+folder+'. Original files have been preserved.');
+      end else begin
+        SafeBox.SetSafeboxFileName(LSafeboxFileName);
+      end;
+      {$ELSE}
+      if LHasCandidates then
+        raise Exception.Create('No readable safebox in '+folder+'. Original files have been preserved.');
+      {$ENDIF}
     end;
-  Finally
+    Result := True;
+    except
+      on E: Exception do begin
+        // Rejected individual candidates are recoverable; only failure of the
+        // complete restore latches the canonical node's persistent error.
+        if TNode.NodeExists and (TNode.Node.Bank=Self) then
+          TNode.Node.ReportStorageFailure(sfsRestore,folder,E);
+        raise;
+      end;
+    end;
+  finally
     FBankLock.Release;
-  End;
+  end;
 end;
 
 function TPCBank.SaveBank(forceSave: Boolean): Boolean;
+var LStorageFileName: String;
 begin
   Result := true;
   If Storage.FIsMovingBlockchain then Exit;
@@ -1577,6 +1703,15 @@ begin
     {$ENDIF}
   Except
     On E:Exception do begin
+      if TNode.NodeExists and (TNode.Node.Bank=Self) then begin
+        LStorageFileName := '';
+        try
+          LStorageFileName := GetSafeboxCheckpointingFileName(GetStorageFolder(Orphan),BlocksCount);
+        except
+          // Do not replace the original I/O exception if its directory is unavailable.
+        end;
+        TNode.Node.ReportStorageFailure(sfsCheckpoint,LStorageFileName,E);
+      end;
       TLog.NewLog(lterror,Classname,'Error saving Bank: '+E.Message);
       Raise;
     end;
@@ -4054,8 +4189,16 @@ begin
   Try
     if ReadOnly then raise Exception.Create('Cannot save because is ReadOnly');
     Result := DoSaveBlockChain(Operations);
+    // A false storage result is a persistence failure too. Never let the bank
+    // clear accepted operations or acknowledge a block that was not saved.
+    if not Result then
+      raise EWriteError.Create('Storage did not save block '+IntToStr(Operations.OperationBlock.block));
   Except
     On E:Exception do begin
+      // A local persistence failure must not be reported only as peer isolation.
+      // Preserve a checkpoint-specific first cause already latched by SaveBank.
+      if TNode.NodeExists and (TNode.Node.Bank=Bank) then
+        TNode.Node.ReportStorageFailure(sfsBlockStream,TNode.GetPascalCoinDataFolder+PathDelim+'Data'+PathDelim+'BlockChainStream.blocks',E);
       TLog.NewLog(lterror,Classname,'Error saving block chain: '+E.Message);
       Raise;
     end;

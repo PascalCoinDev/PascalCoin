@@ -97,11 +97,11 @@ $phases = @(
 $coverage = @{
     RegisteredFixtureUnits = @($registeredUnits | Sort-Object Unit)
     NativePhases = @($phases | Where-Object Name -ne 'unit' | ForEach-Object { $_.Name })
-    SharedHelpersInUnitFixtures = @('UAccountCachePolicyChecks', 'UChangeAccountInfoReplayChecks',
+    SharedHelpersInUnitFixtures = @('UAccountCachePolicyChecks', 'UChangeAccountInfoReplayChecks', 'UCheckpointStorageChecks', 'UAbstractMemStorageFailureChecks',
         'UDownloadLifetimeChecks', 'ULegacyConnectionLifetimeChecks', 'UMempoolSanitizeChecks',
         'UOperationReadHashChecks', 'UOrderedCardinalChecks',
         'UPendingCatchupChecks', 'UPendingSaveChecks', 'UStoredHistoryChecks')
-    EquivalentNodeLifecycleScenarios = 'UNodeSynchronizationTests mirrors the eight native UNodeSynchronizationChecks cases'
+    EquivalentNodeLifecycleScenarios = 'UNodeSynchronizationTests mirrors the seventeen native UNodeSynchronizationChecks cases'
     NativeDemoCases = @('default', 'selection', 'safebox-info', 'sync-paint', 'tools',
         'history-depth', 'operation-input', 'block-tools', 'change-info-approval',
         'change-info-ui', 'send-ui', 'operation-messages', 'advanced-ui')

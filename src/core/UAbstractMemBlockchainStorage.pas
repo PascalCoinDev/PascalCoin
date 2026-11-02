@@ -57,11 +57,16 @@ type
   private
     FFileMem : TFileMem;
     FStorageLock : TCriticalSection;
+    FWriteFailureLock : TCriticalSection;
+    FWriteFailure : String;
     FAutoFlushCache: Boolean;
     FUseMultithread: Boolean;
     FSaveStorageStats : TBlockchainStorageStats;
     FPSaveStorageStats: PBlockchainStorageStats;
     procedure SetUseMultithread(const Value: Boolean);
+    function HasWriteFailure: Boolean;
+    procedure CheckWriteFailure;
+    procedure ReportWriteFailure(AError: Exception);
     type
       TOrphanInformation = record
         orphan : string;
@@ -172,8 +177,7 @@ type
         procedure ThreadHasFinishedCurrentJob;
       public
         procedure AddPendingData(const APendingData : TPendingData);
-        constructor Create(AStorage : TAbstractMemBlockchainStorage; AAMBTreeTOperationRawDataByRightOpHash : TAMBTreeTOperationRawDataByRightOpHash;
-          AAMBTreeTAffectedAccountByAccountBlockOpBlock : TAMBTreeTAffectedAccountByAccountBlockOpBlock);
+        constructor Create(AStorage : TAbstractMemBlockchainStorage; AAMBTreeTOperationRawDataByRightOpHash : TAMBTreeTOperationRawDataByRightOpHash; AAMBTreeTAffectedAccountByAccountBlockOpBlock : TAMBTreeTAffectedAccountByAccountBlockOpBlock);
         destructor Destroy; override;
         property MaxThreads : Integer read FMaxThreads write SetMaxThreads;
         function PendingsCount : Integer;
@@ -218,6 +222,20 @@ type
     procedure OnCacheMemFlushedCache(const ASender : TCacheMem; const AProcessDesc : String; AElapsedMilis: Int64);
     procedure OnCacheMemLog(ASender : TObject; const ALog : String);
   protected
+    type
+      // The file borrows its owning storage until all workers and the file are
+      // destroyed. A failed logical index must never become stable on cleanup.
+      TStorageFileMem = class(TFileMem)
+      protected
+        FStorage: TAbstractMemBlockchainStorage;
+        function ShouldFlushOnDestroy: Boolean; override;
+        function AbsoluteWrite(const AAbsolutePosition: Int64; const ABuffer; ASize: Integer): Integer; override;
+      public
+        constructor Create(AStorage: TAbstractMemBlockchainStorage; const AFileName: String; AReadOnly: Boolean);
+        function New(AMemSize: TAbstractMemSize): TAMZone; override;
+        function Write(const APosition: Int64; const ABuffer; ASize: Integer): Integer; override;
+      end;
+    function CreateFileMem(const AFileName: String; AReadOnly: Boolean): TFileMem; virtual;
     procedure SetReadOnly(const Value: Boolean); override;
     Function DoGetBlockInformation(const ABlock : Integer; var AOperationBlock : TOperationBlock; var AOperationsCount : Integer; var AVolume : Int64) : Boolean; override;
 
@@ -242,6 +260,8 @@ type
   public
     Constructor Create(AOwner : TComponent); Override;
     Destructor Destroy; Override;
+    // Explicit flush ignores AutoFlushCache, but never retries a failed index.
+    function FlushCache: Boolean;
     procedure FinalizedUpdating;
     procedure CheckConsistency(ARaiseOnError: Boolean; AMessages: TStrings; AThread : TPCThread); overload;
     function CheckConsistency(const AOrphan : String; AFromBlock , AToBlock : Integer; ARaiseOnError : Boolean; AMessages : TStrings; out ABlocksFound, AOperationsFound, AAffectedAccountsFound : Integer; AThread : TPCThread) : Boolean; overload;
@@ -282,6 +302,128 @@ type
 
 implementation
 
+uses UNode;
+
+function IsBackendWriteFailure(AError: Exception): Boolean;
+begin
+  Result := (AError is EStreamError) or (AError is EOSError) or
+    (AError is EInOutError) or (AError is EFileMem) or (AError is EAbstractMem) or
+    (AError is EAbstractMemBlockchainStorage);
+end;
+
+constructor TAbstractMemBlockchainStorage.TStorageFileMem.Create(AStorage: TAbstractMemBlockchainStorage; const AFileName: String; AReadOnly: Boolean);
+begin
+  FStorage := AStorage;
+  inherited Create(AFileName,AReadOnly);
+end;
+
+function TAbstractMemBlockchainStorage.TStorageFileMem.ShouldFlushOnDestroy: Boolean;
+begin
+  Result := not Assigned(FStorage) or not FStorage.HasWriteFailure;
+end;
+
+function TAbstractMemBlockchainStorage.TStorageFileMem.New(AMemSize: TAbstractMemSize): TAMZone;
+begin
+  // Hold the existing recursive file lock through failure publication. A flush
+  // already waiting for this write must see the latch before it can certify it.
+  LockCache;
+  try
+    FStorage.CheckWriteFailure;
+    try
+      Result := inherited New(AMemSize);
+    except
+      on E: Exception do begin
+        FStorage.ReportWriteFailure(E);
+        raise;
+      end;
+    end;
+  finally
+    UnlockCache;
+  end;
+end;
+
+function TAbstractMemBlockchainStorage.TStorageFileMem.AbsoluteWrite(const AAbsolutePosition: Int64; const ABuffer; ASize: Integer): Integer;
+begin
+  try
+    Result := inherited AbsoluteWrite(AAbsolutePosition,ABuffer,ASize);
+    if Result<>ASize then raise EWriteError.Create('Incomplete AbstractMem blockchain file write');
+  except
+    on E: Exception do begin
+      // Cache eviction may write from a read path too. Publish before the
+      // caller releases the file lock, not only from the worker's outer catch.
+      FStorage.ReportWriteFailure(E);
+      raise;
+    end;
+  end;
+end;
+
+function TAbstractMemBlockchainStorage.TStorageFileMem.Write(const APosition: Int64; const ABuffer; ASize: Integer): Integer;
+begin
+  LockCache;
+  try
+    FStorage.CheckWriteFailure;
+    try
+      Result := inherited Write(APosition,ABuffer,ASize);
+      if Result<>ASize then raise EWriteError.Create('Incomplete AbstractMem blockchain index write');
+    except
+      on E: Exception do begin
+        FStorage.ReportWriteFailure(E);
+        raise;
+      end;
+    end;
+  finally
+    UnlockCache;
+  end;
+end;
+
+function TAbstractMemBlockchainStorage.CreateFileMem(const AFileName: String; AReadOnly: Boolean): TFileMem;
+begin
+  Result := TStorageFileMem.Create(Self,AFileName,AReadOnly);
+end;
+
+function TAbstractMemBlockchainStorage.HasWriteFailure: Boolean;
+begin
+  FWriteFailureLock.Acquire;
+  try
+    Result := FWriteFailure<>'';
+  finally
+    FWriteFailureLock.Release;
+  end;
+end;
+
+procedure TAbstractMemBlockchainStorage.CheckWriteFailure;
+var LFailure: String;
+begin
+  FWriteFailureLock.Acquire;
+  try
+    LFailure := FWriteFailure;
+  finally
+    FWriteFailureLock.Release;
+  end;
+  if LFailure<>'' then
+    raise EWriteError.Create('AbstractMem blockchain storage requires restart: '+LFailure);
+end;
+
+procedure TAbstractMemBlockchainStorage.ReportWriteFailure(AError: Exception);
+var LFirst: Boolean; LFileName: String;
+begin
+  if not IsBackendWriteFailure(AError) then Exit;
+  FWriteFailureLock.Acquire;
+  try
+    LFirst := FWriteFailure='';
+    if LFirst then FWriteFailure := AError.ClassName+': '+AError.Message;
+  finally
+    FWriteFailureLock.Release;
+  end;
+  // Never stop or join a worker from its own error callback. The node copies
+  // this error and publishes notifier flags; normal ownership retires workers.
+  LFileName := FStorageFilename;
+  // A failed inherited file constructor can report before the factory assigns
+  // FFileMem. Preserve that original I/O error rather than dereferencing nil.
+  if Assigned(FFileMem) then LFileName := FFileMem.FileName;
+  if LFirst and TNode.NodeExists and (TNode.Node.Bank=Bank) then
+    TNode.Node.ReportStorageFailure(sfsBlockStream,LFileName,AError);
+end;
 
 function Comparer_TOrphanInformation_By_Orphan(const ALeft, ARight : TAbstractMemBlockchainStorage.TOrphanInformation) : Integer;
 begin
@@ -348,9 +490,7 @@ begin
   end;
 end;
 
-function TAbstractMemBlockchainStorage.CheckBlockConsistency(
-  ARaiseOnError: Boolean; AMessages: TStrings; const ABlockInformation : TBlockInformation; out AOperationsCount, AAffectedAccountsCount : Integer;
-  AThread : TPCThread): Boolean;
+function TAbstractMemBlockchainStorage.CheckBlockConsistency( ARaiseOnError: Boolean; AMessages: TStrings; const ABlockInformation : TBlockInformation; out AOperationsCount, AAffectedAccountsCount : Integer; AThread : TPCThread): Boolean;
 var LErrorsCount : Integer;
   procedure AddInfo(AIsError : Boolean; const AMessage : String);
   Var LTxt : String;
@@ -522,10 +662,7 @@ begin
     [LOrphansCount,LBlocksFound,LOperationsFound,LAffectedAccountsFound]),False);
 end;
 
-function TAbstractMemBlockchainStorage.CheckConsistency(const AOrphan: String;
-  AFromBlock, AToBlock: Integer;
-  ARaiseOnError: Boolean; AMessages: TStrings;
-  out ABlocksFound, AOperationsFound, AAffectedAccountsFound : Integer; AThread : TPCThread): Boolean;
+function TAbstractMemBlockchainStorage.CheckConsistency(const AOrphan: String; AFromBlock, AToBlock: Integer; ARaiseOnError: Boolean; AMessages: TStrings; out ABlocksFound, AOperationsFound, AAffectedAccountsFound : Integer; AThread : TPCThread): Boolean;
 var LMessages : TStringList;
   LErrorsCount : Integer;
   procedure AddInfo(AIsError : Boolean; const AMessage : String);
@@ -675,6 +812,7 @@ begin
   FAffectedAccounts_By_Account_Block_OpBlock := Nil;
   FAutoFlushCache := True;
   FStorageLock := TCriticalSection.Create;
+  FWriteFailureLock := TCriticalSection.Create;
   FPendingToSave := Nil;
 end;
 
@@ -754,6 +892,7 @@ begin
   FreeAndNil(FAffectedAccounts_By_Account_Block_OpBlock);
 
   FreeAndNil(FStorageLock);
+  FreeAndNil(FWriteFailureLock);
 
   inherited;
 end;
@@ -767,8 +906,7 @@ begin
   end;
 end;
 
-function TAbstractMemBlockchainStorage.DoBlockExistsByOrphan(ABlock: Integer;
-  const AOrphan: String; var LBlockInformation: TBlockInformation): Boolean;
+function TAbstractMemBlockchainStorage.DoBlockExistsByOrphan(ABlock: Integer; const AOrphan: String; var LBlockInformation: TBlockInformation): Boolean;
 var LSearch : TBlockInformation;
   LDataPos : TAbstractMemPosition;
 begin
@@ -836,9 +974,7 @@ begin
 end;
 
 
-function TAbstractMemBlockchainStorage.DoGetAccountOperations(AAccount,
-  AMaxDepth, AStartOperation, AMaxOperations, ASearchBackwardsStartingAtBlock: Integer;
-  const AOperationsResumeList: TOperationsResumeList): Boolean;
+function TAbstractMemBlockchainStorage.DoGetAccountOperations(AAccount, AMaxDepth, AStartOperation, AMaxOperations, ASearchBackwardsStartingAtBlock: Integer; const AOperationsResumeList: TOperationsResumeList): Boolean;
 var LSearch,LFound : TAffectedAccount;
   LOperation : TPCOperation;
   LOPR : TOperationResume;
@@ -912,9 +1048,7 @@ begin
 
 end;
 
-function TAbstractMemBlockchainStorage.DoGetBlockInformation(const ABlock : Integer;
-  var AOperationBlock: TOperationBlock; var AOperationsCount: Integer;
-  var AVolume: Int64): Boolean;
+function TAbstractMemBlockchainStorage.DoGetBlockInformation(const ABlock : Integer; var AOperationBlock: TOperationBlock; var AOperationsCount: Integer; var AVolume: Int64): Boolean;
 var LBlock,LFoundBlock : TBlockInformation;
   LDataPos : TAbstractMemPosition;
 begin
@@ -931,11 +1065,7 @@ begin
   end else Result := False;
 end;
 
-function TAbstractMemBlockchainStorage.DoGetBlockOperations(ABlock,
-  AOpBlockStartIndex, AMaxOperations: Integer;
-  var AOperationBlock: TOperationBlock; var AOperationsCount: Integer;
-  var AVolume: Int64;
-  const AOperationsResumeList: TOperationsResumeList): Boolean;
+function TAbstractMemBlockchainStorage.DoGetBlockOperations(ABlock, AOpBlockStartIndex, AMaxOperations: Integer; var AOperationBlock: TOperationBlock; var AOperationsCount: Integer; var AVolume: Int64; const AOperationsResumeList: TOperationsResumeList): Boolean;
 var LFound,LSearch : TOperationRawData;
   LOperation : TPCOperation;
   LOPR : TOperationResume;
@@ -1015,7 +1145,7 @@ begin
       FStorageFilename := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'BlockChainStream.am_blocks';
     end;
 
-    FFileMem := TFileMem.Create(FStorageFilename,ReadOnly);
+    FFileMem := CreateFileMem(FStorageFilename,ReadOnly);
     FFileMem.IncreaseFileBytes := 10 * 1024*1024; // 10Mb each increase
 
     LCacheMem := FFileMem.LockCache;
@@ -1139,9 +1269,7 @@ begin
   if Not Result then BlockNotFound(Block,Result);
 end;
 
-function TAbstractMemBlockchainStorage.DoLoadBlockChainExt(
-  Operations: TPCOperationsComp; Block: Cardinal;
-  const AOrphan: String): Boolean;
+function TAbstractMemBlockchainStorage.DoLoadBlockChainExt( Operations: TPCOperationsComp; Block: Cardinal; const AOrphan: String): Boolean;
 var LBlock,LFoundBlock : TBlockInformation;
   LDataPos : TAbstractMemPosition;
 begin
@@ -1181,8 +1309,15 @@ function TAbstractMemBlockchainStorage.DoSaveBlockChain(Operations: TPCOperation
 begin
   FStorageLock.Acquire;
   try
-    Result := DoSaveBlockChainExt(Operations,Orphan,FSaveStorageStats);
-    FinalizedUpdating;
+    try
+      Result := DoSaveBlockChainExt(Operations,Orphan,FSaveStorageStats);
+      FinalizedUpdating;
+    except
+      on E: Exception do begin
+        ReportWriteFailure(E);
+        raise;
+      end;
+    end;
   finally
     FStorageLock.Release;
   end;
@@ -1202,6 +1337,7 @@ var LBlockInformation : TBlockInformation;
   LPendingData : TPendingData;
   LTC : TTickCount;
 begin
+  CheckWriteFailure;
   Result := True;
   LBlockInformation.Clear;
   LOperationRawData.Clear;
@@ -1321,13 +1457,33 @@ begin
 
 end;
 
-procedure TAbstractMemBlockchainStorage.FinalizedUpdating;
-var LTC : TTickCount;
+function TAbstractMemBlockchainStorage.FlushCache: Boolean;
 begin
-  if FAutoFlushCache then begin
-    LTC := TPlatform.GetTickCount;
-    FileMem.FlushCache;
+  // The failure lock is independent of FStorageLock. Never acquire the storage
+  // lock here: producers already use storage -> file ordering, and a worker can
+  // publish a failure while it owns the file lock.
+  FileMem.LockCache;
+  try
+    CheckWriteFailure;
+    try
+      Result := FileMem.FlushCache;
+      if not Result then
+        raise EWriteError.Create('Cannot flush AbstractMem blockchain storage '+FileMem.FileName);
+    except
+      on E: Exception do begin
+        ReportWriteFailure(E);
+        raise;
+      end;
+    end;
+  finally
+    FileMem.UnlockCache;
   end;
+end;
+
+procedure TAbstractMemBlockchainStorage.FinalizedUpdating;
+begin
+  CheckWriteFailure;
+  if FAutoFlushCache then FlushCache;
 end;
 
 function TAbstractMemBlockchainStorage.GetFirstBlockNumber: Int64;
@@ -1335,8 +1491,7 @@ begin
   Result := GetFirstBlockNumberByOrphan(Orphan);
 end;
 
-function TAbstractMemBlockchainStorage.GetFirstBlockNumberByOrphan(
-  const AOrphan: String): Int64;
+function TAbstractMemBlockchainStorage.GetFirstBlockNumberByOrphan(const AOrphan: String): Int64;
 var LBlockInformation,LBlockInformationFound : TBlockInformation;
   LPos : TAbstractMemPosition;
 begin
@@ -1373,14 +1528,12 @@ begin
   end else Result := LBlockInformationFound.operationBlock.block;
 end;
 
-procedure TAbstractMemBlockchainStorage.OnCacheMemFlushedCache(
-  const ASender: TCacheMem; const AProcessDesc: String; AElapsedMilis: Int64);
+procedure TAbstractMemBlockchainStorage.OnCacheMemFlushedCache(const ASender: TCacheMem; const AProcessDesc: String; AElapsedMilis: Int64);
 begin
   TLog.NewLog(ltdebug,ASender.ClassName,Self.ClassName+' '+AProcessDesc)
 end;
 
-procedure TAbstractMemBlockchainStorage.OnCacheMemLog(ASender: TObject;
-  const ALog: String);
+procedure TAbstractMemBlockchainStorage.OnCacheMemLog(ASender: TObject; const ALog: String);
 begin
   TLog.NewLog(ltdebug,ASender.ClassName,Self.ClassName+' '+ALog);
 end;
@@ -1413,7 +1566,7 @@ procedure TAbstractMemBlockchainStorage.SetUseMultithread(const Value: Boolean);
 var
   i : Integer;
 begin
-  if FUseMultithread=Value then Exit;
+  if (FUseMultithread=Value) and (Value or not Assigned(FPendingToSave)) then Exit;
   FStorageLock.Acquire;
   Try
     if Assigned(FPendingToSave) then begin
@@ -1421,7 +1574,7 @@ begin
       if i>0 then begin
         TLog.NewLog(ltinfo,ClassName,Format('Finalizing use of multitrheads with %d pending jobs',[i]));
       end;
-      while (FPendingToSave.PendingsCount>0) do begin
+      while (FPendingToSave.PendingsCount>0) and not HasWriteFailure do begin
         sleep(1);
       end;
       if i>0 then begin
@@ -1431,6 +1584,7 @@ begin
     FreeAndNil(FPendingToSave);
     FUseMultithread := Value;
     if FUseMultithread then begin
+      CheckWriteFailure;
       FPendingToSave := TPendingToSave.Create(Self,FOperationsRawData_By_RightOpHash,FAffectedAccounts_By_Account_Block_OpBlock);
     end;
   Finally
@@ -1440,8 +1594,7 @@ end;
 
 { TAbstractMemBlockchainStorage.TAMBTreeOperationBlockInformationByBlock }
 
-procedure TAbstractMemBlockchainStorage.TAMBTreeOperationBlockInformationByOrphanBlock.DeletedData(
-  const AData: TBlockInformation);
+procedure TAbstractMemBlockchainStorage.TAMBTreeOperationBlockInformationByOrphanBlock.DeletedData(const AData: TBlockInformation);
 begin
   inherited;
   if AData.rawDataPosition>0 then begin
@@ -1449,8 +1602,7 @@ begin
   end;
 end;
 
-function TAbstractMemBlockchainStorage.TAMBTreeOperationBlockInformationByOrphanBlock.GetBlockInformationByBlock(
-  ABlock: Integer): TBlockInformation;
+function TAbstractMemBlockchainStorage.TAMBTreeOperationBlockInformationByOrphanBlock.GetBlockInformationByBlock( ABlock: Integer): TBlockInformation;
 var LPos : TAbstractMemPosition;
   LBlockSearch : TBlockInformation;
 begin
@@ -1459,8 +1611,7 @@ begin
   if Not FindData(LBlockSearch,LPos,Result) then Result.Clear;
 end;
 
-function TAbstractMemBlockchainStorage.TAMBTreeOperationBlockInformationByOrphanBlock.LoadData(
-  const APosition: TAbstractMemPosition): TBlockInformation;
+function TAbstractMemBlockchainStorage.TAMBTreeOperationBlockInformationByOrphanBlock.LoadData(const APosition: TAbstractMemPosition): TBlockInformation;
 var LZone : TAMZone;
   LBytes : TBytes;
 begin
@@ -1478,8 +1629,7 @@ begin
     raise EAbstractMemBTree.Create(Format('%s.LoadData Invalid FromSerialized call with %d bytes at pos %d',[Self.ClassName,LZone.size,APosition]));
 end;
 
-function TAbstractMemBlockchainStorage.TAMBTreeOperationBlockInformationByOrphanBlock.SaveData(
-  const AData: TBlockInformation): TAMZone;
+function TAbstractMemBlockchainStorage.TAMBTreeOperationBlockInformationByOrphanBlock.SaveData(const AData: TBlockInformation): TAMZone;
 var LBytes : TBytes;
 begin
   LBytes := AData.ToSerialized;
@@ -1489,8 +1639,7 @@ end;
 
 { TAbstractMemBlockchainStorage.TAMBTreeTOperationRawDataByRightOpHash }
 
-function TAbstractMemBlockchainStorage.TAMBTreeTOperationRawDataByRightOpHash.LoadData(
-  const APosition: TAbstractMemPosition): TOperationRawData;
+function TAbstractMemBlockchainStorage.TAMBTreeTOperationRawDataByRightOpHash.LoadData(const APosition: TAbstractMemPosition): TOperationRawData;
 var LZone : TAMZone;
   LBytes : TBytes;
 begin
@@ -1508,8 +1657,7 @@ begin
     raise EAbstractMemBTree.Create(Format('%s.LoadData Invalid FromSerialized call with %d bytes at pos %d',[Self.ClassName,LZone.size,APosition]));
 end;
 
-function TAbstractMemBlockchainStorage.TAMBTreeTOperationRawDataByRightOpHash.SaveData(
-  const AData: TOperationRawData): TAMZone;
+function TAbstractMemBlockchainStorage.TAMBTreeTOperationRawDataByRightOpHash.SaveData(const AData: TOperationRawData): TAMZone;
 var LBytes : TBytes;
 begin
   LBytes := AData.ToSerialized;
@@ -1519,8 +1667,7 @@ end;
 
 { TAbstractMemBlockchainStorage.TAMBTreeTAffectedAccountByAccountBlockOpBlock }
 
-function TAbstractMemBlockchainStorage.TAMBTreeTAffectedAccountByAccountBlockOpBlock.LoadData(
-  const APosition: TAbstractMemPosition): TAffectedAccount;
+function TAbstractMemBlockchainStorage.TAMBTreeTAffectedAccountByAccountBlockOpBlock.LoadData(const APosition: TAbstractMemPosition): TAffectedAccount;
 var LZone : TAMZone;
   LBytes : TBytes;
 begin
@@ -1538,8 +1685,7 @@ begin
     raise EAbstractMemBTree.Create(Format('%s.LoadData Invalid FromSerialized call with %d bytes at pos %d',[Self.ClassName,LZone.size,APosition]));
 end;
 
-function TAbstractMemBlockchainStorage.TAMBTreeTAffectedAccountByAccountBlockOpBlock.SaveData(
-  const AData: TAffectedAccount): TAMZone;
+function TAbstractMemBlockchainStorage.TAMBTreeTAffectedAccountByAccountBlockOpBlock.SaveData(const AData: TAffectedAccount): TAMZone;
 var LBytes : TBytes;
 begin
   LBytes := AData.ToSerialized;
@@ -1567,8 +1713,7 @@ begin
   Self.rawDataPosition := ASource.rawDataPosition;
 end;
 
-function TAbstractMemBlockchainStorage.TBlockInformation.CreateTPCOperationsComp(
-  AAbstractMem : TAbstractMem; ABank: TPCBank): TPCOperationsComp;
+function TAbstractMemBlockchainStorage.TBlockInformation.CreateTPCOperationsComp( AAbstractMem : TAbstractMem; ABank: TPCBank): TPCOperationsComp;
 begin
   Result := TPCOperationsComp.Create(ABank);
   try
@@ -1604,8 +1749,7 @@ begin
   Result := True;
 end;
 
-function TAbstractMemBlockchainStorage.TBlockInformation.GetRawData(
-  AAbstractMem: TAbstractMem; var ARawData: TBytes): Boolean;
+function TAbstractMemBlockchainStorage.TBlockInformation.GetRawData( AAbstractMem: TAbstractMem; var ARawData: TBytes): Boolean;
 var LZone : TAMZone;
 begin
   if Self.rawDataPosition<=0 then begin
@@ -1624,8 +1768,7 @@ begin
   Result := TAbstractMemBlockchainStorage.OrphanCompare(Self.orphan,AOrphan)=0;
 end;
 
-procedure TAbstractMemBlockchainStorage.TBlockInformation.ReadTPCOperationsComp(
-  AAbstractMem: TAbstractMem; AOperationsComp: TPCOperationsComp);
+procedure TAbstractMemBlockchainStorage.TBlockInformation.ReadTPCOperationsComp( AAbstractMem: TAbstractMem; AOperationsComp: TPCOperationsComp);
 var LStream : TStream;
   LRaw : TBytes;
   LErrors : String;
@@ -1681,8 +1824,7 @@ begin
   Self.rawData := Nil;
 end;
 
-procedure TAbstractMemBlockchainStorage.TOperationRawData.CopyFrom(const
-  ASource: TOperationRawData);
+procedure TAbstractMemBlockchainStorage.TOperationRawData.CopyFrom(const ASource: TOperationRawData);
 begin
   Self.rightOpHash := Copy(ASource.rightOpHash);
   Self.account := ASource.account;
@@ -1694,8 +1836,7 @@ begin
   Self.rawData := Copy(ASource.rawData);
 end;
 
-function TAbstractMemBlockchainStorage.TOperationRawData.CreateTPCOperation(
-  AAbstractMem: TAbstractMem; out APCOperation: TPCOperation): Boolean;
+function TAbstractMemBlockchainStorage.TOperationRawData.CreateTPCOperation( AAbstractMem: TAbstractMem; out APCOperation: TPCOperation): Boolean;
 var LOpClass: TPCOperationClass;
   LStream : TStream;
 begin
@@ -1744,8 +1885,7 @@ begin
   End;
 end;
 
-function TAbstractMemBlockchainStorage.TOperationRawData.FromSerialized(
-  ABytes: TBytes): Boolean;
+function TAbstractMemBlockchainStorage.TOperationRawData.FromSerialized( ABytes: TBytes): Boolean;
 var LStream : TStream;
   LBuild : Word;
 begin
@@ -1770,16 +1910,14 @@ begin
   Result := True;
 end;
 
-procedure TAbstractMemBlockchainStorage.TOperationRawData.SetToFindByBlockOpblock(
-  ABlock, AOpblock: Integer);
+procedure TAbstractMemBlockchainStorage.TOperationRawData.SetToFindByBlockOpblock( ABlock, AOpblock: Integer);
 begin
   Self.Clear;
   Self.block := Ablock;
   Self.opblock := AOpblock;
 end;
 
-procedure TAbstractMemBlockchainStorage.TOperationRawData.SetToFindByRightOpHash(
-  const ARightOpHash: TBytes);
+procedure TAbstractMemBlockchainStorage.TOperationRawData.SetToFindByRightOpHash(const ARightOpHash: TBytes);
 begin
   Self.Clear;
   Self.rightOpHash := Copy(ARightOpHash);
@@ -1818,8 +1956,7 @@ begin
   Self.opblock := -1; // -1 = No opblock
 end;
 
-procedure TAbstractMemBlockchainStorage.TAffectedAccount.CopyFrom(
-  const ASource: TAffectedAccount);
+procedure TAbstractMemBlockchainStorage.TAffectedAccount.CopyFrom(const ASource: TAffectedAccount);
 begin
   Self.account := ASource.account;
   Self.n_operation := ASource.n_operation;
@@ -1827,8 +1964,7 @@ begin
   Self.opblock := ASource.opblock;
 end;
 
-function TAbstractMemBlockchainStorage.TAffectedAccount.FromSerialized(
-  ABytes: TBytes): Boolean;
+function TAbstractMemBlockchainStorage.TAffectedAccount.FromSerialized( ABytes: TBytes): Boolean;
 var LStream : TStream;
   LBuild : Word;
 begin
@@ -1848,15 +1984,13 @@ begin
   Result := True;
 end;
 
-procedure TAbstractMemBlockchainStorage.TAffectedAccount.SetToFindByAccount(
-  AAccount: Integer);
+procedure TAbstractMemBlockchainStorage.TAffectedAccount.SetToFindByAccount( AAccount: Integer);
 begin
   Self.Clear;
   Self.account := AAccount;
 end;
 
-procedure TAbstractMemBlockchainStorage.TAffectedAccount.SetToFindByAccountBlockOpblock(
-  AAccount, ABlock, AOpblock: Integer);
+procedure TAbstractMemBlockchainStorage.TAffectedAccount.SetToFindByAccountBlockOpblock( AAccount, ABlock, AOpblock: Integer);
 begin
   Self.Clear;
   Self.account := AAccount;
@@ -1901,8 +2035,7 @@ begin
   end else Result := 0;
 end;
 
-function TAbstractMemBlockchainStorage.TAMBTreeOrphanInformationByOrphan.LoadData(
-  const APosition: TAbstractMemPosition): TOrphanInformation;
+function TAbstractMemBlockchainStorage.TAMBTreeOrphanInformationByOrphan.LoadData(const APosition: TAbstractMemPosition): TOrphanInformation;
 var LZone : TAMZone;
   LBytes : TBytes;
   LStream : TStream;
@@ -1924,8 +2057,7 @@ begin
   End;
 end;
 
-function TAbstractMemBlockchainStorage.TAMBTreeOrphanInformationByOrphan.SaveData(
-  const AData: TOrphanInformation): TAMZone;
+function TAbstractMemBlockchainStorage.TAMBTreeOrphanInformationByOrphan.SaveData(const AData: TOrphanInformation): TAMZone;
 var
   LBytes : TBytes;
   LStream : TStream;
@@ -1943,8 +2075,7 @@ begin
   AbstractMem.Write(Result.position,LBytes[0],Length(LBytes));
 end;
 
-procedure TAbstractMemBlockchainStorage.TAMBTreeOrphanInformationByOrphan.Update(
-  const AOrphan: String; AIncrement: Integer);
+procedure TAbstractMemBlockchainStorage.TAMBTreeOrphanInformationByOrphan.Update(const AOrphan: String; AIncrement: Integer);
 var LUpdate, LUpdateFound : TOrphanInformation;
   LPos : TAbstractMemPosition;
 begin
@@ -1969,8 +2100,7 @@ begin
   Self.regsCounter := 0;
 end;
 
-procedure TAbstractMemBlockchainStorage.TOrphanInformation.CopyFrom(
-  const ASource: TOrphanInformation);
+procedure TAbstractMemBlockchainStorage.TOrphanInformation.CopyFrom(const ASource: TOrphanInformation);
 begin
   Self.orphan := ASource.orphan;
   Self.regsCounter := ASource.regsCounter;
@@ -2011,8 +2141,7 @@ begin
   end;
 end;
 
-procedure TAbstractMemBlockchainStorageSecondary.DoDeleteBlockChainBlocks(
-  StartingDeleteBlock: Cardinal);
+procedure TAbstractMemBlockchainStorageSecondary.DoDeleteBlockChainBlocks( StartingDeleteBlock: Cardinal);
 begin
   inherited;
   if Assigned(FAuxStorage) then begin
@@ -2062,8 +2191,7 @@ begin
   end;
 end;
 
-function TAbstractMemBlockchainStorageSecondary.DoMoveBlockChain(
-  StartBlock: Cardinal; const DestOrphan: TOrphan): Boolean;
+function TAbstractMemBlockchainStorageSecondary.DoMoveBlockChain( StartBlock: Cardinal; const DestOrphan: TOrphan): Boolean;
 begin
   Result := inherited;
   if (Result) and (Assigned(FAuxStorage)) then begin
@@ -2071,8 +2199,7 @@ begin
   end;
 end;
 
-function TAbstractMemBlockchainStorageSecondary.DoSaveBlockChain(
-  Operations: TPCOperationsComp): Boolean;
+function TAbstractMemBlockchainStorageSecondary.DoSaveBlockChain( Operations: TPCOperationsComp): Boolean;
 begin
   Result := inherited;
   if (Result) and (Assigned(FAuxStorage)) and (Not FSaving) then begin
@@ -2080,8 +2207,7 @@ begin
   end;
 end;
 
-procedure TAbstractMemBlockchainStorageSecondary.SetReadOnly(
-  const Value: Boolean);
+procedure TAbstractMemBlockchainStorageSecondary.SetReadOnly(const Value: Boolean);
 begin
   inherited;
   if (Assigned(FAuxStorage)) then begin
@@ -2099,60 +2225,72 @@ var LPendingList : TList<TPendingData>;
 begin
   //
   nLastBatch := 0;
-  while (Not Terminated) do begin
-    LPendingList := FPendingToSave.FPending.LockList;
-    try
-      if LPendingList.Count>0 then begin
-        LZero := LPendingList.Items[0];
-        LPending := LPendingList.Items[LPendingList.Count-1];
-        LPendingList.Delete(LPendingList.Count-1);
-        FBusy := True;
-        if (FPendingToSave.FAMStorage.LogSaveActivity) and (TPlatform.GetElapsedMilliseconds(FPendingToSave.FLastLogTC)>10000) then begin
+  try
+    while (Not Terminated) and not FPendingToSave.FAMStorage.HasWriteFailure do begin
+      LPendingList := FPendingToSave.FPending.LockList;
+      try
+        if LPendingList.Count>0 then begin
+          LZero := LPendingList.Items[0];
+          LPending := LPendingList.Items[LPendingList.Count-1];
+          LPendingList.Delete(LPendingList.Count-1);
+          FBusy := True;
+          if (FPendingToSave.FAMStorage.LogSaveActivity) and (TPlatform.GetElapsedMilliseconds(FPendingToSave.FLastLogTC)>10000) then begin
 
-          TLog.NewLog(ltdebug,ClassName,Format('Pendings %d (%d/%d..%d/%d) - %s',
-            [LPendingList.Count+1, LZero.operation.block, LZero.operation.opblock,
-              LPending.operation.block, LPending.operation.opblock, FPendingToSave.FAMStorage.FSaveStorageStats.ToString]));
-          FPendingToSave.FLastLogTC := TPlatform.GetTickCount;
+            TLog.NewLog(ltdebug,ClassName,Format('Pendings %d (%d/%d..%d/%d) - %s',
+              [LPendingList.Count+1, LZero.operation.block, LZero.operation.opblock,
+                LPending.operation.block, LPending.operation.opblock, FPendingToSave.FAMStorage.FSaveStorageStats.ToString]));
+            FPendingToSave.FLastLogTC := TPlatform.GetTickCount;
+            FPendingToSave.FAMStorage.FSaveStorageStats.Clear;
+          end;
+        end else FBusy := False;
+      finally
+        FPendingToSave.FPending.UnlockList;
+      end;
+      if (FBusy) then begin
+        try
+          inc(nLastBatch);
+          // Here will not terminate until finished job (or raised exception)
+          DebugStep := Format('Block %d opBlock %d',[LPending.operation.block,LPending.operation.opblock]);
+          if not FPendingToSave.FOperationsRawData_By_RightOpHash.AddData(LPending.operation) then
+            raise EAbstractMemBlockchainStorage.Create(Format('Cannot add operation block %d opBlock %d',[LPending.operation.block,LPending.operation.opblock]));
+          Inc(FPendingToSave.FAMStorage.FSaveStorageStats.operationRawDataCount);
+          //
+          for i := 0 to High(LPending.affectedAccounts) do begin
+            DebugStep := Format('Block %d opBlock %d Account %d %d/%d',[LPending.operation.block,LPending.operation.opblock,LPending.affectedAccounts[i].account,i+1,Length(LPending.affectedAccounts)]);
+            if not FPendingToSave.FAffectedAccounts_By_Account_Block_OpBlock.AddData(LPending.affectedAccounts[i]) then begin
+              raise EAbstractMemBlockchainStorage.Create(Format('Cannot add affected account %d %d/%d in block %d opBlock %d',
+                [LPending.affectedAccounts[i].account,
+                 i+1,Length(LPending.affectedAccounts),
+                 LPending.affectedAccounts[i].block,LPending.affectedAccounts[i].opblock]));
+            end;
+            Inc(FPendingToSave.FAMStorage.FSaveStorageStats.affectedAccountCount);
+          end;
+        finally
+          // Busy describes one borrowed job, including exceptional unwind. A dead
+          // worker must not indefinitely block completion checks by its peers.
+          FBusy := False;
+        end;
+      end else begin
+        if (nLastBatch>0) then begin
+          TLog.NewLog(ltdebug,ClassName,Format('Finished %d operations... waiting for more - %s',
+              [nLastBatch, FPendingToSave.FAMStorage.FSaveStorageStats.ToString]));
+          nLastBatch := 0;
           FPendingToSave.FAMStorage.FSaveStorageStats.Clear;
+          FPendingToSave.FLastLogTC := FPendingToSave.FAMStorage.FSaveStorageStats.startTC;
+          FPendingToSave.ThreadHasFinishedCurrentJob; // Notify in order to flush when all threads terminated
         end;
-      end else FBusy := False;
-    finally
-      FPendingToSave.FPending.UnlockList;
+        Sleep(10);
+      end;
     end;
-    if (FBusy) then begin
-      inc(nLastBatch);
-      // Here will not terminate until finished job (or raised exception)
-      DebugStep := Format('Block %d opBlock %d',[LPending.operation.block,LPending.operation.opblock]);
-      if not FPendingToSave.FOperationsRawData_By_RightOpHash.AddData(LPending.operation) then
-        raise EAbstractMemBlockchainStorage.Create(Format('Cannot add operation block %d opBlock %d',[LPending.operation.block,LPending.operation.opblock]));
-      Inc(FPendingToSave.FAMStorage.FSaveStorageStats.operationRawDataCount);
-      //
-      for i := 0 to High(LPending.affectedAccounts) do begin
-        DebugStep := Format('Block %d opBlock %d Account %d %d/%d',[LPending.operation.block,LPending.operation.opblock,LPending.affectedAccounts[i].account,i+1,Length(LPending.affectedAccounts)]);
-        if not FPendingToSave.FAffectedAccounts_By_Account_Block_OpBlock.AddData(LPending.affectedAccounts[i]) then begin
-          raise EAbstractMemBlockchainStorage.Create(Format('Cannot add affected account %d %d/%d in block %d opBlock %d',
-            [LPending.affectedAccounts[i].account,
-             i+1,Length(LPending.affectedAccounts),
-             LPending.affectedAccounts[i].block,LPending.affectedAccounts[i].opblock]));
-        end;
-        Inc(FPendingToSave.FAMStorage.FSaveStorageStats.affectedAccountCount);
-      end;
-    end else begin
-      if (nLastBatch>0) then begin
-        TLog.NewLog(ltdebug,ClassName,Format('Finished %d operations... waiting for more - %s',
-            [nLastBatch, FPendingToSave.FAMStorage.FSaveStorageStats.ToString]));
-        nLastBatch := 0;
-        FPendingToSave.FAMStorage.FSaveStorageStats.Clear;
-        FPendingToSave.FLastLogTC := FPendingToSave.FAMStorage.FSaveStorageStats.startTC;
-        FPendingToSave.ThreadHasFinishedCurrentJob; // Notify in order to flush when all threads terminated
-      end;
-      Sleep(10);
+  except
+    on E: Exception do begin
+      FPendingToSave.FAMStorage.ReportWriteFailure(E);
+      raise;
     end;
   end;
 end;
 
-constructor TAbstractMemBlockchainStorage.TPendingToSaveThread.Create(
-  APendingToSave: TPendingToSave);
+constructor TAbstractMemBlockchainStorage.TPendingToSaveThread.Create( APendingToSave: TPendingToSave);
 begin
   FBusy := True;
   FPendingToSave := APendingToSave;
@@ -2167,8 +2305,10 @@ procedure TAbstractMemBlockchainStorage.TPendingToSave.AddPendingData(const APen
 var LPendings : TList<TPendingData>;
   LCount : Integer;
 begin
+  FAMStorage.CheckWriteFailure;
   LPendings := FPending.LockList;
   Try
+    FAMStorage.CheckWriteFailure;
     LPendings.Add(APendingData);
     LCount := LPendings.Count;
     inc(FTotal);
@@ -2178,6 +2318,7 @@ begin
   if MaxThreads<1 then begin
     SetMaxThreads(1);
     repeat
+      FAMStorage.CheckWriteFailure;
       sleep(1);
     until PendingsCount=0;
     SetMaxThreads(0);
@@ -2185,15 +2326,14 @@ begin
 
   if (MaxPendingsCount>0) And (LCount>=MaxPendingsCount) then begin
     while (PendingsCount>=MaxPendingsCount) and (MaxPendingsCount>0) do begin
+      FAMStorage.CheckWriteFailure;
       Sleep(10);
     end;
   end;
+  FAMStorage.CheckWriteFailure;
 end;
 
-constructor TAbstractMemBlockchainStorage.TPendingToSave.Create(
-  AStorage : TAbstractMemBlockchainStorage;
-  AAMBTreeTOperationRawDataByRightOpHash: TAMBTreeTOperationRawDataByRightOpHash;
-  AAMBTreeTAffectedAccountByAccountBlockOpBlock: TAMBTreeTAffectedAccountByAccountBlockOpBlock);
+constructor TAbstractMemBlockchainStorage.TPendingToSave.Create(AStorage : TAbstractMemBlockchainStorage; AAMBTreeTOperationRawDataByRightOpHash: TAMBTreeTOperationRawDataByRightOpHash; AAMBTreeTAffectedAccountByAccountBlockOpBlock: TAMBTreeTAffectedAccountByAccountBlockOpBlock);
 begin
   FAMStorage := AStorage;
   FTotal := 0;
@@ -2236,6 +2376,8 @@ end;
 procedure TAbstractMemBlockchainStorage.TPendingToSave.SetMaxThreads(const Value: Integer);
 var i : Integer;
   ListTh : TList<TPendingToSaveThread>;
+  LRetired: TList<TPendingToSaveThread>;
+  LThread: TPendingToSaveThread;
 begin
   {$IFDEF HIGHLOG}
   if Value<>FMaxThreads then begin
@@ -2245,31 +2387,40 @@ begin
   if Value<0 then FMaxThreads := 0
   else if Value>16 then FMaxThreads := 16
   else FMaxThreads := Value;
+  if FAMStorage.HasWriteFailure then FMaxThreads := 0;
 
-  ListTh := FThreads.LockList;
+  LRetired := TList<TPendingToSaveThread>.Create;
   try
-    // Clean terminateds...
-    for i := ListTh.Count-1 downto 0 do begin
-      if ListTh.Items[i].Terminated then begin
-        ListTh.Items[i].Free;
-        ListTh.Delete(i);
+    ListTh := FThreads.LockList;
+    try
+      // Clean terminateds...
+      for i := ListTh.Count-1 downto 0 do begin
+        if ListTh.Items[i].Terminated then begin
+          LRetired.Add(ListTh.Items[i]);
+          ListTh.Delete(i);
+        end;
       end;
+      // CREATE
+      while ListTh.Count<FMaxThreads do begin
+        ListTh.Add( TPendingToSaveThread.Create(Self) );
+      end;
+      // REMOVE
+      for i := FMaxThreads to ListTh.Count-1 do begin
+        ListTh.Items[i].Terminate;
+        LRetired.Add(ListTh.Items[i]);
+      end;
+      // Remove retiring workers from admission, but never wait under this lock:
+      // a worker's final completion callback also inspects the worker list.
+      for i := ListTh.Count-1 downto FMaxThreads do ListTh.Delete(i);
+    finally
+      FThreads.UnlockList;
     end;
-    // CREATE
-    while ListTh.Count<FMaxThreads do begin
-      ListTh.Add( TPendingToSaveThread.Create(Self) );
-    end;
-    // REMOVE
-    for i := FMaxThreads to ListTh.Count-1 do begin
-      ListTh.Items[i].Terminate;
-    end;
-    for i := ListTh.Count-1 downto FMaxThreads do begin
-      ListTh.Items[i].WaitFor;
-      ListTh.Items[i].Free;
-      ListTh.Delete(i);
+    for LThread in LRetired do begin
+      LThread.WaitFor;
+      LThread.Free;
     end;
   finally
-    FThreads.UnlockList;
+    LRetired.Free;
   end;
 end;
 
@@ -2277,6 +2428,8 @@ procedure TAbstractMemBlockchainStorage.TPendingToSave.ThreadHasFinishedCurrentJ
 var i : Integer;
   ListTh : TList<TPendingToSaveThread>;
 begin
+  if FAMStorage.HasWriteFailure then Exit;
+  if FMaxThreads=0 then Exit;
   if PendingsCount>0 then Exit;
   ListTh := FThreads.LockList;
   try

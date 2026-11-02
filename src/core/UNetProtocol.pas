@@ -3506,6 +3506,9 @@ end;
 
 function TNetConnection.BlockProcessingTerminated: Boolean;
 begin
+  // Retire buffered work only at the existing between-block boundaries. A
+  // storage failure prevents any subsequent commit without killing a worker.
+  if TNode.NodeExists and TNode.Node.HasStorageFailure then Exit(True);
   if TNetData.NetDataExists and TNetData.NetData.ShutdownRequested then
     Exit(True);
   Result := False;
@@ -3658,13 +3661,11 @@ begin
       DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
     end;
     {$IFDEF USE_ABSTRACTMEM}
-    TNode.Node.Bank.SafeBox.PCAbstractMem.FlushCache;
-    if (TNode.Node.Bank.Storage is TAbstractMemBlockchainStorage) then begin
-      TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).AutoFlushCache := LPrevious;
-      if TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).PendingToSave = 0 then begin
-        TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).FileMem.FlushCache;
-      end;
-    end;
+    // Restore batching policy even if persisting the accepted batch fails.
+    if (TNode.Node.Bank.Storage is TAbstractMemBlockchainStorage) then
+      TAbstractMemBlockchainStorage(TNode.Node.Bank.Storage).AutoFlushCache := LPrevious;
+    TNode.Node.FlushSafebox;
+    TNode.Node.FlushBlockStorage;
     {$ENDIF}
   end;
   finally

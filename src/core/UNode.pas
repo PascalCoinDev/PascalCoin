@@ -52,11 +52,19 @@ Type
   // blockchain backlog is applied. Callers must retry after the typed status
   // reports availability; an old overlay must never be used with a newer tip.
   EPendingOperationsUnavailable = Class(Exception);
+  ENodeStorageUnavailable = Class(Exception);
+
+  TNodeStorageFailureStage = (sfsUnknown, sfsSafeboxFlush, sfsCheckpoint, sfsBlockStream, sfsPendingOperations, sfsRestore);
+  TNodeStorageFailure = record
+    HasFailure: Boolean;
+    Stage: TNodeStorageFailureStage;
+    FileName, ErrorClass, ErrorMessage: String;
+  end;
 
   // A selected target survives gaps between batches. Already received work
   // remains synchronization even after transport shutdown; local pages resume
   // when that physical backlog drains, not merely when sockets disconnect.
-  TNodeSynchronizationState = (nssOffline, nssDisconnected, nssIdle, nssSynchronizing);
+  TNodeSynchronizationState = (nssOffline, nssDisconnected, nssIdle, nssSynchronizing, nssStorageError);
   TNodeSynchronizationStatus = record
     State: TNodeSynchronizationState;
     NetworkActive: Boolean;
@@ -71,6 +79,7 @@ Type
     CompactTarget, LastBlockTimestamp: Cardinal;
     ProtocolVersion: Word;
     Progress: TProgressInfo;
+    StorageFailure: TNodeStorageFailure;
   end;
   TNodeSynchronizationNotify = procedure(Sender: TObject;
     const AStatus: TNodeSynchronizationStatus) of object;
@@ -139,6 +148,8 @@ Type
     procedure CollectPendingResends(AOperations : TOperationsHashTree);
     procedure BroadcastPendingResends(AOperations : TOperationsHashTree);
   protected
+    procedure DoFlushSafebox; virtual;
+    function DoFlushBlockStorage: Boolean; virtual;
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
     Class Function Node : TNode;
@@ -195,6 +206,11 @@ Type
     // These setters publish facts only; listeners run on the existing notifier
     // thread/main-thread bridge, never on the network producer's call stack.
     function GetSynchronizationStatus: TNodeSynchronizationStatus;
+    procedure ReportStorageFailure(AStage: TNodeStorageFailureStage; const AFileName: String; AError: Exception);
+    function HasStorageFailure: Boolean;
+    // Persist already accepted work; failures pause admission until restart.
+    procedure FlushSafebox;
+    procedure FlushBlockStorage;
     procedure SetSynchronizationNetworkActive(AActive: Boolean);
     procedure SetSynchronizationPeerConnected(APeer: TObject; AConnected: Boolean);
     procedure SetSynchronizationTarget(APeer: TObject; ATargetBlockCount: Cardinal);
@@ -323,7 +339,8 @@ Type
 implementation
 
 Uses UOpTransaction, UTime, UCommon, UPCOperationsSignatureValidator,
-  UFolderHelper, USettings;
+  UFolderHelper, USettings, UFileMem, UAbstractMem,
+  {$IFDEF USE_ABSTRACTMEM}UAbstractMemBlockchainStorage,{$ENDIF} UPCAbstractMem;
 
 var _Node : TNode;
   _PascalCoinDataFolder : String;
@@ -339,6 +356,10 @@ Var i,j : Integer;
 begin
   Result := false;
   errors := '';
+  if HasStorageFailure then begin
+    errors := GetSynchronizationStatus.StorageFailure.ErrorMessage;
+    Exit;
+  end;
   if Assigned(SenderConnection) then sClientRemoteAddr := SenderConnection.ClientRemoteAddr
   else sClientRemoteAddr:='(SELF)';
   if FDisabledsNewBlocksCount>0 then begin
@@ -377,7 +398,7 @@ begin
       if Result then begin
         {$IFDEF USE_ABSTRACTMEM}
         If Not FBank.IsRestoringFromFile then begin
-          Bank.SafeBox.PCAbstractMem.FlushCache;
+          FlushSafebox;
         end;
         {$ENDIF}
       end;
@@ -503,6 +524,10 @@ Var
 begin
   Result := -1; // -1 Means Node is blocked or disabled
   if Assigned(OperationsResult) then OperationsResult.Clear;
+  if HasStorageFailure then begin
+    errors := GetSynchronizationStatus.StorageFailure.ErrorMessage;
+    Exit;
+  end;
   if not PendingOperationsAvailable then begin
     errors := 'Pending operations are unavailable during blockchain synchronization';
     Exit;
@@ -854,6 +879,11 @@ end;
 destructor TNode.Destroy;
 Var step : String;
   LScopes: TList<UInt64>;
+  {$IFDEF USE_ABSTRACTMEM}
+  I: Integer;
+  LStorage: TAbstractMemBlockchainStorage;
+  LStorageFileName: String;
+  {$ENDIF}
 begin
   TLog.NewLog(ltInfo,ClassName,'TNode.Destroy START');
   Try
@@ -870,6 +900,33 @@ begin
     FSaveMempoolOperationsThread.Stop;
     FSaveMempoolOperationsThread.WaitFor;
     FreeAndNil(FSaveMempoolOperationsThread);
+
+    {$IFDEF USE_ABSTRACTMEM}
+    step := 'Finalizing blockchain storage workers';
+    // A draining index writer can still report its first persistence failure.
+    // Keep all node/listener locks alive until those owned workers have joined.
+    // Inspect existing components; the lazy Storage getter could create a backend.
+    if Assigned(FBank) then
+      for I := FBank.ComponentCount-1 downto 0 do
+        if FBank.Components[I] is TAbstractMemBlockchainStorage then begin
+          LStorage := TAbstractMemBlockchainStorage(FBank.Components[I]);
+          LStorageFileName := 'blockchain storage';
+          if Assigned(LStorage.FileMem) then LStorageFileName := LStorage.FileMem.FileName;
+          try
+            LStorage.UseMultithread := False;
+          except
+            on E: Exception do begin
+              // Known write failures stay latched while later ownership cleanup
+              // proceeds. Cancellation, exhaustion and programmer faults propagate.
+              if (E is EStreamError) or (E is EOSError) or (E is EFileMem) or
+                (E is EAbstractMem) or (E is EPCAbstractMem) or
+                (E is EAbstractMemBlockchainStorage) then
+                ReportStorageFailure(sfsBlockStream,LStorageFileName,E)
+              else raise;
+            end;
+          end;
+        end;
+    {$ENDIF}
 
     step := 'Deleting critical section';
     FreeAndNil(FLockMempool);
@@ -1146,6 +1203,10 @@ function TNode.IsBlockChainValid(var WhyNot : String): Boolean;
 Var unixtimediff : Integer;
 begin
   Result :=false;
+  if HasStorageFailure then begin
+    WhyNot := GetSynchronizationStatus.StorageFailure.ErrorMessage;
+    Exit;
+  end;
   if (TNetData.NetData.NetStatistics.ActiveConnections<=0)  then begin
     WhyNot := 'No connection to check blockchain';
     exit;
@@ -1171,6 +1232,10 @@ var LLockedMempool : TPCOperationsComp; LProgress : TProgressInfo;
 begin
   Result := false;
   CurrentProcess := '';
+  if HasStorageFailure then begin
+    CurrentProcess := GetSynchronizationStatus.StorageFailure.ErrorMessage;
+    Exit;
+  end;
   if not PendingOperationsAvailable then begin
     CurrentProcess := 'Blockchain synchronization is active';
     Exit;
@@ -1308,6 +1373,106 @@ begin
   end;
 end;
 
+procedure TNode.DoFlushSafebox;
+begin
+  {$IFDEF USE_ABSTRACTMEM}
+  FBank.SafeBox.PCAbstractMem.FlushCache;
+  {$ENDIF}
+end;
+
+function TNode.DoFlushBlockStorage: Boolean;
+begin
+  Result := True;
+  {$IFDEF USE_ABSTRACTMEM}
+  if (FBank.Storage is TAbstractMemBlockchainStorage) and
+    (TAbstractMemBlockchainStorage(FBank.Storage).PendingToSave=0) then
+    // The backend rechecks its private failure under the file lock. A node-wide
+    // latch alone cannot prevent a competing flush from certifying partial indexes.
+    Result := TAbstractMemBlockchainStorage(FBank.Storage).FlushCache;
+  {$ENDIF}
+end;
+
+procedure TNode.FlushSafebox;
+var LFileName: String;
+begin
+  LFileName := 'safebox';
+  try
+    {$IFDEF USE_ABSTRACTMEM}
+    LFileName := FBank.SafeBox.PCAbstractMem.FileName;
+    {$ENDIF}
+    DoFlushSafebox;
+  except
+    on E: Exception do begin
+      // Cache eviction/flush is persistence too, even after block validation
+      // and operation storage have succeeded. Never reclassify cancellation.
+      if (E is EStreamError) or (E is EOSError) or (E is EFileMem) or
+        (E is EAbstractMem) or (E is EPCAbstractMem) then
+        ReportStorageFailure(sfsSafeboxFlush,LFileName,E);
+      raise;
+    end;
+  end;
+end;
+
+procedure TNode.FlushBlockStorage;
+var LFileName: String;
+begin
+  LFileName := 'blockchain storage';
+  try
+    {$IFDEF USE_ABSTRACTMEM}
+    if (FBank.Storage is TAbstractMemBlockchainStorage) and
+      Assigned(TAbstractMemBlockchainStorage(FBank.Storage).FileMem) then
+      LFileName := TAbstractMemBlockchainStorage(FBank.Storage).FileMem.FileName;
+    {$ENDIF}
+    if not DoFlushBlockStorage then
+      raise EWriteError.Create('Cannot flush blockchain storage '+LFileName);
+  except
+    on E: Exception do begin
+      if (E is EStreamError) or (E is EOSError) or (E is EFileMem) or
+        (E is EAbstractMem) then ReportStorageFailure(sfsBlockStream,LFileName,E);
+      raise;
+    end;
+  end;
+end;
+
+procedure TNode.ReportStorageFailure(AStage: TNodeStorageFailureStage; const AFileName: String; AError: Exception);
+var LFailure: TNodeStorageFailure; LChanged: Boolean;
+begin
+  // Preserve the first persistence failure until this node is destroyed. Copy
+  // exception data, never retain an exception object owned by the producer.
+  if (AError=Nil) or (AError is EOutOfMemory) or (AError is EAbort) or (AError is EAccessViolation) then Exit;
+  LFailure := Default(TNodeStorageFailure);
+  LFailure.HasFailure := True;
+  LFailure.Stage := AStage;
+  LFailure.FileName := AFileName;
+  LFailure.ErrorClass := AError.ClassName;
+  LFailure.ErrorMessage := AError.Message;
+  LChanged := False;
+  FSynchronizationLock.Acquire;
+  try
+    if Not FSynchronizationStatus.StorageFailure.HasFailure then begin
+      FSynchronizationStatus.StorageFailure := LFailure;
+      RetireSynchronizationSession;
+      RecalculateSynchronizationStatus;
+      LChanged := True;
+    end;
+  finally
+    FSynchronizationLock.Release;
+  end;
+  // This publishes existing notifier flags only. A bank/network producer never
+  // calls GUI subscribers or acquires the node writer while reporting failure.
+  if LChanged then NotifySynchronizationChanged;
+end;
+
+function TNode.HasStorageFailure: Boolean;
+begin
+  FSynchronizationLock.Acquire;
+  try
+    Result := FSynchronizationStatus.StorageFailure.HasFailure;
+  finally
+    FSynchronizationLock.Release;
+  end;
+end;
+
 procedure TNode.RecalculateSynchronizationStatus;
 var LTarget: Cardinal; LChainBusy: Boolean;
 begin
@@ -1322,8 +1487,11 @@ begin
     (FSynchronizationStatus.NetworkActive and (FSynchronizationStatus.PeerCount>0) and
      (FSynchronizationStatus.TargetBlockCount>FSynchronizationStatus.LocalBlockCount));
   FSynchronizationStatus.PendingOperationsAvailable :=
+    not FSynchronizationStatus.StorageFailure.HasFailure and
     not FMempoolNeedsReconciliation and not LChainBusy;
-  if LChainBusy or FMempoolNeedsReconciliation then
+  if FSynchronizationStatus.StorageFailure.HasFailure then
+    FSynchronizationStatus.State := nssStorageError
+  else if LChainBusy or FMempoolNeedsReconciliation then
     FSynchronizationStatus.State := nssSynchronizing
   else if not FSynchronizationStatus.NetworkActive then
     FSynchronizationStatus.State := nssOffline
@@ -1490,7 +1658,8 @@ begin
   // same predicate is checked again after admission to cover a new producer.
   FSynchronizationLock.Acquire;
   try
-    LCanReconcile := not FSynchronizationStatus.PendingOperationsAvailable and
+    LCanReconcile := not FSynchronizationStatus.StorageFailure.HasFailure and
+      not FSynchronizationStatus.PendingOperationsAvailable and
       (FSynchronizationStatus.ActiveTransfers=0) and
       ((not FSynchronizationStatus.NetworkActive) or
        (FSynchronizationStatus.PeerCount=0) or
@@ -1506,7 +1675,8 @@ begin
     if not FMempoolNeedsReconciliation then Exit;
     FSynchronizationLock.Acquire;
     try
-      LCanReconcile := (FSynchronizationStatus.ActiveTransfers=0) and
+      LCanReconcile := not FSynchronizationStatus.StorageFailure.HasFailure and
+        (FSynchronizationStatus.ActiveTransfers=0) and
         ((not FSynchronizationStatus.NetworkActive) or
          (FSynchronizationStatus.PeerCount=0) or
          (FSynchronizationStatus.TargetBlockCount<=FSynchronizationStatus.LocalBlockCount));
@@ -1629,8 +1799,8 @@ function TNode.CanRequestBlockChainData: Boolean;
 begin
   FSynchronizationLock.Acquire;
   try
-    Result := FSynchronizationStatus.NetworkActive and
-      IsCurrentSynchronizationScope;
+    Result := not FSynchronizationStatus.StorageFailure.HasFailure and
+      FSynchronizationStatus.NetworkActive and IsCurrentSynchronizationScope;
   finally
     FSynchronizationLock.Release;
   end;
@@ -1978,6 +2148,8 @@ end;
 
 procedure TNode.RequireMempoolAvailable;
 begin
+  if HasStorageFailure then
+    raise ENodeStorageUnavailable.Create(GetSynchronizationStatus.StorageFailure.ErrorMessage);
   if not PendingOperationsAvailable then
     raise EPendingOperationsUnavailable.Create('Pending operations are unavailable during blockchain synchronization');
 end;
@@ -2308,7 +2480,7 @@ begin
       LStatus := FNodeNotifyEvents.FNode.GetSynchronizationStatus;
     // Pause queries before block/operation listeners run. On completion, retain
     // their latest requests first, then resume exactly once with final inputs.
-    if LNotifySynchronization and (LStatus.State=nssSynchronizing) and
+    if LNotifySynchronization and (LStatus.State in [nssSynchronizing,nssStorageError]) and
       Assigned(FNodeNotifyEvents.FOnSynchronizationChanged) then begin
       DebugStep := 'Notify OnSynchronizationChanged';
       FNodeNotifyEvents.FOnSynchronizationChanged(FNodeNotifyEvents,LStatus);
@@ -2352,7 +2524,7 @@ begin
     finally
       // An unrelated refresh listener must not consume the final state flag
       // and leave a grid held forever. Deliver completion even on that path.
-      if LNotifySynchronization and (LStatus.State<>nssSynchronizing) and
+      if LNotifySynchronization and (not (LStatus.State in [nssSynchronizing,nssStorageError])) and
         Assigned(FNodeNotifyEvents) and
         Assigned(FNodeNotifyEvents.FOnSynchronizationChanged) then begin
         DebugStep := 'Notify OnSynchronizationChanged';
@@ -2511,6 +2683,7 @@ var LLocked : TPCOperationsComp;
   LRetryReconciliation: Boolean;
   LLastSave: TTickCount; LElapsed: Int64; LWait: Cardinal;
   LLastReconciliationFailure: TTickCount; LRetryWait: Cardinal;
+  LFailureFileName: String;
 begin
   // A request can arrive before this thread is first scheduled. Do not clear
   // it here. Dirty publication is atomic and is consumed before capture, so a
@@ -2553,6 +2726,13 @@ begin
       except
         on E: Exception do begin
           LSaveFailed := True;
+          LFailureFileName := 'pendingbuffer.ops';
+          try
+            LFailureFileName := FNode.Bank.GetStorageFolder(FNode.Bank.Orphan)+PathDelim+'pendingbuffer.ops';
+          except
+            // A diagnostic path lookup must not replace the original I/O failure.
+          end;
+          FNode.ReportStorageFailure(sfsPendingOperations,LFailureFileName,E);
           Touch;
           TLog.NewLog(lterror,ClassName,'Cannot save pending operations: '+E.ClassName+': '+E.Message);
         end;

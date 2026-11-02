@@ -38,7 +38,7 @@ begin
       LLog.Add('PASS signed change-info replay: 4'); LLog.SaveToFile(ALogFile);
       if RunNodeSynchronizationChecks(ALogFile+'.node')<>0 then
         raise Exception.Create('Node status acceptance failed; see scenario logs');
-      LLog.Add('PASS node status: 8'); LLog.SaveToFile(ALogFile);
+      LLog.Add('PASS node status: 17'); LLog.SaveToFile(ALogFile);
       if RunDownloadLifetimeChecks(ALogFile+'.lifetime')<>0 then
         raise Exception.Create('Download/node ownership acceptance failed; see scenario logs');
       LLog.Add('PASS download/node ownership: 7'); LLog.SaveToFile(ALogFile);
@@ -48,7 +48,7 @@ begin
       if RunPendingCatchupChecks(ALogFile+'.catchup')<>0 then
         raise Exception.Create('Pending catch-up acceptance failed; see scenario logs');
       LLog.Add('PASS pending catch-up: 10'); LLog.SaveToFile(ALogFile);
-      LLog.Add('PASS total: 44');
+      LLog.Add('PASS total: 53');
       Result:=0;
     except on E: Exception do LLog.Add('FAIL '+E.ClassName+': '+E.Message); end;
     LLog.SaveToFile(ALogFile);

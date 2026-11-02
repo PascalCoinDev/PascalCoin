@@ -107,6 +107,7 @@ type
     FLockAbstractMem : TPCCriticalSection;
 
     FStats : TPCAbstractMemStats;
+    FInitialized : Boolean;
 
     FBlocks: TPCAbstractMemListBlocks;
     FAccounts: TPCAbstractMemListAccounts;
@@ -142,6 +143,10 @@ type
     procedure OnCacheMemFlushedCache(const ASender : TCacheMem; const AProcessDesc : String; AElapsedMilis: Int64);
     procedure OnCacheMemLog(ASender : TObject; const ALog : String);
   protected
+    // Separate writing, durability and publication without exposing temporary ownership.
+    function CreateCheckpointStream(const AFileName: String): TFileStream; virtual;
+    procedure FlushCheckpointStream(AStream: TFileStream); virtual;
+    procedure PublishCheckpointFile(const ATemporaryFileName, ADestinationFileName: String); virtual;
     procedure UpgradeAbstractMemVersion(const ACurrentHeaderVersion : Integer);
     function DoGetAccount(AAccountNumber : Integer; var AAccount : TAccount) : Boolean;
   public
@@ -190,7 +195,7 @@ type
 
 implementation
 
-uses UAccounts;
+uses UAccounts{$IFDEF MSWINDOWS}, Windows{$ENDIF};
 
 const
   CT_PCAbstractMem_FileVersion = 100;
@@ -341,6 +346,7 @@ var LZone,
   i : Integer;
   LHeaderVersion : UInt32;
 begin
+  FInitialized := False;
   // Free
   FreeAndNil(FBlocks);
   FreeAndNil(FAccounts);
@@ -450,6 +456,14 @@ begin
   FBlocks.FPCAbstractMem := Self;
 
   FAccounts := TPCAbstractMemListAccounts.Create( FAbstractMem, LZoneAccounts, 100000, Self.UseCacheOnAbstractMemLists);
+  if FAbstractMem.ReadOnly then begin
+    // Counts come from the candidate, not trusted runtime state. Reject impossible
+    // values before integer multiplication or allocation of its block-hash buffer.
+    if (FBlocks.Count<0) or (FAccounts.Count<0) or
+      (Int64(FAccounts.Count)<>Int64(FBlocks.Count)*CT_AccountsPerBlock) or
+      (Int64(FBlocks.Count)*32>FAbstractMem.NextAvailablePos) then
+      raise EPCAbstractMem.Create('Invalid safebox block/account counts in '+FFileName);
+  end;
 
   FAccountsNames := TPCAbstractMemListAccountNames.Create( FAbstractMem, LZoneAccountsNames, False, 31, _TComparison_TAccountNameInfo);
   FAccountsNames.FPCAbstractMem := Self;
@@ -480,7 +494,7 @@ begin
     Move(LHeaderVersion,             LHeader[96],4);
     FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
   end;
-
+  FInitialized := True;
 end;
 
 procedure TPCAbstractMem.EraseData;
@@ -496,6 +510,7 @@ constructor TPCAbstractMem.Create(const ASafeboxFileName: string; AReadOnly: boo
 var
   LIsNewStructure : Boolean;
   LCacheMem : TCacheMem;
+  LProbe : TFileStream;
 begin
   FStats.Clear;
 
@@ -533,7 +548,24 @@ begin
     End;
   end;
 
+  if AReadOnly and (FFileName<>'') then begin
+    // Reject invalid/truncated allocation headers before following any offsets
+    // or allocating a block-hash buffer from a damaged candidate's counters.
+    if Not FAbstractMem.HeaderInitialized then
+      raise EPCAbstractMem.Create('Invalid AbstractMem header in '+FFileName);
+    LProbe := TFileStream.Create(FFileName,fmOpenRead+fmShareDenyNone);
+    try
+      if FAbstractMem.NextAvailablePos>LProbe.Size then
+        raise EPCAbstractMem.Create('Truncated safebox allocation data in '+FFileName);
+    finally
+      LProbe.Free;
+    end;
+  end;
   DoInit(LIsNewStructure);
+  // A read-only probe must reject an unrecognized file, never treat it as an
+  // empty safebox. Mark initialization only after every owned structure exists.
+  if AReadOnly and (FFileName<>'') and LIsNewStructure then
+    raise EPCAbstractMem.Create('Invalid safebox header in '+FFileName);
   //
   if (Not AReadOnly) and (((BlocksCount>0) And (ASafeboxFileName<>'')) Or (Not LIsNewStructure)) then begin
     TLog.NewLog(ltdebug,ClassName,Format('Opened PascalCoin AbstractMem File with %d blocks %d accounts %s aggregated hashrate and buffer %d size (%d blocks) at file: %s',
@@ -543,42 +575,62 @@ end;
 
 destructor TPCAbstractMem.Destroy;
 var LFile : TFileStream;
+  LCheckingThread : TPCAbstractMemCheckThread;
 begin
-  FLockAbstractMem.Acquire;
+  LCheckingThread := Nil;
   try
-    if Assigned(FCheckingThread) then begin
-      FCheckingThread.Terminate;
+    if Assigned(FLockAbstractMem) then begin
+      FLockAbstractMem.Acquire;
+      try
+        LCheckingThread := FCheckingThread;
+        if Assigned(LCheckingThread) then LCheckingThread.Terminate;
+      finally
+        FLockAbstractMem.Release;
+      end;
+    end;
+    // The checker borrows this object and takes its lock when it is destroyed.
+    // Join outside that lock before retiring any of the data it can still read.
+    if Assigned(LCheckingThread) then begin
+      LCheckingThread.WaitFor;
+      LCheckingThread.Free;
+    end;
+    // Failed constructors are destroyed automatically. Their partial structures
+    // cannot be flushed and must not replace the original validation exception.
+    try
+      if FInitialized and Assigned(FAbstractMem) then FlushCache;
+      if FInitialized and (FFileName<>'') and (FAbstractMem is TMem) and (Not FAbstractMem.ReadOnly) then begin
+        LFile := TFileStream.Create(FFileName,fmCreate);
+        try
+          FAbstractMem.SaveToStream(LFile);
+        finally
+          LFile.Free;
+        end;
+      end;
+    except
+      on E: Exception do begin
+        // Explicit Write/Flush/Save still report failure to their caller. Cleanup
+        // must release ownership without throwing a second persistence error.
+        if Not ((E is EStreamError) or (E is EOSError) or (E is EFileMem) or (E is EAbstractMem)) then raise;
+        TLog.NewLog(ltError,ClassName,'Cannot flush safebox during cleanup '+FFileName+' ('+E.ClassName+'): '+E.Message);
+      end;
     end;
   finally
-    FLockAbstractMem.Release;
-  end;
-
-  FlushCache;
-  FreeAndNil(FAccountCache);
-  FreeAndNil(FBlocks);
-  FreeAndNil(FAccounts);
-  FreeAndNil(FAccountsNames);
-  FreeAndNil(FAccountKeys);
-  FreeAndNil(FBufferBlocksHash);
-  FreeAndNil(FAggregatedHashrate);
-  FreeAndNil(FAccountsOrderedByUpdatedBlock);
-  FreeAndNil(FAccountsOrderedBySalePrice);
-  if (FFileName<>'') And (FAbstractMem is TMem) And (Not FAbstractMem.ReadOnly) then begin
-    LFile := TFileStream.Create(FFileName,fmCreate);
+    FreeAndNil(FAccountCache);
+    FreeAndNil(FBlocks);
+    FreeAndNil(FAccounts);
+    FreeAndNil(FAccountsNames);
+    FreeAndNil(FAccountKeys);
+    FreeAndNil(FBufferBlocksHash);
+    FreeAndNil(FAggregatedHashrate);
+    FreeAndNil(FAccountsOrderedByUpdatedBlock);
+    FreeAndNil(FAccountsOrderedBySalePrice);
     try
-      LFile.Size := 0;
-      LFile.Position := 0;
-      FAbstractMem.SaveToStream(LFile);
+      FreeAndNil(FAbstractMem);
     finally
-      LFile.Free;
+      FreeAndNil(FLockAbstractMem);
+      inherited Destroy;
     end;
   end;
-  FreeAndNil(FAbstractMem);
-
-
-  FreeAndNil(FLockAbstractMem);
-
-  inherited Destroy;
 end;
 
 procedure TPCAbstractMem.DoCheck;
@@ -613,52 +665,101 @@ begin
   LBigNum := FAggregatedHashrate.RawValue.ToSerialized;
   FAbstractMem.Write( FZoneAggregatedHashrate.position, LBigNum[0], Length(LBigNum) );
   if FAbstractMem is TFileMem then begin
-    TFileMem(FAbstractMem).FlushCache;
+    if Not TFileMem(FAbstractMem).FlushCache then
+      raise EWriteError.Create('Cannot flush safebox file: '+FFileName);
   end;
   Inc(FStats.FlushesCount);
   Inc(Fstats.FlushesMillis, TPlatform.GetElapsedMilliseconds(Ltc) );
   TLog.NewLog(ltdebug,Self.ClassName,Format('AbstractMem Safebox flushed in %.2f seconds',[TPlatform.GetElapsedMilliseconds(Ltc)/1000]));
 end;
 
-Procedure DoCopyFile(const ASource, ADest : String);
-var LSourceFS, LDestFS : TFileStream;
-Begin
-  if Not FileExists(ASource) then Raise Exception.Create('Source file not found: '+ASource);
-  LSourceFS := TFileStream.Create(ASource,fmOpenRead+fmShareDenyNone);
-  try
-    LSourceFS.Position:=0;
-    LDestFS := TFileStream.Create(ADest,fmCreate+fmShareDenyWrite);
-    try
-      LDestFS.Size:=0;
-      LDestFS.CopyFrom(LSourceFS,LSourceFS.Size);
-    finally
-      LDestFS.Free;
-    end;
-  finally
-    LSourceFS.Free;
-  end;
+function TPCAbstractMem.CreateCheckpointStream(const AFileName: String): TFileStream;
+begin
+  Result := TFileStream.Create(AFileName,fmCreate+fmShareExclusive);
 end;
 
+procedure TPCAbstractMem.FlushCheckpointStream(AStream: TFileStream);
+begin
+  {$IFDEF FPC}
+  if Not FileFlush(AStream.Handle) then RaiseLastOSError;
+  {$ELSE}
+  if Not FlushFileBuffers(AStream.Handle) then RaiseLastOSError;
+  {$ENDIF}
+end;
+
+procedure TPCAbstractMem.PublishCheckpointFile(const ATemporaryFileName, ADestinationFileName: String);
+const CT_CheckpointMoveWriteThrough = $00000008; // MOVEFILE_WRITE_THROUGH; missing from older FPC headers.
+begin
+  // The sibling file is already complete, validated and closed. Replacement is
+  // one same-volume operation; never delete the previous checkpoint first.
+  {$IFDEF MSWINDOWS}
+  if Not MoveFileExW(PWideChar(UnicodeString(ATemporaryFileName)),PWideChar(UnicodeString(ADestinationFileName)),MOVEFILE_REPLACE_EXISTING Or CT_CheckpointMoveWriteThrough) then RaiseLastOSError;
+  {$ELSE}
+  if Not SysUtils.RenameFile(ATemporaryFileName,ADestinationFileName) then RaiseLastOSError;
+  {$ENDIF}
+end;
 
 procedure TPCAbstractMem.SaveToFile(const ASaveToFileName: String);
-var LFile : TFileStream;
+var LSource, LTemporary : TFileStream;
+  LCandidate : TPCAbstractMem;
+  LFileName, LTemporaryName : String;
+  LTemporaryOwned : Boolean;
+  LExpectedSize : Int64;
+  LID : TGUID;
 begin
   FlushCache;
-  //
-  ForceDirectories(ExtractFileDir(ASaveToFileName));
-  if FileExists(ASaveToFileName) then DeleteFile(ASaveToFileName);
-  //
-  if (FAbstractMem is TFileMem) then begin
-    DoCopyFile(TFileMem(FAbstractMem).FileName,ASaveToFileName);
-  end else begin
-    LFile := TFileStream.Create(ASaveToFileName,fmCreate);
-    try
-      LFile.Size := 0;
-      LFile.Position := 0;
-      FAbstractMem.SaveToStream(LFile);
-    finally
-      LFile.Free;
+  if Trim(ASaveToFileName)='' then raise EWriteError.Create('Cannot save a safebox without a filename');
+  LFileName := ExpandFileName(ASaveToFileName);
+  if (FFileName<>'') and SameFileName(ExpandFileName(FFileName),LFileName) then Exit;
+  if Not ForceDirectories(ExtractFileDir(LFileName)) then
+    raise EWriteError.Create('Cannot create safebox directory: '+ExtractFileDir(LFileName));
+
+  LSource := Nil;
+  LTemporary := Nil;
+  LCandidate := Nil;
+  LTemporaryOwned := False;
+  try
+    repeat
+      if CreateGUID(LID)<>0 then raise EWriteError.Create('Cannot create safebox temporary file identity');
+      LTemporaryName := LFileName+'.'+GUIDToString(LID)+'.tmp';
+    until Not FileExists(LTemporaryName);
+    // Only this unique sibling is disposable. The live safebox and the last
+    // complete checkpoint remain intact on write, flush or validation failure.
+    LTemporaryOwned := True;
+    LTemporary := CreateCheckpointStream(LTemporaryName);
+    if FAbstractMem is TFileMem then begin
+      LSource := TFileStream.Create(TFileMem(FAbstractMem).FileName,fmOpenRead+fmShareDenyNone);
+      LExpectedSize := LSource.Size;
+      if LTemporary.CopyFrom(LSource,LExpectedSize)<>LExpectedSize then
+        raise EWriteError.Create('Incomplete safebox copy to '+LTemporaryName);
+    end else begin
+      LExpectedSize := FAbstractMem.NextAvailablePos;
+      FAbstractMem.SaveToStream(LTemporary);
     end;
+    if LTemporary.Size<>LExpectedSize then
+      raise EWriteError.Create('Incomplete safebox write to '+LTemporaryName);
+    FlushCheckpointStream(LTemporary);
+    FreeAndNil(LTemporary);
+    FreeAndNil(LSource);
+
+    // Reopen exactly what will be published. A structurally valid empty safebox
+    // is a real checkpoint too; malformed or incomplete files never qualify.
+    LCandidate := TPCAbstractMem.Create(LTemporaryName,True);
+    if (LCandidate.BlocksCount<>BlocksCount) or (LCandidate.AccountsCount<>AccountsCount) or
+      (LCandidate.BufferBlocksHash.Length<>FBufferBlocksHash.Length) then
+      raise EPCAbstractMem.Create('Safebox checkpoint counts differ from the source: '+LTemporaryName);
+    if (FBufferBlocksHash.Length>0) and
+      (Not CompareMem(LCandidate.BufferBlocksHash.Memory,FBufferBlocksHash.Memory,FBufferBlocksHash.Length)) then
+      raise EPCAbstractMem.Create('Safebox checkpoint block hashes differ from the source: '+LTemporaryName);
+    FreeAndNil(LCandidate);
+    PublishCheckpointFile(LTemporaryName,LFileName);
+    LTemporaryOwned := False;
+  finally
+    LCandidate.Free;
+    LSource.Free;
+    LTemporary.Free;
+    if LTemporaryOwned and FileExists(LTemporaryName) and (Not SysUtils.DeleteFile(LTemporaryName)) then
+      TLog.NewLog(ltError,ClassName,'Cannot remove incomplete safebox temporary file '+LTemporaryName+': '+SysErrorMessage({$IFDEF FPC}GetLastOSError{$ELSE}GetLastError{$ENDIF}));
   end;
 end;
 
@@ -727,13 +828,31 @@ var LPCAbstractMem : TPCAbstractMem;
 begin
   ABlocksCount := 0;
   Result := False;
-  if Not FileExists(ASafeboxFileName) then Exit(False);
-  LPCAbstractMem := TPCAbstractMem.Create(ASafeboxFileName,True);
+  if Not FileExists(ASafeboxFileName) then Exit;
+  LPCAbstractMem := Nil;
   try
-    ABlocksCount := LPCAbstractMem.BlocksCount;
-    Result := (ABlocksCount>0) And (LPCAbstractMem.AccountsCount = ABlocksCount * CT_AccountsPerBlock);
-  finally
-    LPCAbstractMem.Free;
+    try
+      LPCAbstractMem := TPCAbstractMem.Create(ASafeboxFileName,True);
+      ABlocksCount := LPCAbstractMem.BlocksCount;
+      Result := (ABlocksCount>=0) and (Int64(LPCAbstractMem.AccountsCount) = Int64(ABlocksCount) * CT_AccountsPerBlock);
+      if Not Result then begin
+        TLog.NewLog(ltError,'TPCAbstractMem',Format('Cannot use safebox candidate %s: inconsistent block/account counts %d/%d',[ASafeboxFileName,ABlocksCount,LPCAbstractMem.AccountsCount]));
+        ABlocksCount := 0;
+      end;
+    finally
+      LPCAbstractMem.Free;
+    end;
+  except
+    on E: Exception do begin
+      // Corrupt or unreadable candidates must not hide another intact snapshot.
+      // Resource exhaustion, cancellation and programmer faults still propagate.
+      if Not ((E is EPCAbstractMem) or (E is EAbstractMem) or (E is EFileMem) or
+        (E is EAbstractMemTList) or (E is EAbstractMemBTree) or (E is EAbstractBTree) or
+        (E is EStreamError) or (E is EOSError)) then raise;
+      ABlocksCount := 0;
+      Result := False;
+      TLog.NewLog(ltError,'TPCAbstractMem','Cannot use safebox candidate '+ASafeboxFileName+' ('+E.ClassName+'): '+E.Message);
+    end;
   end;
 end;
 

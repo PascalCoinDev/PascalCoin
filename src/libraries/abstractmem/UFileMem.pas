@@ -61,6 +61,9 @@ type
     FFileName: String;
     FIsStableCache: Boolean;
     FIsFlushingCache : Boolean;
+    FUnstableMarkerPending: Boolean;
+    FUncachedWriteFailed, FResizeFailed: Boolean;
+    FFailedWriteStart, FFailedWriteEnd: Int64;
     FIncreaseFileBytes: Int64;
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     FStats : TFileMemStats;
@@ -71,7 +74,10 @@ type
     function GetMaxCacheSize: Int64;
     function GetMaxCacheDataBlocks: Int64;
     procedure SetMaxCacheDataBlocks(const Value: Int64);
-    procedure CacheIsNOTStable; inline;
+    procedure CacheIsNOTStable;
+    procedure FlushFile;
+    procedure RecordFailedWrite(APosition: Int64; ASize: Integer);
+    procedure ReportCloseFailure(AError: Exception);
     function GetUseCache: Boolean;
     procedure SetUseCache(const Value: Boolean);
     procedure SetIncreaseFileBytes(const Value: Int64);
@@ -80,6 +86,9 @@ type
     procedure SetGridCache(const Value: Boolean);
     function GetDefaultCacheDataBlocksSize: Int64;
   protected
+    // Owners of a partially updated logical index can preserve its unstable
+    // marker instead of retrying incomplete cached work during destruction.
+    function ShouldFlushOnDestroy: Boolean; virtual;
     function AbsoluteWrite(const AAbsolutePosition : Int64; const ABuffer; ASize : Integer) : Integer; override;
     function AbsoluteRead(const AAbsolutePosition : Int64; var ABuffer; ASize : Integer) : Integer; override;
     procedure DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos : Int64; ANeedSize : Integer); override;
@@ -112,6 +121,11 @@ type
   End;
 
 implementation
+
+{$IFNDEF FPC}
+uses
+  {$IFDEF MSWINDOWS}Windows{$ELSE}Posix.Unistd{$ENDIF};
+{$ENDIF}
 
 {$IFDEF ABSTRACTMEM_ENABLE_STATS}
 { TFileMemStats }
@@ -152,28 +166,51 @@ end;
 function TFileMem.AbsoluteWrite(const AAbsolutePosition: Int64; const ABuffer; ASize: Integer): Integer;
 begin
   if (AAbsolutePosition<0) then raise EFileMem.Create(Format('%s.AbsoluteWrite out of range %d size %d',[ClassName,AAbsolutePosition,ASize]));
+  // Invalidate the persisted marker before a partial write can change data.
+  CacheIsNOTStable;
   FFileStream.Position := AAbsolutePosition;
   Result := FFileStream.Write(ABuffer,ASize);
-  CacheIsNOTStable;
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
   inc(FStats.WriteCount);
   inc(FStats.WriteBytesCount,ASize);
   {$ENDIF}
 end;
 
+procedure TFileMem.FlushFile;
+begin
+  {$IFDEF FPC}
+  if not FileFlush(FFileStream.Handle) then RaiseLastOSError;
+  {$ELSE}
+    {$IFDEF MSWINDOWS}
+    if not Windows.FlushFileBuffers(FFileStream.Handle) then RaiseLastOSError;
+    {$ELSE}
+    if fsync(FFileStream.Handle)<>0 then RaiseLastOSError;
+    {$ENDIF}
+  {$ENDIF}
+end;
+
 procedure TFileMem.CacheIsNOTStable;
 begin
-  If (FIsStableCache)          // Only will mark first time
-    And (Not FIsFlushingCache) // Only will mark when not Flushing cache
-    And (Assigned(FCache)) then begin
+  if (FIsStableCache or FUnstableMarkerPending) and (not FIsFlushingCache) and Assigned(FFileStream) then begin
     FIsStableCache := False;
-    SaveHeader;
+    // A failed header write/flush must be retried before ANY later payload.
+    // FIsStableCache alone cannot distinguish that failure from a durable zero.
+    FUnstableMarkerPending := True;
+    // Cache eviction calls this while iterating cache cells. Write the header
+    // directly; reentering the cache here would invalidate that iteration.
+    FIsFlushingCache := True;
+    try
+      SaveHeader;
+      FlushFile;
+      FUnstableMarkerPending := False;
+    finally
+      FIsFlushingCache := False;
+    end;
   end;
 end;
 
 constructor TFileMem.Create(const AFileName: String; AReadOnly: Boolean);
 var LFileMode : Integer;
-  LReadOnly : Boolean;
 begin
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
   FStats.Clear;
@@ -195,27 +232,64 @@ begin
   end;
 
   FCache := TCacheMem.Create(OnCacheNeedDataProc,OnCacheSaveDataProc);
-  LReadOnly := True;
-  try
-    FFileStream := TFileStream.Create(AFileName,LFileMode);
-    LReadOnly := AReadOnly; // To protect against raise exception
-  finally
-    inherited Create(0,LReadOnly);
+  // Do not initialize the abstract reader from a failed stream constructor:
+  // that would mask the original open error with a nil-stream read exception.
+  FFileStream := TFileStream.Create(AFileName,LFileMode);
+  inherited Create(0,AReadOnly);
+end;
+
+procedure TFileMem.ReportCloseFailure(AError: Exception);
+begin
+  if Assigned(FCache) and Assigned(FCache.OnLog) then begin
+    try
+      FCache.OnLog(Self,'Cannot close AbstractMem file '+FFileName+': '+AError.ClassName+': '+AError.Message);
+    except
+      // A diagnostic callback must not prevent resource release while unwinding.
+    end;
   end;
 end;
 
 destructor TFileMem.Destroy;
 begin
-  if Not ReadOnly then FlushCache;
-  FreeAndNil(FCache);
-  inherited;
-  FreeAndNil(FFileStream);
-  FreeAndNil(FCache);
+  try
+    try
+      if Assigned(FFileStream) and HeaderInitialized and (not ReadOnly) and ShouldFlushOnDestroy then begin
+        if not FlushCache then raise EWriteError.Create('Cannot flush AbstractMem file '+FFileName);
+      end;
+    except
+      // Explicit Write/Flush/Save report failure to the owner. Cleanup must not
+      // throw it a second time and leak Self or obscure an earlier exception.
+      on E: EStreamError do ReportCloseFailure(E);
+      on E: EFileMem do ReportCloseFailure(E);
+      on E: EAbstractMem do ReportCloseFailure(E);
+      on E: EOSError do ReportCloseFailure(E);
+      on E: EInOutError do ReportCloseFailure(E);
+    end;
+  finally
+    // TCacheMem.Destroy otherwise retries dirty writes implicitly. Discard only
+    // this retiring object's cache; the persisted unstable marker stays intact.
+    if Assigned(FCache) then FCache.Clear;
+    FreeAndNil(FCache);
+    try
+      inherited Destroy;
+    finally
+      FreeAndNil(FFileStream);
+    end;
+  end;
+end;
+
+function TFileMem.ShouldFlushOnDestroy: Boolean;
+begin
+  Result := True;
 end;
 
 procedure TFileMem.DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos: Int64; ANeedSize: Integer);
 var LBuff : TBytes;
 begin
+  // File growth/truncation is also a write boundary. A failed allocation must
+  // never be certified by a later close merely because no cache cells remain.
+  try
+  CacheIsNOTStable;
   if (ANeedSize<=0) And (AMaxAvailablePos<=0) then begin
     If Assigned(FCache) then FCache.Clear;
     FFileStream.Seek(0,soFromEnd);
@@ -231,7 +305,7 @@ begin
   if (FFileStream.Position<ANextAvailablePos) then begin
     SetLength(LBuff,ANextAvailablePos - FFileStream.Position);
     FillChar(LBuff[0],Length(LBuff),0);
-    FFileStream.Write(LBuff[0],Length(LBuff));
+    FFileStream.WriteBuffer(LBuff[0],Length(LBuff));
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     inc(FStats.IncreaseSizeBytesCount,Length(LBuff));
     {$ENDIF}
@@ -246,29 +320,77 @@ begin
   if (FFileStream.Size<AMaxAvailablePos) then begin
     SetLength(LBuff,AMaxAvailablePos - FFileStream.Position);
     FillChar(LBuff[0],Length(LBuff),0);
-    FFileStream.Write(LBuff[0],Length(LBuff));
+    FFileStream.WriteBuffer(LBuff[0],Length(LBuff));
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     inc(FStats.IncreaseSizeBytesCount,Length(LBuff));
     {$ENDIF}
   end else AMaxAvailablePos := FFileStream.Size;
   CacheIsNOTStable;
+  except
+    FResizeFailed := True;
+    raise;
+  end;
 end;
 
 function TFileMem.FlushCache: Boolean;
+var LStable: Byte;
 begin
-  if Not Assigned(FCache) then Exit(True);
+  Result := True;
+  if ReadOnly or (not Assigned(FFileStream)) then Exit;
   FLock.Acquire;
   try
-    Result := FCache.FlushCache;
-  finally
-    FIsStableCache := True;
+    // Uncached writes have no dirty cells to replay. Only a complete covering
+    // retry can repair a known partial range; failed growth requires recovery.
+    if FUncachedWriteFailed or FResizeFailed then Exit(False);
+    if FIsStableCache and (not FUnstableMarkerPending) then begin
+      if not Assigned(FCache) then Exit;
+      if FCache.PendingToSaveSize=0 then Exit;
+    end;
+    FIsStableCache := False;
+    FUnstableMarkerPending := True;
     FIsFlushingCache := True;
     try
+      // The on-disk marker must reach storage before any dirty cache data.
       SaveHeader;
+      FlushFile;
+      FUnstableMarkerPending := False;
     finally
       FIsFlushingCache := False;
-      FLock.Release;
     end;
+    if Assigned(FCache) then begin
+      SaveHeader; // Keep cached metadata and its unstable marker current.
+      Result := FCache.FlushCache;
+      if not Result then Exit;
+    end;
+    FlushFile;
+    // Header byte 6 is the existing AbstractMem stable marker. Publish it last,
+    // after all data, rather than marking a failed flush stable in a finally.
+    LStable := 1;
+    // If publishing or undoing this byte fails, the next payload must first
+    // reestablish a durable unstable header rather than trusting our flag.
+    FUnstableMarkerPending := True;
+    try
+      FFileStream.Position := 6;
+      FFileStream.WriteBuffer(LStable,SizeOf(LStable));
+      FlushFile;
+      if Assigned(FCache) then FCache.SaveToCache(LStable,SizeOf(LStable),6,False);
+      FIsStableCache := True;
+      FUnstableMarkerPending := False;
+    except
+      // Preserve the original failure if even invalidating the marker fails.
+      LStable := 0;
+      try
+        FFileStream.Position := 6;
+        FFileStream.WriteBuffer(LStable,SizeOf(LStable));
+        FlushFile;
+        FUnstableMarkerPending := False;
+      except
+      end;
+      raise;
+    end;
+  finally
+    FIsFlushingCache := False;
+    FLock.Release;
   end;
 end;
 
@@ -346,9 +468,19 @@ begin
   Result := inherited Read(AStartPos,ABuffer,ASize);
 end;
 
-function TFileMem.OnCacheSaveDataProc(const ABuffer; AStartPos : Int64; ASize: Integer): Integer;
+function TFileMem.OnCacheSaveDataProc(const ABuffer; AStartPos: Int64; ASize: Integer): Integer;
+var LBuffer: TBytes;
 begin
-  Result := inherited Write(AStartPos,ABuffer,ASize);
+  if (AStartPos<=6) and (ASize>6-AStartPos) then begin
+    // An old cached header must not restore the stable bit during eviction or
+    // a partial flush. Only FlushCache may publish that final commit marker.
+    SetLength(LBuffer,ASize);
+    Move(ABuffer,LBuffer[0],ASize);
+    LBuffer[6-AStartPos] := 0;
+    Result := inherited Write(AStartPos,LBuffer[0],ASize);
+  end else begin
+    Result := inherited Write(AStartPos,ABuffer,ASize);
+  end;
 end;
 
 function TFileMem.Read(const APosition: Int64; var ABuffer; ASize: Integer): Integer;
@@ -427,7 +559,8 @@ begin
   FLock.Acquire;
   Try
     if Not Value then begin
-      If Not ReadOnly then FlushCache;
+      if (not ReadOnly) and (not FlushCache) then
+        raise EWriteError.Create('Cannot disable a dirty AbstractMem cache after failed flush: '+FFileName);
       FreeAndNil(FCache);
     end else if Not Assigned(FCache) then begin
       FCache := TCacheMem.Create(OnCacheNeedDataProc,OnCacheSaveDataProc);
@@ -442,17 +575,53 @@ begin
   FLock.Release;
 end;
 
-function TFileMem.Write(const APosition: Int64; const ABuffer; ASize: Integer) : Integer;
+procedure TFileMem.RecordFailedWrite(APosition: Int64; ASize: Integer);
+var LEnd: Int64;
 begin
-  if (Not Assigned(FCache)) Or (FIsFlushingCache) then begin
-    inherited;
+  if (APosition<0) or (ASize<0) or (APosition>High(Int64)-ASize) then begin
+    FResizeFailed := True;
     Exit;
   end;
+  LEnd := APosition+ASize;
+  if not FUncachedWriteFailed then begin
+    FFailedWriteStart := APosition;
+    FFailedWriteEnd := LEnd;
+  end else begin
+    if APosition<FFailedWriteStart then FFailedWriteStart := APosition;
+    if LEnd>FFailedWriteEnd then FFailedWriteEnd := LEnd;
+  end;
+  FUncachedWriteFailed := True;
+end;
 
+function TFileMem.Write(const APosition: Int64; const ABuffer; ASize: Integer): Integer;
+begin
+  if (not Assigned(FCache)) or FIsFlushingCache then begin
+    FLock.Acquire;
+    try
+    try
+      Result := inherited Write(APosition,ABuffer,ASize);
+      if FIsFlushingCache and (Result<>ASize) then
+        raise EWriteError.Create('Cannot write AbstractMem header: '+FFileName);
+    except
+      if (not FIsFlushingCache) and (not Assigned(FCache)) then RecordFailedWrite(APosition,ASize);
+      raise;
+    end;
+    if (not FIsFlushingCache) and (not Assigned(FCache)) then begin
+      if Result<>ASize then RecordFailedWrite(APosition,ASize)
+      else if FUncachedWriteFailed and (APosition<=FFailedWriteStart) and
+        (APosition<=High(Int64)-ASize) and (APosition+ASize>=FFailedWriteEnd) then
+        FUncachedWriteFailed := False;
+    end;
+    finally
+      FLock.Release;
+    end;
+    Exit;
+  end;
   CheckInitialized(True);
   FLock.Acquire;
   try
     FCache.SaveToCache(ABuffer,ASize,APosition,True);
+    Result := ASize;
   finally
     FLock.Release;
   end;

@@ -30,6 +30,8 @@ $crypto = @((Join-Path $repository "src\$cryptoName"), (Join-Path $repository "w
     Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if (-not $crypto) { throw "Place the existing OpenSSL 1.1 runtime ($cryptoName) in src or windows-dll." }
 Copy-Item -LiteralPath $crypto -Destination (Join-Path $outputDirectory $cryptoName)
+# Public historical blocks let checkpoint recovery exercise real local replay.
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fixtures\mainnet-blocks-0-4.bin') -Destination $outputDirectory
 
 $arguments = @('-B', '-Mdelphi', '-gl', '-Cr', '-Co', '-dVISUALGRID_TEST_WORKER_START',
     '-dBorland', '-dVer150', '-dDelphi7', '-dCompiler6_Up', '-dPUREPASCAL',
@@ -43,7 +45,7 @@ $sourcePaths = @('core', 'gui-experimental', 'gui-experimental\core.utils',
     'libraries\pascalcoin', 'libraries\paszlib', 'libraries\abstractmem', 'libraries\regex',
     'libraries\gnugettext')
 foreach ($path in $sourcePaths) { $arguments += "-Fu$repository\src\$path" }
-foreach ($path in @('startup', 'operations', 'ui', 'framework', 'core', 'native\mempool-lock', 'native\block-throughput', 'native\network-lifetime', 'native\ordered-cardinal', 'native\stored-history')) { $arguments += "-Fu$PSScriptRoot\$path" }
+foreach ($path in @('startup', 'operations', 'ui', 'framework', 'core', 'native\mempool-lock', 'native\block-throughput', 'native\network-lifetime', 'native\ordered-cardinal', 'native\stored-history', 'native\storage-recovery', 'native\abstractmem-storage')) { $arguments += "-Fu$PSScriptRoot\$path" }
 $arguments += "-Fu$repository\src\tests"
 $arguments += "$PSScriptRoot\ExperimentalWalletTests.lpr"
 $arguments | Set-Content -LiteralPath (Join-Path $outputDirectory 'compiler-arguments.txt')

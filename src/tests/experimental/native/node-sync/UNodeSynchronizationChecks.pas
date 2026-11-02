@@ -15,7 +15,7 @@ implementation
 
 uses {$IFNDEF FPC}Winapi.Windows,{$ELSE}Windows,{$ENDIF}
   Classes, SysUtils, UNode, UAccounts, UBlockChain,
-  UCrypto, UNetProtocol, SyncObjs, UThread, UConst, UPCDataTypes, UOpTransaction;
+  UCrypto, UNetProtocol, SyncObjs, UThread, UConst, UPCDataTypes, UOpTransaction, UFileStorage;
 
 type
   TNodeSynchronizationChecks = class
@@ -66,6 +66,15 @@ type
     procedure ActualWriteSummaryCompletesSelectedTarget;
     procedure FinalStatusSurvivesSubscriberException;
     procedure BufferedWorkSurvivesReconnectUntilEveryScopeDrains;
+    procedure StorageFailureLatchesFirstCauseUntilRestart;
+    procedure StorageFailureNotificationNeverWaitsForUi;
+    procedure StorageFailureRetiresBufferedWorkSafely;
+    procedure StorageFailurePrecedesBackendCallbacks;
+    procedure NonStorageExceptionsDoNotLatchFailure;
+    procedure ActualCheckpointSaveFailureLatchesCanonicalNode;
+    procedure ActualFalseBlockSaveLatchesWithoutAcknowledging;
+    procedure SafeboxFlushFailureLatchesBeforeUiDelivery;
+    procedure FalseBlockCacheFlushLatchesBeforeUiDelivery;
   end;
 
 
@@ -87,6 +96,126 @@ type
     constructor Create(ANode: TNode; APeer: TObject);
     destructor Destroy; override;
   end;
+
+  TOwnedOutOfMemory = class(EOutOfMemory)
+  public
+    procedure FreeInstance; override;
+  end;
+
+  TFalseBlockStorage = class(TFileStorage)
+  protected
+    function DoSaveBlockChain(Operations: TPCOperationsComp): Boolean; override;
+  public
+    SaveCalls: Integer;
+  end;
+
+type
+  TStorageFlushNode = class(TNode)
+  protected
+    procedure DoFlushSafebox; override;
+    function DoFlushBlockStorage: Boolean; override;
+  public
+    SafeboxFault: Integer;
+    BlockFlushFails: Boolean;
+  end;
+
+procedure TStorageFlushNode.DoFlushSafebox;
+begin
+  case SafeboxFault of
+    1: raise EAbort.Create('Synthetic flush cancellation');
+    2: raise EWriteError.Create('Synthetic safebox flush failure');
+  else
+    inherited;
+  end;
+end;
+
+function TStorageFlushNode.DoFlushBlockStorage: Boolean;
+begin
+  if BlockFlushFails then Result := False
+  else Result := inherited DoFlushBlockStorage;
+end;
+
+procedure TOwnedOutOfMemory.FreeInstance;
+begin
+  // RTL heap exceptions normally represent protected preallocated instances.
+  // This synthetic test object is normally allocated and must own its cleanup.
+  CleanupInstance;
+  FreeMem(Pointer(Self));
+end;
+
+function TFalseBlockStorage.DoSaveBlockChain(Operations: TPCOperationsComp): Boolean;
+begin
+  Inc(SaveCalls);
+  Result := False;
+end;
+
+function ReadStorageFixture(const AFileName: String): TBytes;
+var LFile: TFileStream;
+begin
+  Result := Nil;
+  LFile := TFileStream.Create(AFileName,fmOpenRead+fmShareDenyNone);
+  try
+    SetLength(Result,LFile.Size);
+    if Length(Result)>0 then LFile.ReadBuffer(Result[0],Length(Result));
+  finally
+    LFile.Free;
+  end;
+end;
+
+function StorageFixtureEquals(const ALeft, ARight: TBytes): Boolean;
+begin
+  Result := Length(ALeft)=Length(ARight);
+  if Result and (Length(ALeft)>0) then Result := CompareMem(@ALeft[0],@ARight[0],Length(ALeft));
+end;
+
+type
+  TStorageFailureThread = class(TPCThread)
+  private
+    FNode: TNode;
+  protected
+    procedure BCExecute; override;
+  public
+    Completed: TEvent;
+    ErrorText: String;
+    constructor Create(ANode: TNode);
+    destructor Destroy; override;
+  end;
+
+constructor TStorageFailureThread.Create(ANode: TNode);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FNode := ANode;
+  Completed := TEvent.Create(nil,True,False,'');
+end;
+
+destructor TStorageFailureThread.Destroy;
+begin
+  Terminate;
+  if Suspended then Start;
+  WaitFor;
+  Completed.Free;
+  inherited;
+end;
+
+procedure TStorageFailureThread.BCExecute;
+var LError: EWriteError;
+begin
+  try
+    try
+      LError := EWriteError.Create('owned injected disk full');
+      try
+        FNode.ReportStorageFailure(sfsCheckpoint,'owned-checkpoint.am_safebox',LError);
+      finally
+        LError.Free;
+      end;
+    except
+      on E: Exception do ErrorText := E.ClassName+': '+E.Message;
+    end;
+  finally
+    Completed.SetEvent;
+  end;
+end;
 
 constructor TSynchronizationScopeThread.Create(ANode: TNode; APeer: TObject);
 begin
@@ -185,7 +314,7 @@ begin
     try FOperations.AddOperationToHashTree(LOperation);
     finally LOperation.Free; end;
   end;
-  FNode := TNode.Create(nil);
+  FNode := TStorageFlushNode.Create(nil);
   FNode.BroadcastData := False;
   CheckFalse('The state fixture never opens a listener',FNode.NetServer.Active);
   FWatch := TOrderedAccountKeysList.Create(FNode.Bank.SafeBox,False);
@@ -476,6 +605,310 @@ begin
   end;
 end;
 
+procedure TNodeSynchronizationChecks.StorageFailureLatchesFirstCauseUntilRestart;
+var LError: Exception; LStatus: TNodeSynchronizationStatus; LProgress: TProgressInfo;
+  LReason: String; LMempool, LBlock: TPCOperationsComp; LRaised: Boolean;
+begin
+  LError := EWriteError.Create('owned first storage failure');
+  try
+    FNode.ReportStorageFailure(sfsCheckpoint,'first-checkpoint.am_safebox',LError);
+  finally
+    LError.Free;
+  end;
+  LError := EOSError.Create('owned later failure');
+  try
+    FNode.ReportStorageFailure(sfsBlockStream,'later.blocks',LError);
+  finally
+    LError.Free;
+  end;
+  FNode.SetSynchronizationNetworkActive(False);
+  FNode.SetSynchronizationNetworkActive(True);
+  FNode.SetSynchronizationPeerConnected(FPeer,True);
+  FNode.SetSynchronizationTarget(FPeer,1000);
+  LProgress := TProgressInfo.Create(psDownloadingBlockchain);
+  LProgress.BlockNumber := 999;
+  FNode.SetSynchronizationProgress(LProgress);
+  FNode.BeginBlockChainUpdate;
+  FNode.EndBlockChainUpdate;
+  LStatus := FNode.GetSynchronizationStatus;
+  Check(FNode.HasStorageFailure);
+  Check(LStatus.State=nssStorageError);
+  Check(LStatus.StorageFailure.Stage=sfsCheckpoint);
+  CheckEqual('first-checkpoint.am_safebox',LStatus.StorageFailure.FileName);
+  CheckEqual('EWriteError',LStatus.StorageFailure.ErrorClass);
+  CheckEqual('owned first storage failure',LStatus.StorageFailure.ErrorMessage);
+  CheckFalse(FNode.CanRequestBlockChainData);
+  CheckFalse(FNode.PendingOperationsAvailable);
+  CheckFalse(FNode.IsReady(LReason));
+  CheckEqual('owned first storage failure',LReason);
+  CheckFalse(FNode.IsBlockChainValid(LReason));
+  CheckEqual('owned first storage failure',LReason);
+  Check(FNode.AddOperations(nil,FOperations,nil,LReason)<0);
+  CheckEqual('owned first storage failure',LReason);
+  LBlock := TPCOperationsComp.Create(FNode.Bank);
+  try
+    CheckFalse(FNode.AddNewBlockChain(nil,LBlock,LReason));
+    CheckEqual('owned first storage failure',LReason);
+  finally
+    LBlock.Free;
+  end;
+  CheckFalse(FNode.TryLockMempoolRead(0,LMempool));
+  LRaised := False;
+  try
+    LMempool := FNode.LockMempoolWrite;
+    FNode.UnlockMempoolWrite;
+  except
+    on E: ENodeStorageUnavailable do LRaised := True;
+  end;
+  Check('Storage failure prevents new operation writers',LRaised);
+  CheckEqual(0,Int64(FNode.Bank.BlocksCount));
+  WaitForState(nssStorageError);
+end;
+
+procedure TNodeSynchronizationChecks.StorageFailureNotificationNeverWaitsForUi;
+var LThread: TStorageFailureThread; LBefore: Integer;
+begin
+  LBefore := FCallbacks;
+  LThread := TStorageFailureThread.Create(FNode);
+  try
+    LThread.Start;
+    // No CheckSynchronize here: a producer must finish even while its actual
+    // main-thread subscriber cannot run. The event record owns copied strings.
+    CheckEqual(Ord(wrSignaled),Ord(LThread.Completed.WaitFor(3000)));
+    CheckEqual('',LThread.ErrorText);
+    CheckEqual(LBefore,FCallbacks);
+    Check(FNode.GetSynchronizationStatus.State=nssStorageError);
+    WaitForState(nssStorageError);
+    CheckEqual('owned injected disk full',FLast.StorageFailure.ErrorMessage);
+  finally
+    LThread.Free;
+  end;
+end;
+
+procedure TNodeSynchronizationChecks.StorageFailureRetiresBufferedWorkSafely;
+var LThread: TSynchronizationScopeThread; LError: Exception;
+begin
+  FNode.SetSynchronizationNetworkActive(True);
+  FNode.SetSynchronizationPeerConnected(FPeer,True);
+  LThread := TSynchronizationScopeThread.Create(FNode,FPeer);
+  try
+    LThread.Start;
+    CheckEqual(Ord(wrSignaled),Ord(LThread.Entered.WaitFor(3000)));
+    LError := EWriteError.Create('owned buffered storage failure');
+    try
+      FNode.ReportStorageFailure(sfsBlockStream,'owned.blocks',LError);
+    finally
+      LError.Free;
+    end;
+    CheckEqual(1,FNode.GetSynchronizationStatus.ActiveTransfers);
+    Check('Failure has precedence while physical work retires',FNode.GetSynchronizationStatus.State=nssStorageError);
+    CheckFalse(FNode.CanRequestBlockChainData);
+    LThread.ReleaseScope.SetEvent;
+    CheckEqual(Ord(wrSignaled),Ord(LThread.Completed.WaitFor(3000)));
+    CheckEqual('',LThread.ErrorMessage);
+    CheckEqual(0,FNode.GetSynchronizationStatus.ActiveTransfers);
+    Check('Draining work never clears the storage failure',FNode.GetSynchronizationStatus.State=nssStorageError);
+    WaitForState(nssStorageError);
+  finally
+    LThread.Free;
+  end;
+end;
+
+procedure TNodeSynchronizationChecks.StorageFailurePrecedesBackendCallbacks;
+var LError: Exception;
+begin
+  FTrace.Clear;
+  LError := EWriteError.Create('owned callback-order storage failure');
+  try
+    FNode.ReportStorageFailure(sfsCheckpoint,'owned-checkpoint',LError);
+  finally
+    LError.Free;
+  end;
+  QueueBackendCallbacks;
+  WaitForCombinedCallbacks;
+  CheckEqual('Storage error is delivered before backend refresh requests',0,FTrace.IndexOf('sync'));
+  Check(FLast.State=nssStorageError);
+  CheckEqual(-1,FTrace.IndexOf('operations'));
+end;
+
+procedure TNodeSynchronizationChecks.NonStorageExceptionsDoNotLatchFailure;
+var LError: Exception; I: Integer;
+begin
+  for I := 0 to 2 do begin
+    case I of
+      0: LError := TOwnedOutOfMemory.Create('owned exhaustion');
+      1: LError := EAbort.Create('owned cancellation');
+    else
+      LError := EAccessViolation.Create('owned programmer fault');
+    end;
+    try
+      FNode.ReportStorageFailure(sfsUnknown,'not-a-storage-failure',LError);
+    finally
+      LError.Free;
+    end;
+    CheckFalse(FNode.HasStorageFailure);
+    Check(FNode.GetSynchronizationStatus.State=nssOffline);
+  end;
+end;
+
+procedure TNodeSynchronizationChecks.ActualCheckpointSaveFailureLatchesCanonicalNode;
+var LDirectory, LDestination, LPrevious, LReason: String;
+  LBefore: TBytes; LFailed: Boolean; LStatus: TNodeSynchronizationStatus;
+  LIncoming: TPCOperationsComp;
+begin
+  FNode.Bank.StorageClass := TFileStorage;
+  TSynchronizationSafeBoxAccess(FNode.Bank.SafeBox).AddGeneratedBlock(FKey.PublicKey);
+  LDirectory := FNode.Bank.GetStorageFolder('');
+  LPrevious := LDirectory+PathDelim+'previous.am_safebox';
+  FNode.Bank.SafeBox.SaveCheckpointing(LPrevious);
+  LBefore := ReadStorageFixture(LPrevious);
+  LDestination := FNode.Bank.GetSafeboxCheckpointingFileName(LDirectory,FNode.Bank.BlocksCount);
+  Check(ForceDirectories(LDestination));
+  LFailed := False;
+  try
+    FNode.Bank.SaveBank(True);
+  except
+    on E: EOSError do LFailed := True;
+  end;
+  Check('Real atomic publication to a directory must fail',LFailed);
+  LStatus := FNode.GetSynchronizationStatus;
+  Check(LStatus.State=nssStorageError);
+  Check(LStatus.StorageFailure.Stage=sfsCheckpoint);
+  CheckEqual(LDestination,LStatus.StorageFailure.FileName);
+  Check('The complete earlier checkpoint is preserved',StorageFixtureEquals(LBefore,ReadStorageFixture(LPrevious)));
+  Check(DirectoryExists(LDestination));
+  FNode.SetSynchronizationNetworkActive(False);
+  FNode.SetSynchronizationNetworkActive(True);
+  LIncoming := TPCOperationsComp.Create(FNode.Bank);
+  try
+    CheckFalse(FNode.AddNewBlockChain(nil,LIncoming,LReason));
+    CheckFalse(FNode.Bank.AddNewBlockChainBlock(LIncoming,High(Cardinal),LReason));
+  finally
+    LIncoming.Free;
+  end;
+  CheckEqual(1,Int64(FNode.Bank.BlocksCount));
+  CheckFalse(FNode.CanRequestBlockChainData);
+  WaitForState(nssStorageError);
+end;
+
+procedure TNodeSynchronizationChecks.ActualFalseBlockSaveLatchesWithoutAcknowledging;
+var LPrevious, LReason: String; LBefore: TBytes; LFailed: Boolean;
+  LIncoming: TPCOperationsComp; LStorage: TFalseBlockStorage;
+  LCount, I: Integer; LStatus: TNodeSynchronizationStatus;
+begin
+  LPrevious := FNode.Bank.GetStorageFolder('')+PathDelim+'previous-empty.am_safebox';
+  FNode.Bank.SafeBox.SaveCheckpointing(LPrevious);
+  LBefore := ReadStorageFixture(LPrevious);
+  FNode.Bank.StorageClass := TFalseBlockStorage;
+  LStorage := TFalseBlockStorage(FNode.Bank.Storage);
+  LIncoming := TPCOperationsComp.Create(FNode.Bank);
+  try
+    for I := 0 to FOperations.OperationsCount-1 do
+      LIncoming.OperationsHashTree.AddOperationToHashTree(FOperations.GetOperation(I));
+    LCount := LIncoming.Count;
+    Check(LCount>0);
+    LFailed := False;
+    try
+      FNode.Bank.Storage.SaveBlockChainBlock(LIncoming);
+    except
+      on E: EWriteError do LFailed := True;
+    end;
+    Check('False storage acknowledgement must become a real write error',LFailed);
+    CheckEqual(1,LStorage.SaveCalls);
+    CheckEqual(LCount,LIncoming.Count);
+    LStatus := FNode.GetSynchronizationStatus;
+    Check(LStatus.State=nssStorageError);
+    Check(LStatus.StorageFailure.Stage=sfsBlockStream);
+    Check(Pos('BlockChainStream.blocks',LStatus.StorageFailure.FileName)>0);
+    Check('Earlier checkpoint bytes remain intact',StorageFixtureEquals(LBefore,ReadStorageFixture(LPrevious)));
+    FNode.SetSynchronizationNetworkActive(False);
+    FNode.SetSynchronizationNetworkActive(True);
+    CheckFalse(FNode.AddNewBlockChain(nil,LIncoming,LReason));
+    CheckFalse(FNode.Bank.AddNewBlockChainBlock(LIncoming,High(Cardinal),LReason));
+    CheckEqual(1,LStorage.SaveCalls);
+    CheckEqual(LCount,LIncoming.Count);
+    CheckEqual(0,Int64(FNode.Bank.BlocksCount));
+    WaitForState(nssStorageError);
+  finally
+    LIncoming.Free;
+  end;
+end;
+
+procedure TNodeSynchronizationChecks.SafeboxFlushFailureLatchesBeforeUiDelivery;
+var LFileName, LReason: String; LStatus: TNodeSynchronizationStatus;
+  LIncoming: TPCOperationsComp; LBefore: TBytes;
+begin
+  LFileName := FNode.Bank.GetStorageFolder('')+PathDelim+'flush-source.am_safebox';
+  FNode.Bank.SafeBox.SetSafeboxFileName(LFileName);
+  LBefore := ReadStorageFixture(LFileName);
+  TStorageFlushNode(FNode).SafeboxFault := 1;
+  try
+    FNode.FlushSafebox;
+    Fail('Synthetic cancellation must propagate');
+  except
+    on E: EAbort do CheckEqual('Synthetic flush cancellation',E.Message);
+  end;
+  CheckFalse('Cancellation cannot latch a storage error',FNode.HasStorageFailure);
+  TStorageFlushNode(FNode).SafeboxFault := 2;
+  try
+    FNode.FlushSafebox;
+    Fail('Synthetic safebox write error must propagate');
+  except
+    on E: EWriteError do CheckEqual('Synthetic safebox flush failure',E.Message);
+  end;
+  // No UI pump occurred between the actual flush boundary and these guards.
+  LStatus := FNode.GetSynchronizationStatus;
+  Check(LStatus.State=nssStorageError);
+  Check(LStatus.StorageFailure.Stage=sfsSafeboxFlush);
+  CheckEqual(LFileName,LStatus.StorageFailure.FileName);
+  CheckFalse(FNode.CanRequestBlockChainData);
+  Check('The pre-flush source bytes remain intact',StorageFixtureEquals(LBefore,ReadStorageFixture(LFileName)));
+  LIncoming := TPCOperationsComp.Create(FNode.Bank);
+  try
+    CheckFalse(FNode.AddNewBlockChain(Nil,LIncoming,LReason));
+    CheckFalse(FNode.Bank.AddNewBlockChainBlock(LIncoming,High(Cardinal),LReason));
+  finally
+    LIncoming.Free;
+  end;
+  TStorageFlushNode(FNode).SafeboxFault := 0;
+  FNode.FlushSafebox;
+  FNode.SetSynchronizationNetworkActive(True);
+  CheckEqual('Synthetic safebox flush failure',FNode.GetSynchronizationStatus.StorageFailure.ErrorMessage);
+  WaitForState(nssStorageError);
+end;
+
+procedure TNodeSynchronizationChecks.FalseBlockCacheFlushLatchesBeforeUiDelivery;
+var LStatus: TNodeSynchronizationStatus; LReason: String;
+  LIncoming: TPCOperationsComp;
+begin
+  FNode.Bank.StorageClass := TFileStorage;
+  TStorageFlushNode(FNode).BlockFlushFails := True;
+  try
+    FNode.FlushBlockStorage;
+    Fail('False block-cache flush must become a write error');
+  except
+    on E: EWriteError do Check(Pos('Cannot flush blockchain storage',E.Message)>0);
+  end;
+  LStatus := FNode.GetSynchronizationStatus;
+  Check(LStatus.State=nssStorageError);
+  Check(LStatus.StorageFailure.Stage=sfsBlockStream);
+  CheckEqual('EWriteError',LStatus.StorageFailure.ErrorClass);
+  CheckFalse(FNode.CanRequestBlockChainData);
+  LIncoming := TPCOperationsComp.Create(FNode.Bank);
+  try
+    CheckFalse(FNode.AddNewBlockChain(Nil,LIncoming,LReason));
+    CheckFalse(FNode.Bank.AddNewBlockChainBlock(LIncoming,High(Cardinal),LReason));
+  finally
+    LIncoming.Free;
+  end;
+  TStorageFlushNode(FNode).BlockFlushFails := False;
+  FNode.FlushBlockStorage;
+  FNode.SetSynchronizationNetworkActive(False);
+  FNode.SetSynchronizationNetworkActive(True);
+  CheckEqual(LStatus.StorageFailure.ErrorMessage,FNode.GetSynchronizationStatus.StorageFailure.ErrorMessage);
+  WaitForState(nssStorageError);
+end;
+
 procedure TNodeSynchronizationChecks.FinalStatusSurvivesSubscriberException;
 begin
   StartSynchronizing;
@@ -535,7 +968,7 @@ begin
 end;
 
 function RunNodeSynchronizationChecks(const ALogPath: String): Integer;
-const CNames: array[0..7] of String = (
+const CNames: array[0..16] of String = (
   'Selected target survives 6200 ms between batches',
   'Network off keeps synchronization until buffered work drains',
   'Last disconnect clears targets and waits for buffered work',
@@ -543,7 +976,16 @@ const CNames: array[0..7] of String = (
   'Offline resume follows blocks, operations, messages and keys',
   'Actual write summary completes the selected target',
   'Buffered work survives reconnect until every physical scope drains',
-  'Final status survives a failing backend subscriber without new input');
+  'Final status survives a failing backend subscriber without new input',
+  'Storage failure retains first cause and rejects admission until restart',
+  'Storage failure producer never waits for UI delivery',
+  'Storage failure lets owned buffered scopes retire without resuming',
+  'Storage failure precedes every backend refresh callback',
+  'Cancellation exhaustion and programmer faults are not storage errors',
+  'Actual canonical checkpoint publication failure latches until restart',
+  'False actual block storage acknowledgement latches without clearing operations',
+  'Post-commit safebox flush failure latches before UI delivery',
+  'False post-batch block-cache flush latches before UI delivery');
 var LLog: TStringList; LChecks: TNodeSynchronizationChecks;
   I: Integer; LStarted: UInt64;
 begin
@@ -568,6 +1010,15 @@ begin
               5: LChecks.ActualWriteSummaryCompletesSelectedTarget;
               6: LChecks.BufferedWorkSurvivesReconnectUntilEveryScopeDrains;
               7: LChecks.FinalStatusSurvivesSubscriberException;
+              8: LChecks.StorageFailureLatchesFirstCauseUntilRestart;
+              9: LChecks.StorageFailureNotificationNeverWaitsForUi;
+              10: LChecks.StorageFailureRetiresBufferedWorkSafely;
+              11: LChecks.StorageFailurePrecedesBackendCallbacks;
+              12: LChecks.NonStorageExceptionsDoNotLatchFailure;
+              13: LChecks.ActualCheckpointSaveFailureLatchesCanonicalNode;
+              14: LChecks.ActualFalseBlockSaveLatchesWithoutAcknowledging;
+              15: LChecks.SafeboxFlushFailureLatchesBeforeUiDelivery;
+              16: LChecks.FalseBlockCacheFlushLatchesBeforeUiDelivery;
             end;
           finally
             LChecks.TearDown;
@@ -578,7 +1029,7 @@ begin
         LLog.Add(Format('PASS %s (%d ms)', [CNames[I], GetTickCount64 - LStarted]));
         LLog.SaveToFile(ALogPath);
       end;
-      LLog.Add('PASS all eight actual core synchronization lifecycle checks');
+      LLog.Add('PASS all seventeen actual core synchronization lifecycle checks');
       Result := 0;
     except
       on E: Exception do LLog.Add('FAIL ' + E.ClassName + ': ' + E.Message);
