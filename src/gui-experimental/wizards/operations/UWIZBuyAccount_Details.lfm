@@ -934,6 +934,7 @@ object WIZBuyAccount_Details: TWIZBuyAccount_Details
       OnClick = btnGetNewKeyClick
     end
     object cbPrivateKeys: TComboBox
+      OnChange = cbPrivateKeysChange
       Left = 16
       Height = 23
       Top = 22

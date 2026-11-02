@@ -17,7 +17,9 @@ unit UWIZEnlistAccountForSale;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -33,8 +35,8 @@ type
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;
     function DetermineHasPrevious: boolean; override;
-    function FinishRequested(out message: ansistring): boolean; override;
-    function CancelRequested(out message: ansistring): boolean; override;
+    function FinishRequested(out message: String): boolean; override;
+    function CancelRequested(out message: String): boolean; override;
   end;
 
 implementation
@@ -80,7 +82,7 @@ begin
   Result := inherited DetermineHasPrevious;
 end;
 
-function TWIZEnlistAccountForSaleWizard.FinishRequested(out message: ansistring): boolean;
+function TWIZEnlistAccountForSaleWizard.FinishRequested(out message: String): boolean;
 var
   LPublicKey: TAccountKey;
 begin
@@ -94,14 +96,15 @@ begin
 
   end;
 
-  Result := TWIZOperationsHelper.ExecuteEnlistAccountForSale(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, Model.EnlistAccountForSale.SellerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.EnlistAccountForSale.SalePrice, Model.EnlistAccountForSale.LockedUntilBlock, Model.EnlistAccountForSale.AccountSaleMode, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
-  if TWIZOperationsModel.RelockOnFinish then
-   TWallet.Keys.LockWallet;
+  Result := TWIZOperationsHelper.ExecuteEnlistAccountForSale(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, Model.EnlistAccountForSale.SellerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.EnlistAccountForSale.SalePrice, Model.EnlistAccountForSale.LockedUntilBlock, Model.EnlistAccountForSale.AccountSaleMode, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message, Model.Signer.OperationSigningMode);
+  if Result then
+    Model.RelockWallet;
 end;
 
-function TWIZEnlistAccountForSaleWizard.CancelRequested(out message: ansistring): boolean;
+function TWIZEnlistAccountForSaleWizard.CancelRequested(out message: String): boolean;
 
 begin
+  Model.RelockWallet;
   Result := True;
 end;
 

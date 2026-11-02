@@ -1,0 +1,54 @@
+﻿object WIZOperationPayload_Password: TWIZOperationPayload_Password
+  Left = 0
+  Height = 253
+  Top = 0
+  Width = 429
+  ActiveControl = edtPassword
+  Caption = 'Form1'
+  ClientHeight = 253
+  ClientWidth = 429
+  Visible = False
+  OnResize = FormResize
+  object grpPayload: TGroupBox
+    Left = 8
+    Height = 244
+    Top = 2
+    Width = 416
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Payload Password'
+    TabOrder = 0
+    object paPayload: TPanel
+      Left = 8
+      Height = 214
+      Top = 2
+      Width = 396
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      BevelOuter = bvNone
+      TabOrder = 0
+      object lblPassword: TLabel
+        Left = 3
+        Height = 15
+        Top = 8
+        Width = 341
+        Caption = 'Enter the shared secret that will enable decryption of the payload'
+        ParentColor = False
+      end
+      object edtPassword: TEdit
+        Left = 3
+        Height = 23
+        Top = 40
+        Width = 160
+        TabOrder = 0
+      end
+      object lblNote: TLabel
+        Left = 8
+        Height = 45
+        Top = 80
+        Width = 384
+        Anchors = [akTop, akLeft, akRight]
+        Caption = 'Only the bearers of the password will be able to decrypt the '#13#10'payload contents of this operation(s). Please ensure only the appropriate '#13#10'parties are given this password.'
+        ParentColor = False
+      end
+    end
+  end
+end

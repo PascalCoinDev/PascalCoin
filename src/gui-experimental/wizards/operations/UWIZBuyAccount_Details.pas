@@ -17,8 +17,14 @@ unit UWIZBuyAccount_Details;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
 
 interface
 
@@ -47,21 +53,27 @@ type
     procedure btnGetNewKeyClick(Sender: TObject);
     procedure btnSearchClick(Sender: TObject);
     procedure txtAccountToBuyChange(Sender: TObject);
+    procedure cbPrivateKeysChange(Sender: TObject);
     procedure UpdateUI();
 
   private
+    FUpdatingWalletKeys: Boolean;
     procedure UpdateWalletKeys();
 
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UNode,
@@ -94,10 +106,6 @@ begin
   UpdateUI();
 
   UpdateWalletKeys();
-  if TWallet.Keys.Count = 1 then
-    cbPrivateKeys.ItemIndex := 1
-  else
-    cbPrivateKeys.ItemIndex := Model.BuyAccount.SelectedIndex;
   cbPrivateKeys.SetFocus;
 
   if Model.Account.Count > 1 then
@@ -134,6 +142,7 @@ var
   LWalletKey: TWalletKey;
   LBuilder: string;
 begin
+  FUpdatingWalletKeys := True;
   cbPrivateKeys.items.BeginUpdate;
   try
     cbPrivateKeys.Items.Clear;
@@ -148,8 +157,31 @@ begin
         LBuilder := LBuilder + '(*)';
       cbPrivateKeys.Items.AddObject(LBuilder, TObject(LIdx));
     end;
+    cbPrivateKeys.ItemIndex := 0;
+    for LIdx := 0 to TWallet.Keys.Count - 1 do
+      if TAccountComp.EqualAccountKeys(TWallet.Keys.Key[LIdx].AccountKey, Model.BuyAccount.NewOwnerPublicKey) then
+        cbPrivateKeys.ItemIndex := LIdx + 1;
+    if (cbPrivateKeys.ItemIndex = 0) and (TWallet.Keys.Count = 1) then
+      cbPrivateKeys.ItemIndex := 1;
   finally
     cbPrivateKeys.Items.EndUpdate;
+    FUpdatingWalletKeys := False;
+  end;
+  cbPrivateKeysChange(Self);
+end;
+
+procedure TWIZBuyAccount_Details.cbPrivateKeysChange(Sender: TObject);
+var
+  LIdx: Integer;
+begin
+  if FUpdatingWalletKeys or not Assigned(Model) then
+    Exit;
+  Model.BuyAccount.SelectedIndex := cbPrivateKeys.ItemIndex;
+  if cbPrivateKeys.ItemIndex > 0 then
+  begin
+    LIdx := PtrInt(cbPrivateKeys.Items.Objects[cbPrivateKeys.ItemIndex]);
+    if (LIdx >= 0) and (LIdx < TWallet.Keys.Count) then
+      Model.BuyAccount.NewOwnerPublicKey := TWallet.Keys.Key[LIdx].AccountKey;
   end;
 end;
 
@@ -183,11 +215,11 @@ begin
   Model.BuyAccount.SelectedIndex := cbPrivateKeys.ItemIndex;
 end;
 
-function TWIZBuyAccount_Details.Validate(out message: ansistring): boolean;
+function TWIZBuyAccount_Details.Validate(out message: String): boolean;
 var
   LAccountNumbersWithChecksum: TArray<string>;
   LAccountNumber: cardinal;
-  LAmount: int64;
+  LAmount, LFee: int64;
   LIdx: integer;
   LAccountToBuy: TAccount;
 begin
@@ -219,13 +251,31 @@ begin
     Exit(False);
   end;
 
-  if (LAccountToBuy.accountInfo.price > LAmount) then
+  if LAmount < 1 then
+  begin
+    message := 'The purchase amount must be greater than zero.';
+    Exit(False);
+  end;
+
+  // Existing funds in the sale account contribute to the purchase price.
+  if (LAccountToBuy.balance < LAccountToBuy.accountInfo.price) and
+    (UInt64(LAmount) < LAccountToBuy.accountInfo.price - LAccountToBuy.balance) then
   begin
     message := Format('Account Price is "%s"', [TAccountComp.FormatMoney(LAccountToBuy.accountInfo.price)]);
     Exit(False);
   end;
 
-  if ((LAmount + TSettings.DefaultFee) > Model.Account.SelectedAccounts[0].balance) then
+  if chkCustomFee.Checked then
+    LFee := Model.Fee.SingleOperationFee
+  else
+    LFee := TSettings.DefaultFee;
+  if LFee < 0 then
+  begin
+    message := 'The operation fee cannot be negative.';
+    Exit(False);
+  end;
+  if (UInt64(LAmount) > Model.Account.SelectedAccounts[0].balance) or
+    (UInt64(LFee) > Model.Account.SelectedAccounts[0].balance - UInt64(LAmount)) then
   begin
     message := Format('Insufficient Funds in Account "%s" to buy Account "%s"', [Model.Account.SelectedAccounts[0].AccountString, LAccountToBuy.AccountString]);
     Exit(False);

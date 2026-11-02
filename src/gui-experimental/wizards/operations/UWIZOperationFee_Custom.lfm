@@ -9,6 +9,7 @@ object WIZOperationFee_Custom: TWIZOperationFee_Custom
   ClientWidth = 429
   LCLVersion = '1.8.2.0'
   Visible = False
+  OnResize = FormResize
   object gbTransactionFee: TGroupBox
     Left = 0
     Height = 248
@@ -81,6 +82,34 @@ object WIZOperationFee_Custom: TWIZOperationFee_Custom
       Width = 262
       Caption = 'Make this my default fee for future operations'
       TabOrder = 1
+    end
+    object chkSingleFeePayer: TCheckBox
+      Left = 11
+      Top = 112
+      Width = 350
+      Height = 23
+      Caption = 'Select a single fee payer'
+      TabOrder = 2
+      Visible = False
+      OnClick = SingleFeePayerChange
+    end
+    object cbFeePayer: TComboBox
+      Left = 11
+      Top = 144
+      Width = 300
+      Height = 23
+      Style = csDropDownList
+      TabOrder = 3
+      Visible = False
+      OnChange = FeePayerChange
+    end
+    object lblFeePayerBalance: TLabel
+      Left = 11
+      Top = 176
+      Width = 350
+      Height = 20
+      Caption = 'Each updated account pays its own fee.'
+      Visible = False
     end
   end
 end

@@ -1,0 +1,35 @@
+﻿object WIZEnlistAccountForSale_EnterLockingBlock: TWIZEnlistAccountForSale_EnterLockingBlock
+  Left = 0
+  Height = 253
+  Top = 40
+  Width = 429
+  ActiveControl = edtBlockLock
+  Caption = 'WIZEnlistAccountForSale_EnterLockingBlock'
+  ClientHeight = 253
+  ClientWidth = 429
+  Visible = False
+  object gbLockBlock: TGroupBox
+    Left = 4
+    Height = 244
+    Top = 4
+    Width = 420
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Enter Locking Block'
+    TabOrder = 0
+    object lblBlockLock: TLabel
+      Left = 8
+      Height = 15
+      Top = 8
+      Width = 378
+      Caption = 'Please enter the block at which this sale will be allowed to succeed from'
+      ParentColor = False
+    end
+    object edtBlockLock: TEdit
+      Left = 8
+      Height = 23
+      Top = 48
+      Width = 152
+      TabOrder = 0
+    end
+  end
+end

@@ -9,6 +9,7 @@ object WIZOperationPayload_Content: TWIZOperationPayload_Content
   ClientWidth = 429
   LCLVersion = '1.8.2.0'
   Visible = False
+  OnResize = FormResize
   object grpPayload: TGroupBox
     Left = 8
     Height = 244

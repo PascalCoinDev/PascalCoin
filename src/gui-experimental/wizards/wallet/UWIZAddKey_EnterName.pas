@@ -13,7 +13,9 @@ unit UWIZAddKey_EnterName;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -30,18 +32,23 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message : AnsiString) : boolean; override;
+    procedure OnPrevious; override;
+    function Validate(out message : String) : boolean; override;
   end;
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 { TWIZAddKey_EnterName }
 
 procedure TWIZAddKey_EnterName.OnPresent;
 begin
-  txtName.Clear;
+  txtName.Text := Model.Name;
   txtName.SetFocus;
 end;
 
@@ -50,7 +57,12 @@ begin
   Model.Name := Trim(txtName.Text);
 end;
 
-function TWIZAddKey_EnterName.Validate(out message : AnsiString) : boolean;
+procedure TWIZAddKey_EnterName.OnPrevious;
+begin
+  OnNext;
+end;
+
+function TWIZAddKey_EnterName.Validate(out message : String) : boolean;
 begin
   Result := Length(Trim(txtName.Text)) > 0;
   if not result then

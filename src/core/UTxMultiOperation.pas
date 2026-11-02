@@ -125,6 +125,10 @@ Type
     procedure AffectedAccounts(list : TOrderedList<Cardinal>); override;
     //
     Function DoSignMultiOperationSigner(current_protocol : Word; SignerAccount : Cardinal; key : TECPrivateKey) : Integer;
+    // Returns added signature slots, or -1 for a different operation body.
+    // Only encoding sizes are checked here; CheckSignatures/DoOperation must
+    // verify all signatures against account ownership before execution.
+    function MergeMissingSignaturesFrom(ASource: TOpMultiOperation): Integer;
     class function OpType : Byte; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
@@ -816,6 +820,41 @@ begin
   If (Result>0) Then begin
     FHasValidSignature := False;
   end;
+end;
+
+function TOpMultiOperation.MergeMissingSignaturesFrom(ASource: TOpMultiOperation): Integer;
+var
+  i: Integer;
+
+  function HasEncodedSignature(const ASignature: TECDSA_SIG): Boolean;
+  begin
+    Result := (Length(ASignature.r) > 0) and (Length(ASignature.r) <= 66) and
+      (Length(ASignature.s) > 0) and (Length(ASignature.s) <= 66);
+  end;
+
+begin
+  Result := -1;
+  if not Assigned(ASource) then Exit;
+  if (ProtocolVersion <> ASource.ProtocolVersion) or
+    not TBaseType.Equals(GetDigestToSign, ASource.GetDigestToSign) then Exit;
+  Result := 0;
+  for i := 0 to High(FData.txSenders) do
+    if (Length(FData.txSenders[i].Signature.r) = 0) and
+      (Length(FData.txSenders[i].Signature.s) = 0) and
+      HasEncodedSignature(ASource.FData.txSenders[i].Signature) then
+    begin
+      FData.txSenders[i].Signature := ASource.FData.txSenders[i].Signature;
+      Inc(Result);
+    end;
+  for i := 0 to High(FData.changesInfo) do
+    if (Length(FData.changesInfo[i].Signature.r) = 0) and
+      (Length(FData.changesInfo[i].Signature.s) = 0) and
+      HasEncodedSignature(ASource.FData.changesInfo[i].Signature) then
+    begin
+      FData.changesInfo[i].Signature := ASource.FData.changesInfo[i].Signature;
+      Inc(Result);
+    end;
+  if Result > 0 then FHasValidSignature := False;
 end;
 
 class function TOpMultiOperation.OpType: Byte;

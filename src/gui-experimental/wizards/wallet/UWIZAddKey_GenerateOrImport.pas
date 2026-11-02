@@ -13,7 +13,9 @@ unit UWIZAddKey_GenerateOrImport;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -32,11 +34,16 @@ type
     rbPublicKey: TRadioButton;
   public
     procedure OnNext; override;
+    procedure OnPresent; override;
   end;
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UWIZAddKey_ImportPrivKey,
@@ -52,6 +59,12 @@ begin
     Model.Action := akaImportPrivateKey;
     UpdatePath(ptReplaceAllNext, [TWIZAddKey_ImportPrivKey, TWIZAddKey_EnterName])
   end;
+end;
+
+procedure TWIZAddKey_GenerateOrImport.OnPresent;
+begin
+  rbPublicKey.Checked := Model.Action = akaImportPrivateKey;
+  rbPrivateKey.Checked := not rbPublicKey.Checked;
 end;
 
 end.

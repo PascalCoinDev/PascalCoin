@@ -17,8 +17,14 @@ unit UWIZEnlistAccountForSale_SelectOption;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
 
 interface
 
@@ -44,7 +50,11 @@ type
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UCoreObjects,
