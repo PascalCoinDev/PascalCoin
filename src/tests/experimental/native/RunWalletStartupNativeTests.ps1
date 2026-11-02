@@ -59,14 +59,29 @@ if ($LASTEXITCODE -ne 0) {
     Get-Content -LiteralPath $probeBuildLog -Tail 60
     exit $LASTEXITCODE
 }
-# Copy the existing local runtime dependency; never relocate or replace it.
-# Prefer the deployed runtime, then the repository's canonical Windows DLL.
-$crypto = Join-Path $source 'libcrypto-1_1-x64.dll'
+# Stage the bundled runtime without relying on an untracked source-tree DLL.
+$crypto = Join-Path (Split-Path -Parent $source) 'windows-dll\libcrypto-1_1-x64.dll'
 if (-not (Test-Path -LiteralPath $crypto)) {
-    $crypto = Join-Path (Split-Path -Parent $source) 'windows-dll\libcrypto-1_1-x64.dll'
+    $crypto = Join-Path $source 'libcrypto-1_1-x64.dll'
 }
 if (-not (Test-Path -LiteralPath $crypto)) { throw "OpenSSL runtime not found: $crypto" }
 Copy-Item -LiteralPath $crypto -Destination $output
+$shippingDirectory = Join-Path $output 'shipping'
+New-Item -ItemType Directory -Path $shippingDirectory | Out-Null
+$stagedShipping = Join-Path $shippingDirectory ([IO.Path]::GetFileName($shippingExecutable))
+$shippingHash = (Get-FileHash -LiteralPath $shippingExecutable -Algorithm SHA256).Hash
+Copy-Item -LiteralPath $shippingExecutable -Destination $stagedShipping
+Copy-Item -LiteralPath $crypto -Destination $shippingDirectory
+$stagedHash = (Get-FileHash -LiteralPath $stagedShipping -Algorithm SHA256).Hash
+if ($stagedHash -ne $shippingHash) { throw 'The staged shipping wallet differs from its built input.' }
+@{
+    Source = $shippingExecutable
+    Staged = $stagedShipping
+    SourceSha256 = $shippingHash
+    StagedSha256 = $stagedHash
+    RuntimeSha256 = (Get-FileHash -LiteralPath $crypto -Algorithm SHA256).Hash
+    WorkingDirectory = $shippingDirectory
+} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'shipping-runtime.json')
 # The broker refuses to reuse its data directories and never switches desktops.
 $testTemp = Join-Path $output 'temporary-data'
 New-Item -ItemType Directory -Path $testTemp -Force | Out-Null
@@ -90,11 +105,17 @@ if ($nativeExitCode -eq 0) {
   try {
     $env:TEMP = $testTemp
     $env:TMP = $testTemp
-    foreach ($mode in @('actual-first-run', 'actual-no-dialogs')) {
-        & $brokerExecutable $shippingExecutable $output "--$mode" >> $brokerRunLog
-        if ($LASTEXITCODE -ne 0) { $nativeExitCode = $LASTEXITCODE }
-        Get-Content -LiteralPath (Join-Path $output "$mode.log")
-        if ($nativeExitCode -ne 0) { break }
+    # Both application-directory and current-directory resolution use this isolated pair.
+    Push-Location -LiteralPath $shippingDirectory
+    try {
+        foreach ($mode in @('actual-first-run', 'actual-no-dialogs')) {
+            & $brokerExecutable $stagedShipping $output "--$mode" >> $brokerRunLog
+            if ($LASTEXITCODE -ne 0) { $nativeExitCode = $LASTEXITCODE }
+            Get-Content -LiteralPath (Join-Path $output "$mode.log")
+            if ($nativeExitCode -ne 0) { break }
+        }
+    } finally {
+        Pop-Location
     }
   } finally {
     $env:TEMP = $previousTemp

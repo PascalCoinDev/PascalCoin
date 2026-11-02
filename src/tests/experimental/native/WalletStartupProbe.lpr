@@ -135,6 +135,7 @@ end;
 procedure TSlowStartupTask.ExecuteLoad;
 var
   LNode : TNode;
+  LProgress : TProgressInfo;
 begin
   LNode := TUserInterface.Node;
   try
@@ -142,7 +143,11 @@ begin
     try
       LNode.Bank.SafeBox.StartThreadSafe;
       try
-        ReportProgress(TProgressInfo.Create(psReadingBlockchain, 1, 100));
+        // Real restore events carry block metadata as well as callback counters.
+        LProgress := TProgressInfo.Create(psReadingBlockchain, 1, 100);
+        LProgress.BlockNumber := 1;
+        LProgress.BlockCount := 100;
+        ReportProgress(LProgress);
         FEntered.SetEvent;
         while not Cancelled do Sleep(10);
         CheckCancelled;
@@ -1159,7 +1164,8 @@ begin
           Require(Assigned(LStatusText) and
             (LStatusText.Caption = FormatProgressInfo(FLastProgress)),
             'Native splash did not format the queued progress record at its UI boundary');
-          Require(Pos('(' + FormatFloat('0.00', 1) + '%)', LStatusText.Caption) > 0,
+          Require(LStatusText.Caption = 'Reading blockchain block 1/100 ' +
+            Format('%.2f', [1.0]) + '%',
             'Native 1/100 progress did not display one percent');
           Log('TYPED_PROGRESS queued stage and raw counts displayed once on main thread');
           Require(Assigned(LStatusText) and (LStatusText.Font.Color = clWhite) and
