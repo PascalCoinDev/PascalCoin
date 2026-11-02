@@ -1,0 +1,2 @@
+MAINICON ICON "../../../../../resources/wallet/PascalCoin.ico"
+HISTORIC_BUFFERED_BLOCKS RCDATA "../../fixtures/mainnet-blocks-0-4.bin"

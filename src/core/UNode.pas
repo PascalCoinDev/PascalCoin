@@ -36,7 +36,7 @@ interface
 uses
   Classes, SysUtils,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, UPCDataTypes, UEncoding,
-  UBlockChain, UNetProtocol, UAccounts, UCrypto, UEPasa, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
+  UBlockChain, UNetProtocol, UAccounts, UCrypto, UEPasa, UThread, UConst, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
 
 {$I ./../config.inc}
 
@@ -48,24 +48,70 @@ Type
 
   TNode = Class;
 
+  // Pending account deltas are deliberately unavailable while a received
+  // blockchain backlog is applied. Callers must retry after the typed status
+  // reports availability; an old overlay must never be used with a newer tip.
+  EPendingOperationsUnavailable = Class(Exception);
+
+  // A selected target survives gaps between batches. Already received work
+  // remains synchronization even after transport shutdown; local pages resume
+  // when that physical backlog drains, not merely when sockets disconnect.
+  TNodeSynchronizationState = (nssOffline, nssDisconnected, nssIdle, nssSynchronizing);
+  TNodeSynchronizationStatus = record
+    State: TNodeSynchronizationState;
+    NetworkActive: Boolean;
+    PeerCount: Integer;
+    HasRemoteTarget: Boolean;
+    LocalBlockCount, TargetBlockCount: Cardinal;
+    // All physical work, including blocks already received before networking
+    // stopped. Connectivity never discards or conceals that processing backlog.
+    ActiveTransfers, PendingOperationsCount: Integer;
+    HasMempoolSummary: Boolean;
+    PendingOperationsAvailable: Boolean;
+    CompactTarget, LastBlockTimestamp: Cardinal;
+    ProtocolVersion: Word;
+    Progress: TProgressInfo;
+  end;
+  TNodeSynchronizationNotify = procedure(Sender: TObject;
+    const AStatus: TNodeSynchronizationStatus) of object;
+
   TSaveMempoolOperationsThread = Class(TPCThread)
   private
     FNode : TNode;
-    FPendingToSave : Boolean;
+    FPendingToSave : LongInt;
+    FWorkAvailable : TEvent;
+    function TakeSaveRequest: Boolean;
+    function HasSaveRequest: Boolean;
   protected
     procedure BCExecute; override;
   public
+    constructor Create(ANode : TNode);
+    destructor Destroy; override;
     procedure Touch;
+    procedure Wake;
+    procedure Stop;
   End;
 
   TNode = Class(TComponent)
   private
     FNodeLog : TLog;
-    FLockMempool : TPCCriticalSection;
+    FLockMempool : TReadWriteLock;
     FOperationSequenceLock : TPCCriticalSection;
     FNotifyList : TList<TNodeNotifyEvents>;
+    FNotifyLock: TPCCriticalSection;
+    FSynchronizationLock: TPCCriticalSection;
+    FSynchronizationStatus: TNodeSynchronizationStatus;
+    FSynchronizationPeers: TDictionary<TObject, Cardinal>;
+    FSynchronizationGeneration: UInt64;
+    FSynchronizationScopes: TDictionary<TThreadID, TList<UInt64>>;
     FBank : TPCBank;
     FMemPoolOperationsComp : TPCOperationsComp;
+    // Mutated under node WRITE plus the short status lock. Status readers may
+    // inspect it under that short lock without touching the pending overlay.
+    FMempoolNeedsReconciliation : Boolean;
+    // Announced blocks defer their old bounded pending resend until the final
+    // coherent overlay. GETBLOCKS imports never request a rebroadcast.
+    FResendPendingOperations : Boolean;
     FMemPoolAddingOperationsList : TOrderedRawList;
     FNetServer : TNetServer;
     FBCBankNotify : TPCBankNotify;
@@ -81,6 +127,17 @@ Type
     Procedure OnBankNewBlock(Sender : TObject);
     procedure SetNodeLogFilename(const Value: String);
     function GetNodeLogFilename: String;
+    procedure RecalculateSynchronizationStatus;
+    procedure RetireSynchronizationSession;
+    function IsCurrentSynchronizationScope: Boolean;
+    procedure NotifySynchronizationChanged;
+    procedure CaptureSynchronizationMempoolSummary;
+    procedure ReconcileMempoolIfReady;
+    procedure WakeMempoolMaintenance;
+    procedure RequireMempoolAvailable;
+    function LockMempoolOperationsWrite : TPCOperationsComp;
+    procedure CollectPendingResends(AOperations : TOperationsHashTree);
+    procedure BroadcastPendingResends(AOperations : TOperationsHashTree);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
@@ -98,18 +155,51 @@ Type
     function MempoolOperationsCount : Integer;
     // Return Account based on current state (Safebox + Mempool operations)
     function GetMempoolAccount(AAccountNumber : Cardinal) : TAccount;
-    // Locking methods to access to the Mempool
+    // Readers may overlap; all changes to shared pending state require write ownership.
     function LockMempoolRead : TPCOperationsComp;
+    function TryLockMempoolRead(MaxWaitMilliseconds : Cardinal; out AMempool : TPCOperationsComp) : Boolean;
+    // Core transport reconstruction may read immutable operation/index data
+    // while the account overlay is unavailable. Never use SafeBoxTransaction
+    // through this lease. Release it with the ordinary UnlockMempoolRead.
+    function TryLockMempoolOperationsRead(MaxWaitMilliseconds : Cardinal;
+      out AMempool : TPCOperationsComp) : Boolean;
     procedure UnlockMempoolRead;
+    function PendingOperationsAvailable : Boolean;
+    // Reserve the sole potential writer before inspecting a conditional mutation.
+    // Enter/exit write separately inside this scope; never promote an ordinary read.
+    function LockMempoolUpgradeableRead : TPCOperationsComp;
+    procedure UnlockMempoolUpgradeableRead;
     function LockMempoolWrite : TPCOperationsComp;
     procedure UnlockMempoolWrite;
     //
     Function AddNewBlockChain(SenderConnection : TNetConnection; NewBlockOperations: TPCOperationsComp; var errors: String): Boolean;
-    Function AddOperations(SenderConnection : TNetConnection; AOperationsHashTreeToAdd : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: String): Integer;
+    // Both announced blocks and catch-up batches use the existing block audit
+    // format. The caller retains the header because bank acceptance clears it.
+    procedure LogBlockChainResult(SenderConnection : TNetConnection;
+      const AOperationBlock : TOperationBlock; AAccepted : Boolean; const AErrors : String);
+    procedure LogBlockChainBatchReceived(SenderConnection : TNetConnection;
+      ACount, AFirstBlock, ALastBlock : Cardinal; APayloadBytes : Int64);
+    Function AddOperations(SenderConnection : TNetConnection; AOperationsHashTreeToAdd : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: String; AProgressNotify : TProgressNotify = Nil): Integer;
     Function AddOperation(SenderConnection : TNetConnection; Operation : TPCOperation; var errors: String): Boolean;
     Function SendNodeMessage(Target : TNetConnection; const TheMessage : String; var errors : String) : Boolean;
     //
     Procedure NotifyBlocksChanged;
+    // Balance these calls on the same thread in LIFO try/finally scopes around
+    // decoding, validation and application. Targets survive inter-batch gaps.
+    procedure BeginBlockChainUpdate;
+    procedure EndBlockChainUpdate;
+    function IsUpdatingBlockChain: Boolean;
+    // A retired network session cannot request further data. Its already
+    // received blocks still finish and remain visible as synchronization work.
+    function CanRequestBlockChainData: Boolean;
+    // These setters publish facts only; listeners run on the existing notifier
+    // thread/main-thread bridge, never on the network producer's call stack.
+    function GetSynchronizationStatus: TNodeSynchronizationStatus;
+    procedure SetSynchronizationNetworkActive(AActive: Boolean);
+    procedure SetSynchronizationPeerConnected(APeer: TObject; AConnected: Boolean);
+    procedure SetSynchronizationTarget(APeer: TObject; ATargetBlockCount: Cardinal);
+    procedure UpdateSynchronizationPeerTarget(APeer: TObject; ATargetBlockCount: Cardinal);
+    procedure SetSynchronizationProgress(const AProgress: TProgressInfo);
     //
     Function FindOperation(Const AOperationHash : TRawBytes; var AOperationResume : TOperationResume) : TSearchOpHashResult;
     Function FindNOperation(block, account, n_operation : Cardinal; var OpResume : TOperationResume) : TSearchOpHashResult;
@@ -151,6 +241,7 @@ Type
     FNodeNotifyEvents : TNodeNotifyEvents;
     FNotifyBlocksChanged : Boolean;
     FNotifyOperationsChanged : Boolean;
+    FNotifySynchronizationChanged: LongInt;
     Procedure SynchronizedProcess;
   protected
     procedure BCExecute; override;
@@ -183,12 +274,14 @@ Type
     FThreadSafeNodeNotifyEvent : TThreadSafeNodeNotifyEvent;
     FOnBlocksChanged: TNotifyEvent;
     FOnOperationsChanged: TNotifyEvent;
+    FOnSynchronizationChanged: TNodeSynchronizationNotify;
     FMessages : TStringList;
     FOnNodeMessageEvent: TNodeMessageEvent;
     FWatchKeys: TOrderedAccountKeysList;
     procedure SetNode(const Value: TNode);
     Procedure NotifyBlocksChanged;
     Procedure NotifyOperationsChanged;
+    procedure NotifySynchronizationChanged;
     procedure SetWatchKeys(AValue: TOrderedAccountKeysList);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
@@ -198,6 +291,8 @@ Type
     Property Node : TNode read FNode write SetNode;
     Property OnBlocksChanged : TNotifyEvent read FOnBlocksChanged write FOnBlocksChanged;
     Property OnOperationsChanged : TNotifyEvent read FOnOperationsChanged write FOnOperationsChanged;
+    property OnSynchronizationChanged: TNodeSynchronizationNotify
+      read FOnSynchronizationChanged write FOnSynchronizationChanged;
     Property OnNodeMessageEvent : TNodeMessageEvent read FOnNodeMessageEvent write FOnNodeMessageEvent;
     Property WatchKeys : TOrderedAccountKeysList read FWatchKeys write SetWatchKeys;
     Property OnKeyActivity : TNotifyEvent read FOnKeyActivity write FOnKeyActivity;
@@ -216,16 +311,18 @@ Type
 
   TThreadNodeNotifyOperations = Class(TPCThread)
     FNetConnection : TNetConnection;
+    FLeaseOwner : TNetData;
   protected
     procedure BCExecute; override;
   public
-    Constructor Create(NetConnection : TNetConnection; MakeACopyOfOperationsHashTree : TOperationsHashTree);
+    Constructor Create(NetConnection : TNetConnection; MakeACopyOfOperationsHashTree : TOperationsHashTree;
+      ALeaseOwner : TNetData = Nil);
     destructor Destroy; override;
   End;
 
 implementation
 
-Uses UOpTransaction, UConst, UTime, UCommon, UPCOperationsSignatureValidator,
+Uses UOpTransaction, UTime, UCommon, UPCOperationsSignatureValidator,
   UFolderHelper, USettings;
 
 var _Node : TNode;
@@ -234,14 +331,11 @@ var _Node : TNode;
 { TNode }
 
 function TNode.AddNewBlockChain(SenderConnection: TNetConnection; NewBlockOperations: TPCOperationsComp; var errors: String): Boolean;
-Var i,j,maxResend : Integer;
+Var i,j : Integer;
   nc : TNetConnection;
   s,sClientRemoteAddr : String;
   OpBlock : TOperationBlock;
   opsht : TOperationsHashTree;
-  minBlockResend : Cardinal;
-  resendOp : TPCOperation;
-  LLockedMempool : TPCOperationsComp;
 begin
   Result := false;
   errors := '';
@@ -253,6 +347,8 @@ begin
     errors := 'Adding blocks is disabled';
     exit;
   end;
+  BeginBlockChainUpdate;
+  try
   NewBlockOperations.Lock; // New protection
   Try
     If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then begin
@@ -262,7 +358,7 @@ begin
     OpBlock := NewBlockOperations.OperationBlock;
     TLog.NewLog(ltdebug,Classname,Format('Starting AddNewBlockChain %d Operations %d from %s NewBlock:%s',[
       OpBlock.block,NewBlockOperations.Count,sClientRemoteAddr,TPCOperationsComp.OperationBlockToText(OpBlock)]));
-    If Not TPCThread.TryProtectEnterCriticalSection(Self,5000,FLockMempool) then begin
+    If Not TryLockNode(5000) then begin
       If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then exit;
       s := 'Cannot AddNewBlockChain due blocking lock operations node';
       TLog.NewLog(lterror,Classname,s);
@@ -284,59 +380,15 @@ begin
           Bank.SafeBox.PCAbstractMem.FlushCache;
         end;
         {$ENDIF}
-        if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload.ToPrintable,
-            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
-        end else begin
-          FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload.ToPrintable,
-            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
-        end;
-      end else begin
-        if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload.ToPrintable,errors,
-            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
-        end else begin
-          FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload.ToPrintable,errors,
-            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
-        end;
       end;
+      LogBlockChainResult(SenderConnection,OpBlock,Result,errors);
       if Result then begin
         opsht := TOperationsHashTree.Create;
         Try
-          j := Random(5);
-          If (Bank.LastBlockFound.OperationBlock.block>j) then
-            minBlockResend:=Bank.LastBlockFound.OperationBlock.block - j
-          else minBlockResend:=1;
-          maxResend := CT_MaxResendMemPoolOperations;
-          i := 0;
-          LLockedMempool := LockMempoolRead;
-          Try
-
-          While (opsht.OperationsCount<maxResend) And (i<LLockedMempool.Count) do begin
-            resendOp := LLockedMempool.Operation[i];
-            j := resendOp.ResendOnBlock;
-            if ((resendOp.ResendCount<2) and ((j<=0) Or (j<=minBlockResend))) then begin
-              // Only will "re-send" operations that where received on block <= minBlockResend
-              opsht.AddOperationToHashTree(resendOp);
-              // Add to sent operations
-              resendOp.ResendOnBlock := LLockedMempool.OperationBlock.block;
-              resendOp.ResendCount := resendOp.ResendCount + 1;
-            end;
-            inc(i);
-          end;
-          If opsht.OperationsCount>0 then begin
-            TLog.NewLog(ltinfo,classname,Format('Resending %d operations for new block (Mempool Pending Operations:%d)',[opsht.OperationsCount,LLockedMempool.Count]));
-            {$IFDEF HIGHLOG}
-            if opsht.OperationsCount>0 then begin
-              for i := 0 to opsht.OperationsCount - 1 do begin
-                TLog.NewLog(ltInfo,ClassName,'Resending ('+inttostr(i+1)+'/'+inttostr(opsht.OperationsCount)+'): '+opsht.GetOperation(i).ToString);
-              end;
-            end
-            {$ENDIF}
-          end;
-          Finally
-            UnlockMempoolRead;
-          End;
+          // Reconciliation will expose the accepted pending sequence again.
+          // Until then, announce only the fully validated confirmed block.
+          if PendingOperationsAvailable then CollectPendingResends(opsht)
+          else if FMemPoolOperationsComp.Count>0 then FResendPendingOperations := True;
           // Notify to clients
           {$IFnDEF TESTING_NO_POW_CHECK}
           if FBroadcastData then begin
@@ -360,7 +412,7 @@ begin
         End;
       end;
     finally
-      FLockMempool.Release;
+      UnlockNode;
       TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain %d Operations %d from %s NewBlock:%s',[
         OpBlock.block,NewBlockOperations.Count,sClientRemoteAddr,TPCOperationsComp.OperationBlockToText(OpBlock)]));
     End;
@@ -370,6 +422,9 @@ begin
   if Result then begin
     // Notify it!
     NotifyBlocksChanged;
+  end;
+  finally
+    EndBlockChainUpdate;
   end;
 end;
 
@@ -385,7 +440,7 @@ begin
   End;
 end;
 
-function TNode.AddOperations(SenderConnection : TNetConnection; AOperationsHashTreeToAdd : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: String): Integer;
+function TNode.AddOperations(SenderConnection : TNetConnection; AOperationsHashTreeToAdd : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: String; AProgressNotify : TProgressNotify): Integer;
   {$IFDEF BufferOfFutureOperations}
   Procedure Process_BufferOfFutureOperations(ALockedMempool : TPCOperationsComp; valids_operations : TOperationsHashTree);
   Var i,j, nAdded, nDeleted : Integer;
@@ -432,9 +487,26 @@ Var
   LOpsToAdd : TList<TPCOperation>;
   LTempSafeboxTransaction : TPCSafeBoxTransaction;
   LTickCount : TTickCount;
+  LLastProgress : TTickCount;
+  LReservationIndexes : TList<Integer>;
+  LCompletedApplying : Boolean;
+
+  procedure NotifyProgress(AStage : TProgressStage; ACurrent, ATotal : Integer; AForce : Boolean);
+  begin
+    if Assigned(AProgressNotify) and (AForce or
+      (TPlatform.GetElapsedMilliseconds(LLastProgress) >= 200)) then begin
+      LLastProgress := TPlatform.GetTickCount;
+      // The consumer owns display text; preserve synchronous cancellation here.
+      AProgressNotify(Self,TProgressInfo.Create(AStage,ACurrent,ATotal));
+    end;
+  end;
 begin
   Result := -1; // -1 Means Node is blocked or disabled
   if Assigned(OperationsResult) then OperationsResult.Clear;
+  if not PendingOperationsAvailable then begin
+    errors := 'Pending operations are unavailable during blockchain synchronization';
+    Exit;
+  end;
   if FDisabledsNewBlocksCount>0 then begin
     errors := Format('Cannot Add Operations due is adding disabled - OpCount:%d',[AOperationsHashTreeToAdd.OperationsCount]);
     TLog.NewLog(ltinfo,Classname,errors);
@@ -446,6 +518,8 @@ begin
   errors := '';
   Result := 0;
   LTickCount := TPlatform.GetTickCount;
+  LLastProgress := LTickCount;
+  LCompletedApplying := False;
   LValids_operations := TOperationsHashTree.Create;
   try
     LOpsToAdd := TList<TPCOperation>.Create;
@@ -459,42 +533,64 @@ begin
       // 3 - For each not repeated operation, try to add to mempool
 
       // Step 1: Add operations to FMemPoolAddingOperationsList
-      LLockedMempool := LockMempoolWrite;
+      NotifyProgress(psPreparingOperations,0,AOperationsHashTreeToAdd.OperationsCount,True);
+      // Preserve the original batch lock for ordinary callers. A restoring
+      // caller reports progress between atomic admissions, outside this lock.
+      if not Assigned(AProgressNotify) then LLockedMempool := LockMempoolOperationsWrite;
       try
         for i := 0 to AOperationsHashTreeToAdd.OperationsCount-1 do begin
-          ActOp := AOperationsHashTreeToAdd.GetOperation(i);
-          j := FMemPoolAddingOperationsList.IndexOf( ActOp.Sha256 );
-          if (j<0) then begin
-            LOpsToAdd.Add(ActOp);
-            FMemPoolAddingOperationsList.Add(ActOp.Sha256);
+          if Assigned(AProgressNotify) then LLockedMempool := LockMempoolOperationsWrite;
+          try
+            ActOp := AOperationsHashTreeToAdd.GetOperation(i);
+            j := FMemPoolAddingOperationsList.IndexOf( ActOp.Sha256 );
+            if (j<0) then begin
+              LOpsToAdd.Add(ActOp);
+              FMemPoolAddingOperationsList.Add(ActOp.Sha256);
+            end;
+          finally
+            if Assigned(AProgressNotify) then UnlockMempoolWrite;
           end;
+          NotifyProgress(psPreparingOperations,i+1,AOperationsHashTreeToAdd.OperationsCount,False);
         end;
       finally
-        UnlockMempoolWrite;
+        if not Assigned(AProgressNotify) then UnlockMempoolWrite;
       end;
+      NotifyProgress(psPreparingOperations,AOperationsHashTreeToAdd.OperationsCount,AOperationsHashTreeToAdd.OperationsCount,True);
 
       // Step 2:
+      NotifyProgress(psValidatingSignatures,0,LOpsToAdd.Count,True);
       LTempSafeboxTransaction := TPCSafeBoxTransaction.Create(Bank.SafeBox);
       try
-        TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(LTempSafeboxTransaction,LOpsToAdd,Nil);
+        TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(LTempSafeboxTransaction,LOpsToAdd,AProgressNotify);
       finally
         LTempSafeboxTransaction.Free;
       end;
+      NotifyProgress(psValidatingSignatures,LOpsToAdd.Count,LOpsToAdd.Count,True);
 
       {$IFDEF BufferOfFutureOperations}
-      LLockedMempool := LockMempoolWrite;
+      LLockedMempool := LockMempoolOperationsWrite;
       try
-        Process_BufferOfFutureOperations(LLockedMempool,LValids_operations);
+        if PendingOperationsAvailable then
+          Process_BufferOfFutureOperations(LLockedMempool,LValids_operations);
       finally
         UnlockMempoolWrite;
       end;
       {$ENDIF}
 
       // Step 3:
+      NotifyProgress(psApplyingOperations,0,LOpsToAdd.Count,True);
       for j := 0 to LOpsToAdd.Count-1 do begin
         ActOp := LOpsToAdd[j];
-        LLockedMempool := LockMempoolWrite;
+        LLockedMempool := LockMempoolOperationsWrite;
         try
+
+          // A block may arrive after this batch reserved hashes or verified
+          // signatures. Never execute against an overlay dirtied meanwhile.
+          if not PendingOperationsAvailable then begin
+            errors := 'Pending operations are unavailable during blockchain synchronization';
+            if Result=0 then Result := -1;
+            Break;
+          end;
 
           If (LLockedMempool.OperationsHashTree.IndexOfOperation(ActOp)<0) then begin
             // Protocol 2 limitation: In order to prevent spam of operations without Fee, will protect it
@@ -579,9 +675,14 @@ begin
         finally
           UnlockMempoolWrite;
         end;
+        NotifyProgress(psApplyingOperations,j+1,LOpsToAdd.Count,False);
       end; // for i
+      NotifyProgress(psApplyingOperations,LOpsToAdd.Count,LOpsToAdd.Count,True);
+      // A progress callback can cancel here; the finally block must still
+      // release this batch's reservations before the loader can finish.
+      NotifyProgress(psFinalizingOperations,0,LOpsToAdd.Count,True);
+      LCompletedApplying := True;
       If Result<>0 then begin
-        FSaveMempoolOperationsThread.Touch; // This will indicate to thread that mempool needs to be saved
         LTickCount := TPlatform.GetElapsedMilliseconds(LTickCount);
         if LTickCount=0 then LTickCount:=1;
         if Assigned(SenderConnection) then begin
@@ -589,7 +690,7 @@ begin
         end else s := '(SELF)';
         {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,Format('Finalizing AddOperations from %s Operations:%d of %d valids:%d spam:%d invalids:%d repeated:%d Miliseconds:%d %.1f ops/sec',
           [s,LOpsToAdd.Count,AOperationsHashTreeToAdd.OperationsCount,Result,nSpam,nError,nRepeated,LTickCount,LOpsToAdd.Count * 1000 / LTickCount]));{$ENDIF}
-        if FBroadcastData then begin
+        if FBroadcastData and PendingOperationsAvailable then begin
           // Send to other nodes
           j := TNetData.NetData.ConnectionsCountAll;
           for i:=0 to j-1 do begin
@@ -601,23 +702,46 @@ begin
       end;
     finally
       // Remove LOpsToAdd from FMemPoolAddingOperationsList
-      LLockedMempool := LockMempoolWrite;
       try
-        for i := 0 to LOpsToAdd.Count-1 do begin
-          ActOp := LOpsToAdd[i];
-          FMemPoolAddingOperationsList.Remove(ActOp.Sha256);
+        LReservationIndexes := TList<Integer>.Create;
+        try
+          LReservationIndexes.Capacity := LOpsToAdd.Count;
+          LLockedMempool := LockMempoolOperationsWrite;
+          try
+            // Other callers may have reserved interleaved hashes. Resolve all
+            // indexes under this lock, then compact only this batch in one pass.
+            for i := 0 to LOpsToAdd.Count-1 do begin
+              j := FMemPoolAddingOperationsList.IndexOf(LOpsToAdd[i].Sha256);
+              if j>=0 then LReservationIndexes.Add(j);
+            end;
+            LReservationIndexes.Sort;
+            FMemPoolAddingOperationsList.DeleteIndexes(LReservationIndexes.ToArray);
+          finally
+            UnlockMempoolWrite;
+          end;
+        finally
+          LReservationIndexes.Free;
         end;
       finally
-        UnlockMempoolWrite;
+        LOpsToAdd.Free;
       end;
-      LOpsToAdd.Free;
     end;
   finally
-    LValids_operations.Free;
+    try
+      LValids_operations.Free;
+    finally
+      // Cleanup precedes saving, including when later broadcasting fails.
+      // Cancellation before completed application never saves a partial restore.
+      if LCompletedApplying and (Result<>0) then FSaveMempoolOperationsThread.Touch;
+    end;
   end;
   // Notify it!
-  for i := 0 to FNotifyList.Count-1 do begin
-    TNodeNotifyEvents( FNotifyList[i] ).NotifyOperationsChanged;
+  FNotifyLock.Acquire;
+  try
+    for i := 0 to FNotifyList.Count-1 do
+      FNotifyList[i].NotifyOperationsChanged;
+  finally
+    FNotifyLock.Release;
   end;
 end;
 
@@ -644,8 +768,20 @@ begin
   TLog.NewLog(ltInfo,ClassName,'TNode.Create '+NodeVersion);
   inherited;
   FDisabledsNewBlocksCount := 0;
-  FLockMempool := TPCCriticalSection.Create('TNode_LockMempool');
+  // Block application reenters through bank callbacks and signature reuse.
+  FLockMempool := TReadWriteLock.Create(lrpSupportsRecursion);
   FOperationSequenceLock := TPCCriticalSection.Create('TNode_OperationSequenceLock');
+  FNotifyLock := TPCCriticalSection.Create('TNode_NotifyLock');
+  FSynchronizationLock := TPCCriticalSection.Create('TNode_SynchronizationLock');
+  FSynchronizationPeers := TDictionary<TObject, Cardinal>.Create;
+  FSynchronizationScopes := TDictionary<TThreadID, TList<UInt64>>.Create;
+  FSynchronizationGeneration := 1;
+  FSynchronizationStatus := Default(TNodeSynchronizationStatus);
+  // TNetData starts enabled; its explicit setter subsequently publishes offline.
+  FSynchronizationStatus.NetworkActive := True;
+  FSynchronizationStatus.State := nssDisconnected;
+  FSynchronizationStatus.PendingOperationsAvailable := True;
+  FNotifyList := TList<TNodeNotifyEvents>.Create;
   FBank := TPCBank.Create(Self);
   FBCBankNotify := TPCBankNotify.Create(Self);
   FBCBankNotify.Bank := FBank;
@@ -653,15 +789,13 @@ begin
   FNetServer := TNetServer.Create;
   FMemPoolOperationsComp := TPCOperationsComp.Create(Nil);
   FMemPoolOperationsComp.bank := FBank;
-  FNotifyList := TList<TNodeNotifyEvents>.Create;
   FMemPoolAddingOperationsList := TOrderedRawList.Create;
   {$IFDEF BufferOfFutureOperations}
   FBufferAuxWaitingOperations := TOperationsHashTree.Create;
   {$ENDIF}
   FBroadcastData := True;
   FUpdateBlockchain := True;
-  FSaveMempoolOperationsThread := TSaveMempoolOperationsThread.Create(True);
-  FSaveMempoolOperationsThread.FNode := Self;
+  FSaveMempoolOperationsThread := TSaveMempoolOperationsThread.Create(Self);
   FSaveMempoolOperationsThread.Resume;
   if Not Assigned(_Node) then _Node := Self;
 end;
@@ -719,23 +853,27 @@ end;
 
 destructor TNode.Destroy;
 Var step : String;
+  LScopes: TList<UInt64>;
 begin
   TLog.NewLog(ltInfo,ClassName,'TNode.Destroy START');
   Try
+    // Shared network producers are stopped by their caller. The node's own
+    // accepted-client callbacks must also finish before their template/locks
+    // disappear, and before the saver captures the final dirty operation batch.
+    step := 'Desactivating server';
+    FNetServer.Active := false;
+
+    step := 'Destroying NetServer';
+    FreeAndNil(FNetServer);
+
     step := 'Deleting SaveMempoolOperationsThread';
-    FSaveMempoolOperationsThread.Terminate;
+    FSaveMempoolOperationsThread.Stop;
     FSaveMempoolOperationsThread.WaitFor;
     FreeAndNil(FSaveMempoolOperationsThread);
 
     step := 'Deleting critical section';
     FreeAndNil(FLockMempool);
     FreeAndNil(FOperationSequenceLock);
-
-    step := 'Desactivating server';
-    FNetServer.Active := false;
-
-    step := 'Destroying NetServer';
-    FreeAndNil(FNetServer);
 
     step := 'Destroying NotifyList';
     FreeAndNil(FNotifyList);
@@ -748,6 +886,11 @@ begin
     step := 'Destroying Bank';
     FreeAndNil(FBCBankNotify);
     FreeAndNil(FBank);
+    FreeAndNil(FSynchronizationPeers);
+    for LScopes in FSynchronizationScopes.Values do LScopes.Free;
+    FreeAndNil(FSynchronizationScopes);
+    FreeAndNil(FSynchronizationLock);
+    FreeAndNil(FNotifyLock);
     {$IFDEF BufferOfFutureOperations}
     FreeAndNil(FBufferAuxWaitingOperations);
     {$ENDIF}
@@ -940,12 +1083,18 @@ end;
 
 function TNode.TryLockNode(MaxWaitMilliseconds: Cardinal): Boolean;
 begin
-  Result := TPCThread.TryProtectEnterCriticalSection(Self,MaxWaitMilliseconds,FLockMempool);
+  // Preserve the legacy exclusive node gate and its maximum wait contract.
+  if MaxWaitMilliseconds > 60000 then MaxWaitMilliseconds := 60000;
+  Result := FLockMempool.TryAcquireWriteLock(Integer(MaxWaitMilliseconds));
 end;
 
 procedure TNode.UnlockNode;
 begin
-  FLockMempool.Release;
+  try
+    if FLockMempool.RecursiveWriteCount=1 then CaptureSynchronizationMempoolSummary;
+  finally
+    FLockMempool.ReleaseWriteLock;
+  end;
 end;
 
 procedure TNode.MarkVerifiedECDSASignaturesFromMemPool(newOperationsToValidate: TPCOperationsComp);
@@ -953,10 +1102,17 @@ var LLockedMempool : TPCOperationsComp;
 begin
   // Introduced on Build 4.0.2 to increase speed using MEMPOOL verified operations instead of verify again everytime
   // Will check if "newOperationsToValidate" operations are on MEMPOOL. If found, will set same FHasValidSignature value in order to mark as verified
-  LLockedMempool := LockMempoolRead;
+  // Hash trees can share operation instances; signature flags require write ownership.
+  // This lease touches signature/index metadata only. Reusing a cached
+  // signature must not force a replay or expose the deferred account overlay.
+  FLockMempool.AcquireWriteLock;
+  LLockedMempool := FMemPoolOperationsComp;
   try
     if newOperationsToValidate = LLockedMempool then Exit; // Is the same, do nothing
-    if newOperationsToValidate.OperationBlock.protocol_version <> newOperationsToValidate.OperationBlock.protocol_version then Exit; // Must be same protocol
+    // Signing digests change between protocols. A cached signature result from
+    // the pending template is reusable only under the same block protocol.
+    if newOperationsToValidate.OperationBlock.protocol_version <>
+      LLockedMempool.OperationBlock.protocol_version then Exit;
     newOperationsToValidate.Lock;
     try
       LLockedMempool.OperationsHashTree.MarkVerifiedECDSASignatures(newOperationsToValidate.OperationsHashTree);
@@ -964,7 +1120,7 @@ begin
       newOperationsToValidate.Unlock;
     end;
   finally
-    UnlockMempoolRead;
+    FLockMempool.ReleaseWriteLock;
   end;
 end;
 
@@ -1011,13 +1167,17 @@ begin
 end;
 
 function TNode.IsReady(var CurrentProcess: String): Boolean;
-var LLockedMempool : TPCOperationsComp;
+var LLockedMempool : TPCOperationsComp; LProgress : TProgressInfo;
 begin
   Result := false;
   CurrentProcess := '';
+  if not PendingOperationsAvailable then begin
+    CurrentProcess := 'Blockchain synchronization is active';
+    Exit;
+  end;
   if FBank.IsReady(CurrentProcess) then begin
     if FNetServer.Active then begin
-      if Not TNetData.NetData.IsGettingNewBlockChainFromClient(CurrentProcess) then begin
+      if Not TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then begin
         LLockedMempool := LockMempoolRead;
         try
           if TNetData.NetData.MaxRemoteOperationBlock.block>LLockedMempool.OperationBlock.block then begin
@@ -1029,7 +1189,9 @@ begin
         finally
           UnlockMempoolRead;
         end;
-      end;
+      end else
+        // Readiness diagnostics are separate from the UI's progress presentation.
+        CurrentProcess := 'Blockchain synchronization is active';
     end else begin
       CurrentProcess := 'Server not active';
     end;
@@ -1067,11 +1229,422 @@ begin
   inherited;
 end;
 
+procedure TNode.BeginBlockChainUpdate;
+var LScopes: TList<UInt64>;
+  LGeneration: UInt64;
+begin
+  FSynchronizationLock.Acquire;
+  try
+    if not FSynchronizationScopes.TryGetValue(TThread.CurrentThread.ThreadID,LScopes) then begin
+      LScopes := TList<UInt64>.Create;
+      FSynchronizationScopes.Add(TThread.CurrentThread.ThreadID,LScopes);
+    end;
+    if LScopes.Count>0 then LGeneration := LScopes[LScopes.Count-1]
+    else if FSynchronizationStatus.NetworkActive and (FSynchronizationPeers.Count>0) then
+      LGeneration := FSynchronizationGeneration
+    else LGeneration := 0;
+    // Nested block application inherits its download's session. Reconnecting
+    // must not turn the remainder of an old download into a new session.
+    LScopes.Add(LGeneration);
+    Inc(FSynchronizationStatus.ActiveTransfers);
+    RecalculateSynchronizationStatus;
+  finally
+    FSynchronizationLock.Release;
+  end;
+  NotifySynchronizationChanged;
+end;
+
+procedure TNode.EndBlockChainUpdate;
+var LScopes: TList<UInt64>;
+begin
+  FSynchronizationLock.Acquire;
+  try
+    if not FSynchronizationScopes.TryGetValue(TThread.CurrentThread.ThreadID,LScopes) or
+      (LScopes.Count=0) then
+      raise Exception.Create('Unbalanced blockchain update scope');
+    LScopes.Delete(LScopes.Count-1);
+    if LScopes.Count=0 then begin
+      FSynchronizationScopes.Remove(TThread.CurrentThread.ThreadID);
+      LScopes.Free;
+    end;
+    Dec(FSynchronizationStatus.ActiveTransfers);
+    RecalculateSynchronizationStatus;
+  finally
+    FSynchronizationLock.Release;
+  end;
+  NotifySynchronizationChanged;
+  // Completion is an event, not a UI timer or synchronous UI callback. The
+  // existing maintenance owner reconciles only after the whole selected
+  // backlog drains; gaps between its batches must not trigger full replay.
+  WakeMempoolMaintenance;
+  if PendingOperationsAvailable then NotifyBlocksChanged;
+end;
+
+procedure TNode.RetireSynchronizationSession;
+begin
+  // Retire only future network acquisition. Received blocks keep processing and
+  // keep the UI synchronizing until their balanced physical scopes finish.
+  Inc(FSynchronizationGeneration);
+end;
+
+function TNode.IsCurrentSynchronizationScope: Boolean;
+var LScopes: TList<UInt64>;
+begin
+  // Caller owns the status lock. A fresh producer has no enclosing old scope.
+  Result := not FSynchronizationScopes.TryGetValue(TThread.CurrentThread.ThreadID,LScopes);
+  if not Result then
+    Result := (LScopes.Count>0) and
+      (LScopes[LScopes.Count-1]=FSynchronizationGeneration);
+end;
+
+function TNode.GetSynchronizationStatus: TNodeSynchronizationStatus;
+begin
+  // Only a coherent record copy. Never acquire mempool/Bank/SafeBox here.
+  FSynchronizationLock.Acquire;
+  try
+    Result := FSynchronizationStatus;
+  finally
+    FSynchronizationLock.Release;
+  end;
+end;
+
+procedure TNode.RecalculateSynchronizationStatus;
+var LTarget: Cardinal; LChainBusy: Boolean;
+begin
+  // Caller owns only the short status lock. No peer object is dereferenced.
+  FSynchronizationStatus.PeerCount := FSynchronizationPeers.Count;
+  FSynchronizationStatus.TargetBlockCount := 0;
+  for LTarget in FSynchronizationPeers.Values do
+    if LTarget>FSynchronizationStatus.TargetBlockCount then
+      FSynchronizationStatus.TargetBlockCount := LTarget;
+  FSynchronizationStatus.HasRemoteTarget := FSynchronizationStatus.TargetBlockCount>0;
+  LChainBusy := (FSynchronizationStatus.ActiveTransfers>0) or
+    (FSynchronizationStatus.NetworkActive and (FSynchronizationStatus.PeerCount>0) and
+     (FSynchronizationStatus.TargetBlockCount>FSynchronizationStatus.LocalBlockCount));
+  FSynchronizationStatus.PendingOperationsAvailable :=
+    not FMempoolNeedsReconciliation and not LChainBusy;
+  if LChainBusy or FMempoolNeedsReconciliation then
+    FSynchronizationStatus.State := nssSynchronizing
+  else if not FSynchronizationStatus.NetworkActive then
+    FSynchronizationStatus.State := nssOffline
+  else if FSynchronizationStatus.PeerCount=0 then
+    FSynchronizationStatus.State := nssDisconnected
+  else if FSynchronizationStatus.TargetBlockCount>FSynchronizationStatus.LocalBlockCount then
+    FSynchronizationStatus.State := nssSynchronizing
+  else
+    FSynchronizationStatus.State := nssIdle;
+  if FSynchronizationStatus.State<>nssSynchronizing then
+    FSynchronizationStatus.Progress := Default(TProgressInfo);
+end;
+
+procedure TNode.NotifySynchronizationChanged;
+var i: Integer;
+begin
+  // Producer work is bounded flag publication, not a call into a UI listener.
+  FNotifyLock.Acquire;
+  try
+    for i := 0 to FNotifyList.Count-1 do
+      FNotifyList[i].NotifySynchronizationChanged;
+  finally
+    FNotifyLock.Release;
+  end;
+end;
+
+procedure TNode.SetSynchronizationNetworkActive(AActive: Boolean);
+begin
+  FSynchronizationLock.Acquire;
+  try
+    FSynchronizationStatus.NetworkActive := AActive;
+    if not AActive then begin
+      FSynchronizationPeers.Clear;
+      RetireSynchronizationSession;
+    end;
+    RecalculateSynchronizationStatus;
+  finally
+    FSynchronizationLock.Release;
+  end;
+  NotifySynchronizationChanged;
+  WakeMempoolMaintenance;
+end;
+
+procedure TNode.SetSynchronizationPeerConnected(APeer: TObject; AConnected: Boolean);
+var LHadPeers: Boolean;
+begin
+  if not Assigned(APeer) then Exit;
+  FSynchronizationLock.Acquire;
+  try
+    LHadPeers := FSynchronizationPeers.Count>0;
+    if not AConnected then FSynchronizationPeers.Remove(APeer)
+    else if FSynchronizationStatus.NetworkActive and
+      not FSynchronizationPeers.ContainsKey(APeer) then
+      FSynchronizationPeers.Add(APeer,0);
+    if LHadPeers and (FSynchronizationPeers.Count=0) then
+      RetireSynchronizationSession;
+    RecalculateSynchronizationStatus;
+  finally
+    FSynchronizationLock.Release;
+  end;
+  NotifySynchronizationChanged;
+  WakeMempoolMaintenance;
+end;
+
+procedure TNode.SetSynchronizationTarget(APeer: TObject; ATargetBlockCount: Cardinal);
+begin
+  FSynchronizationLock.Acquire;
+  try
+    // A selected target is meaningful only for a currently connected peer.
+    // Reconnecting must not revive a discarded session's remote height.
+    if IsCurrentSynchronizationScope and FSynchronizationStatus.NetworkActive and
+      FSynchronizationPeers.ContainsKey(APeer) then
+      FSynchronizationPeers[APeer] := ATargetBlockCount;
+    RecalculateSynchronizationStatus;
+  finally
+    FSynchronizationLock.Release;
+  end;
+  NotifySynchronizationChanged;
+  WakeMempoolMaintenance;
+end;
+
+procedure TNode.UpdateSynchronizationPeerTarget(APeer: TObject; ATargetBlockCount: Cardinal);
+var LPrevious: Cardinal;
+begin
+  FSynchronizationLock.Acquire;
+  try
+    // HELLO/new-block advertisements update an already selected download peer;
+    // arbitrary advertised heights do not select a synchronization target.
+    if IsCurrentSynchronizationScope and FSynchronizationStatus.NetworkActive and
+      FSynchronizationPeers.TryGetValue(APeer,LPrevious) and (LPrevious>0) then
+      FSynchronizationPeers[APeer] := ATargetBlockCount;
+    RecalculateSynchronizationStatus;
+  finally
+    FSynchronizationLock.Release;
+  end;
+  NotifySynchronizationChanged;
+  WakeMempoolMaintenance;
+end;
+
+procedure TNode.SetSynchronizationProgress(const AProgress: TProgressInfo);
+begin
+  FSynchronizationLock.Acquire;
+  try
+    if FSynchronizationStatus.State=nssSynchronizing then
+      FSynchronizationStatus.Progress := AProgress;
+  finally
+    FSynchronizationLock.Release;
+  end;
+  NotifySynchronizationChanged;
+end;
+
+procedure TNode.CaptureSynchronizationMempoolSummary;
+var LBlock, LLastBlock: TOperationBlock;
+  LCount: Integer;
+  LChanged: Boolean;
+begin
+  // Caller owns a write scope. During catch-up this publishes confirmed facts
+  // and the retained raw operation count, explicitly marked unavailable as a
+  // pending overlay. It performs no account scan or disk access.
+  LBlock := FMemPoolOperationsComp.OperationBlock;
+  LLastBlock := FBank.LastOperationBlock;
+  if FMempoolNeedsReconciliation then begin
+    // The pending template intentionally still belongs to the old base. Basic
+    // synchronization facts must instead describe the newly committed bank.
+    LBlock.block := FBank.BlocksCount;
+    LBlock.compact_target := LLastBlock.compact_target;
+  end;
+  LCount := FMemPoolOperationsComp.Count;
+  FSynchronizationLock.Acquire;
+  try
+    LChanged := not FSynchronizationStatus.HasMempoolSummary or
+      (FSynchronizationStatus.LocalBlockCount<>LBlock.block) or
+      (FSynchronizationStatus.PendingOperationsCount<>LCount) or
+      (FSynchronizationStatus.CompactTarget<>LBlock.compact_target) or
+      (FSynchronizationStatus.LastBlockTimestamp<>LLastBlock.timestamp) or
+      (FSynchronizationStatus.ProtocolVersion<>LLastBlock.protocol_version);
+    FSynchronizationStatus.HasMempoolSummary := True;
+    FSynchronizationStatus.LocalBlockCount := LBlock.block;
+    FSynchronizationStatus.PendingOperationsCount := LCount;
+    FSynchronizationStatus.CompactTarget := LBlock.compact_target;
+    FSynchronizationStatus.LastBlockTimestamp := LLastBlock.timestamp;
+    FSynchronizationStatus.ProtocolVersion := LLastBlock.protocol_version;
+    RecalculateSynchronizationStatus;
+  finally
+    FSynchronizationLock.Release;
+  end;
+  if LChanged then NotifySynchronizationChanged;
+end;
+
+procedure TNode.WakeMempoolMaintenance;
+begin
+  if Assigned(FSaveMempoolOperationsThread) then
+    FSaveMempoolOperationsThread.Wake;
+end;
+
+procedure TNode.ReconcileMempoolIfReady;
+var LCanReconcile: Boolean; LPreviousHash: TRawBytes; I: Integer;
+  LResends: TOperationsHashTree;
+begin
+  // This method runs on the existing owned maintenance thread. In particular,
+  // OFF/disconnect between batches must not replay pending operations on the
+  // main thread, and a selected target ahead must not replay after every batch.
+  // Reject ordinary per-block wakeups before entering the writer queue. The
+  // same predicate is checked again after admission to cover a new producer.
+  FSynchronizationLock.Acquire;
+  try
+    LCanReconcile := not FSynchronizationStatus.PendingOperationsAvailable and
+      (FSynchronizationStatus.ActiveTransfers=0) and
+      ((not FSynchronizationStatus.NetworkActive) or
+       (FSynchronizationStatus.PeerCount=0) or
+       (FSynchronizationStatus.TargetBlockCount<=FSynchronizationStatus.LocalBlockCount));
+  finally
+    FSynchronizationLock.Release;
+  end;
+  if not LCanReconcile then Exit;
+  LResends := Nil;
+  try
+  FLockMempool.AcquireWriteLock;
+  try
+    if not FMempoolNeedsReconciliation then Exit;
+    FSynchronizationLock.Acquire;
+    try
+      LCanReconcile := (FSynchronizationStatus.ActiveTransfers=0) and
+        ((not FSynchronizationStatus.NetworkActive) or
+         (FSynchronizationStatus.PeerCount=0) or
+         (FSynchronizationStatus.TargetBlockCount<=FSynchronizationStatus.LocalBlockCount));
+    finally
+      FSynchronizationLock.Release;
+    end;
+    if not LCanReconcile then Exit;
+    LPreviousHash := FMemPoolOperationsComp.OperationsHashTree.HashTree;
+    // Full original replay is required once: protocol/height-sensitive rules,
+    // account seals and conflict removal must match the final confirmed base.
+    FMemPoolOperationsComp.SanitizeOperations;
+    if FResendPendingOperations then begin
+      LResends := TOperationsHashTree.Create;
+      CollectPendingResends(LResends);
+      FResendPendingOperations := False;
+    end;
+    FSynchronizationLock.Acquire;
+    try
+      FMempoolNeedsReconciliation := False;
+      RecalculateSynchronizationStatus;
+    finally
+      FSynchronizationLock.Release;
+    end;
+    if not TBaseType.Equals(LPreviousHash,FMemPoolOperationsComp.OperationsHashTree.HashTree) then
+      FSaveMempoolOperationsThread.Touch;
+    CaptureSynchronizationMempoolSummary;
+  finally
+    FLockMempool.ReleaseWriteLock;
+  end;
+  // Availability is published only after a complete coherent replay. A later
+  // producer can dirty it again, in which case observers retain their queries.
+  NotifySynchronizationChanged;
+  NotifyBlocksChanged;
+  FNotifyLock.Acquire;
+  try
+    for I := 0 to FNotifyList.Count-1 do
+      FNotifyList[I].NotifyOperationsChanged;
+  finally
+    FNotifyLock.Release;
+  end;
+  if Assigned(LResends) then BroadcastPendingResends(LResends);
+  finally
+    LResends.Free;
+  end;
+end;
+
+procedure TNode.CollectPendingResends(AOperations: TOperationsHashTree);
+var I, J: Integer; LMinBlock: Cardinal; LOperation: TPCOperation;
+begin
+  // Caller owns node WRITE and a coherent pending overlay. Keep the original
+  // bounded selection and counters, merely delayed until reconciliation.
+  J := Random(5);
+  if Bank.LastBlockFound.OperationBlock.block>J then
+    LMinBlock := Bank.LastBlockFound.OperationBlock.block-J
+  else LMinBlock := 1;
+  I := 0;
+  while (AOperations.OperationsCount<CT_MaxResendMemPoolOperations) and
+    (I<FMemPoolOperationsComp.Count) do begin
+    LOperation := FMemPoolOperationsComp.Operation[I];
+    J := LOperation.ResendOnBlock;
+    if (LOperation.ResendCount<2) and ((J<=0) or (J<=LMinBlock)) then begin
+      AOperations.AddOperationToHashTree(LOperation);
+      LOperation.ResendOnBlock := FMemPoolOperationsComp.OperationBlock.block;
+      LOperation.ResendCount := LOperation.ResendCount+1;
+    end;
+    Inc(I);
+  end;
+  if AOperations.OperationsCount>0 then begin
+    TLog.NewLog(ltinfo,ClassName,Format('Resending %d operations for new block (Mempool Pending Operations:%d)',[
+      AOperations.OperationsCount,FMemPoolOperationsComp.Count]));
+    {$IFDEF HIGHLOG}
+    for I := 0 to AOperations.OperationsCount-1 do
+      TLog.NewLog(ltinfo,ClassName,'Resending ('+IntToStr(I+1)+'/'+IntToStr(AOperations.OperationsCount)+'): '+AOperations.GetOperation(I).ToString);
+    {$ENDIF}
+  end;
+end;
+
+procedure TNode.BroadcastPendingResends(AOperations: TOperationsHashTree);
+var LNet: TNetData; LConnections: TList<TNetConnection>; LConnection: TNetConnection;
+  I: Integer;
+begin
+  if not FBroadcastData or (AOperations.OperationsCount=0) or
+    not TNetData.NetDataExists then Exit;
+  LNet := TNetData.NetData;
+  LConnections := TList<TNetConnection>.Create;
+  try
+    // These existing lifetime leases also keep their NetData owner alive
+    // while shutdown waits for every leased connection to finish retiring.
+    LNet.AcquireDownloadConnections(LConnections);
+    for I := 0 to LConnections.Count-1 do begin
+      LConnection := LConnections[I];
+      if LNet.ConnectionLock(Self,LConnection,0) then begin
+        try
+          if LConnection.RemoteOperationBlock.block>0 then begin
+            // Transfer the lease before construction: constructor failure also
+            // destroys the notifier and releases its transferred lease.
+            LConnections[I] := Nil;
+            TThreadNodeNotifyOperations.Create(LConnection,AOperations,LNet);
+          end;
+        finally LNet.ConnectionUnlock(LConnection); end;
+      end;
+    end;
+  finally
+    for I := 0 to LConnections.Count-1 do
+      if Assigned(LConnections[I]) then LNet.ReleaseDownloadConnection(LConnections[I]);
+    LConnections.Free;
+  end;
+end;
+
+function TNode.IsUpdatingBlockChain: Boolean;
+var LStatus: TNodeSynchronizationStatus;
+begin
+  // Physical scopes have one authoritative count. UI refresh admission must
+  // not add a second activity clock or infer work from elapsed notification time.
+  LStatus := GetSynchronizationStatus;
+  Result := LStatus.ActiveTransfers>0;
+end;
+
+function TNode.CanRequestBlockChainData: Boolean;
+begin
+  FSynchronizationLock.Acquire;
+  try
+    Result := FSynchronizationStatus.NetworkActive and
+      IsCurrentSynchronizationScope;
+  finally
+    FSynchronizationLock.Release;
+  end;
+end;
+
 procedure TNode.NotifyBlocksChanged;
 Var i : Integer;
 begin
-  for i := 0 to FNotifyList.Count-1 do begin
-    TNodeNotifyEvents( FNotifyList[i] ).NotifyBlocksChanged;
+  FNotifyLock.Acquire;
+  try
+    for i := 0 to FNotifyList.Count-1 do
+      FNotifyList[i].NotifyBlocksChanged;
+  finally
+    FNotifyLock.Release;
   end;
 end;
 
@@ -1196,8 +1769,10 @@ begin
   opht := TOperationsHashTree.Create;
   oprl := TOperationsResumeList.Create;
   try
-    Bank.Storage.LoadPendingBufferOperations(opht); // New Build 2.1.4 to load pending operations buffer
-    n := AddOperations(Nil,opht,oprl,errors);
+    if Assigned(restoreProgressNotify) then
+      restoreProgressNotify(Self,TProgressInfo.Create(psLoadingPendingOperations));
+    Bank.Storage.LoadPendingBufferOperations(opht,restoreProgressNotify); // New Build 2.1.4 to load pending operations buffer
+    n := AddOperations(Nil,opht,oprl,errors,restoreProgressNotify);
     TLog.NewLog(ltInfo,ClassName,Format('Pending buffer restored operations:%d added:%d final_operations:%d errors:%s',[opht.OperationsCount,n,MempoolOperationsCount,errors]));
   finally
     opht.Free;
@@ -1252,10 +1827,14 @@ end;
 procedure TNode.NotifyNetClientMessage(Sender: TNetConnection; const TheMessage: String);
 Var i : Integer;
 begin
-  for i := 0 to FNotifyList.Count-1 do begin
-    if Assigned( TNodeNotifyEvents( FNotifyList[i] ).OnNodeMessageEvent) then begin
-      TNodeNotifyEvents( FNotifyList[i] ).FMessages.AddObject(TheMessage,Sender);
+  FNotifyLock.Acquire;
+  try
+    for i := 0 to FNotifyList.Count-1 do begin
+      if Assigned( FNotifyList[i].OnNodeMessageEvent) then
+        FNotifyList[i].FMessages.AddObject(TheMessage,Sender);
     end;
+  finally
+    FNotifyLock.Release;
   end;
 end;
 
@@ -1354,37 +1933,145 @@ end;
 
 function TNode.LockMempoolRead: TPCOperationsComp;
 begin
-  FLockMempool.Acquire;
-  Result := FMemPoolOperationsComp;
+  RequireMempoolAvailable;
+  FLockMempool.AcquireReadLock;
+  try
+    RequireMempoolAvailable;
+    Result := FMemPoolOperationsComp;
+  except
+    FLockMempool.ReleaseReadLock;
+    raise;
+  end;
+end;
+
+function TNode.TryLockMempoolRead(MaxWaitMilliseconds: Cardinal;
+  out AMempool: TPCOperationsComp): Boolean;
+begin
+  AMempool := Nil;
+  if not PendingOperationsAvailable then Exit(False);
+  Result := TryLockMempoolOperationsRead(MaxWaitMilliseconds,AMempool);
+  if Result and not PendingOperationsAvailable then begin
+    FLockMempool.ReleaseReadLock;
+    AMempool := Nil;
+    Result := False;
+  end;
+end;
+
+function TNode.TryLockMempoolOperationsRead(MaxWaitMilliseconds: Cardinal;
+  out AMempool: TPCOperationsComp): Boolean;
+begin
+  AMempool := Nil;
+  if MaxWaitMilliseconds > 60000 then MaxWaitMilliseconds := 60000;
+  Result := FLockMempool.TryAcquireReadLock(Integer(MaxWaitMilliseconds));
+  if Result then AMempool := FMemPoolOperationsComp;
+end;
+
+function TNode.PendingOperationsAvailable: Boolean;
+begin
+  FSynchronizationLock.Acquire;
+  try
+    Result := FSynchronizationStatus.PendingOperationsAvailable;
+  finally
+    FSynchronizationLock.Release;
+  end;
+end;
+
+procedure TNode.RequireMempoolAvailable;
+begin
+  if not PendingOperationsAvailable then
+    raise EPendingOperationsUnavailable.Create('Pending operations are unavailable during blockchain synchronization');
 end;
 
 procedure TNode.UnlockMempoolRead;
 begin
-  FLockMempool.Release;
+  FLockMempool.ReleaseReadLock;
+end;
+
+function TNode.LockMempoolUpgradeableRead: TPCOperationsComp;
+begin
+  // Ordinary readers may coexist; another potential upgrader waits until exit.
+  RequireMempoolAvailable;
+  FLockMempool.AcquireUpgradeableReadLock;
+  try
+    RequireMempoolAvailable;
+    Result := FMemPoolOperationsComp;
+  except
+    FLockMempool.ReleaseUpgradeableReadLock;
+    raise;
+  end;
+end;
+
+procedure TNode.UnlockMempoolUpgradeableRead;
+begin
+  // The caller must first release any nested write acquisition it entered.
+  FLockMempool.ReleaseUpgradeableReadLock;
 end;
 
 function TNode.LockMempoolWrite: TPCOperationsComp;
 begin
-  // TODO: Must lock WRITE EXCLUSIVE NO READ !!! XXXXXXXXXXXXXXXX
-  FLockMempool.Acquire;
+  // When called inside an upgradeable read, wait for other readers to drain.
+  // UnlockMempoolWrite then returns to that retained outer upgradeable scope.
+  RequireMempoolAvailable;
+  FLockMempool.AcquireWriteLock;
+  try
+    RequireMempoolAvailable;
+    Result := FMemPoolOperationsComp;
+  except
+    FLockMempool.ReleaseWriteLock;
+    raise;
+  end;
+end;
+
+function TNode.LockMempoolOperationsWrite: TPCOperationsComp;
+begin
+  // Reservations, cleanup, signature caches and final serialization need the
+  // operation sequence itself, never the unavailable pending account overlay.
+  FLockMempool.AcquireWriteLock;
   Result := FMemPoolOperationsComp;
 end;
 
 procedure TNode.UnlockMempoolWrite;
 begin
-  FLockMempool.Release;
+  try
+    if FLockMempool.RecursiveWriteCount=1 then CaptureSynchronizationMempoolSummary;
+  finally
+    FLockMempool.ReleaseWriteLock;
+  end;
 end;
 
 procedure TNode.OnBankNewBlock(Sender: TObject);
 var LLockedMempool : TPCOperationsComp;
+  LPreviousPendingHash: TRawBytes; LDefer: Boolean;
 begin
-  LLockedMempool := LockMempoolWrite;
+  // Bank validation still completes synchronously and exactly. Only rebuilding
+  // the separate pending overlay is deferred while a received backlog exists.
+  FLockMempool.AcquireWriteLock;
   try
-    LLockedMempool.SanitizeOperations;
+    LLockedMempool := FMemPoolOperationsComp;
+    FSynchronizationLock.Acquire;
+    try
+      LDefer := not FSynchronizationStatus.PendingOperationsAvailable;
+      if LDefer and (LLockedMempool.Count>0) then begin
+        FMempoolNeedsReconciliation := True;
+        RecalculateSynchronizationStatus;
+      end;
+    finally
+      FSynchronizationLock.Release;
+    end;
+    if not LDefer or (LLockedMempool.Count=0) then begin
+      LPreviousPendingHash := LLockedMempool.OperationsHashTree.HashTree;
+      LLockedMempool.SanitizeOperations;
+      if Assigned(FSaveMempoolOperationsThread) and
+        not TBaseType.Equals(LPreviousPendingHash,LLockedMempool.OperationsHashTree.HashTree) then
+        FSaveMempoolOperationsThread.Touch;
+    end;
+    // Confirmed status remains current even when pending balances are hidden.
+    CaptureSynchronizationMempoolSummary;
   finally
-    UnlockMempoolWrite;
+    FLockMempool.ReleaseWriteLock;
   end;
   NotifyBlocksChanged;
+  WakeMempoolMaintenance;
 end;
 
 function TNode.SendNodeMessage(Target: TNetConnection; const TheMessage: String; var errors: String): Boolean;
@@ -1393,7 +2080,7 @@ Var i,j : Integer;
   s : String;
 begin
   Result := false;
-  if Not TPCThread.TryProtectEnterCriticalSection(Self,4000,FLockMempool) then begin
+  if Not TryLockNode(4000) then begin
     s := 'Cannot Send node message due blocking lock operations node';
     TLog.NewLog(lterror,Classname,s);
     if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
@@ -1418,7 +2105,54 @@ begin
     end;
     result := true;
   finally
-    FLockMempool.Release;
+    UnlockNode;
+  end;
+end;
+
+procedure TNode.LogBlockChainBatchReceived(SenderConnection: TNetConnection;
+  ACount, AFirstBlock, ALastBlock: Cardinal; APayloadBytes: Int64);
+var LSource, LRemoteAddress: String;
+begin
+  if Assigned(SenderConnection) then begin
+    LSource := SenderConnection.ClassName;
+    LRemoteAddress := SenderConnection.ClientRemoteAddr;
+  end else begin
+    LSource := ClassName;
+    LRemoteAddress := 'NIL';
+  end;
+  // Receipt is separate from acceptance: the whole response is already local
+  // before validation/reconciliation can continue after networking is stopped.
+  FNodeLog.NotifyNewLog(ltinfo,LSource,Format(
+    'Block batch received: Count:%d First:%d Last:%d PayloadBytes:%d Peer:%s',[
+    ACount,AFirstBlock,ALastBlock,APayloadBytes,LRemoteAddress]));
+end;
+
+procedure TNode.LogBlockChainResult(SenderConnection: TNetConnection;
+  const AOperationBlock: TOperationBlock; AAccepted: Boolean; const AErrors: String);
+var LSource, LRemoteAddress: String;
+  LAcceptedAt: Cardinal;
+begin
+  if Assigned(SenderConnection) then begin
+    LSource := SenderConnection.ClassName;
+    LRemoteAddress := SenderConnection.ClientRemoteAddr;
+  end else begin
+    LSource := ClassName;
+    LRemoteAddress := 'NIL';
+  end;
+  LAcceptedAt := UnivDateTimeToUnix(DateTime2UnivDateTime(Now));
+  // Keep the original columns: the elapsed value is the block's age at
+  // acceptance, not its processing duration. Batch downloads must log here
+  // without adopting AddNewBlockChain's announcement/rebroadcast behavior.
+  if AAccepted then begin
+    FNodeLog.NotifyNewLog(ltupdate,LSource,Format(';%d;%s;%s;;%d;%d;%d;%s',[
+      AOperationBlock.block,LRemoteAddress,AOperationBlock.block_payload.ToPrintable,
+      AOperationBlock.timestamp,LAcceptedAt,LAcceptedAt - AOperationBlock.timestamp,
+      IntToHex(AOperationBlock.compact_target,8)]));
+  end else begin
+    FNodeLog.NotifyNewLog(lterror,LSource,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[
+      AOperationBlock.block,LRemoteAddress,AOperationBlock.block_payload.ToPrintable,AErrors,
+      AOperationBlock.timestamp,LAcceptedAt,LAcceptedAt - AOperationBlock.timestamp,
+      IntToHex(AOperationBlock.compact_target,8)]));
   end;
 end;
 
@@ -1466,7 +2200,7 @@ end;
 
 destructor TNodeNotifyEvents.Destroy;
 begin
-  if Assigned(FNode) then FNode.FNotifyList.Remove(Self);
+  Node := Nil;
   FThreadSafeNodeNotifyEvent.FNodeNotifyEvents := Nil;
   FThreadSafeNodeNotifyEvent.Terminate;
   FThreadSafeNodeNotifyEvent.WaitFor;
@@ -1494,6 +2228,16 @@ begin
   if Assigned(FThreadSafeNodeNotifyEvent) then FThreadSafeNodeNotifyEvent.FNotifyOperationsChanged := true;
 end;
 
+procedure TNodeNotifyEvents.NotifySynchronizationChanged;
+begin
+  if not Assigned(FThreadSafeNodeNotifyEvent) then Exit;
+  {$IFDEF FPC}
+  InterlockedExchange(FThreadSafeNodeNotifyEvent.FNotifySynchronizationChanged,1);
+  {$ELSE}
+  TInterlocked.Exchange(FThreadSafeNodeNotifyEvent.FNotifySynchronizationChanged,1);
+  {$ENDIF}
+end;
+
 procedure TNodeNotifyEvents.SetWatchKeys(AValue: TOrderedAccountKeysList);
 begin
   if FWatchKeys=AValue then Exit;
@@ -1505,12 +2249,23 @@ begin
   if FNode=Value then exit;
   if Assigned(FNode) then begin
     FNode.RemoveFreeNotification(Self);
-    FNode.FNotifyList.Remove(Self);
+    FNode.FNotifyLock.Acquire;
+    try
+      FNode.FNotifyList.Remove(Self);
+    finally
+      FNode.FNotifyLock.Release;
+    end;
   end;
   FNode := Value;
   if Assigned(FNode) then begin
     FNode.FreeNotification(Self);
-    FNode.FNotifyList.Add(Self);
+    FNode.FNotifyLock.Acquire;
+    try
+      FNode.FNotifyList.Add(Self);
+    finally
+      FNode.FNotifyLock.Release;
+    end;
+    NotifySynchronizationChanged;
   end;
 end;
 
@@ -1519,7 +2274,9 @@ end;
 procedure TThreadSafeNodeNotifyEvent.BCExecute;
 begin
   while (not Terminated) AND (Assigned(FNodeNotifyEvents)) do begin
-    if (FNotifyOperationsChanged) Or (FNotifyBlocksChanged) Or (FNodeNotifyEvents.FMessages.Count>0) then Synchronize(SynchronizedProcess);
+    if (FNotifyOperationsChanged) Or (FNotifyBlocksChanged) Or
+      (FNotifySynchronizationChanged<>0) Or
+      (FNodeNotifyEvents.FMessages.Count>0) then Synchronize(SynchronizedProcess);
     Sleep(100);
   end;
 end;
@@ -1533,9 +2290,30 @@ end;
 procedure TThreadSafeNodeNotifyEvent.SynchronizedProcess;
 Var i : Integer;
   can_alert_keys : Boolean;
+  LStatus: TNodeSynchronizationStatus;
+  LNotifySynchronization: Boolean;
 begin
+  LNotifySynchronization := False;
   Try
     If (Terminated) Or (Not Assigned(FNodeNotifyEvents)) then exit;
+    // Clear first, then sample: a producer arriving during the copy leaves a
+    // notification for the next pass. No producer waits for these callbacks.
+    {$IFDEF FPC}
+    LNotifySynchronization := InterlockedExchange(FNotifySynchronizationChanged,0)<>0;
+    {$ELSE}
+    LNotifySynchronization := TInterlocked.Exchange(FNotifySynchronizationChanged,0)<>0;
+    {$ENDIF}
+    LStatus := Default(TNodeSynchronizationStatus);
+    if Assigned(FNodeNotifyEvents.FNode) then
+      LStatus := FNodeNotifyEvents.FNode.GetSynchronizationStatus;
+    // Pause queries before block/operation listeners run. On completion, retain
+    // their latest requests first, then resume exactly once with final inputs.
+    if LNotifySynchronization and (LStatus.State=nssSynchronizing) and
+      Assigned(FNodeNotifyEvents.FOnSynchronizationChanged) then begin
+      DebugStep := 'Notify OnSynchronizationChanged';
+      FNodeNotifyEvents.FOnSynchronizationChanged(FNodeNotifyEvents,LStatus);
+    end;
+    try
     can_alert_keys := False;
     if FNotifyBlocksChanged then begin
       FNotifyBlocksChanged := false;
@@ -1571,8 +2349,22 @@ begin
         end;
       end;
     end;
+    finally
+      // An unrelated refresh listener must not consume the final state flag
+      // and leave a grid held forever. Deliver completion even on that path.
+      if LNotifySynchronization and (LStatus.State<>nssSynchronizing) and
+        Assigned(FNodeNotifyEvents) and
+        Assigned(FNodeNotifyEvents.FOnSynchronizationChanged) then begin
+        DebugStep := 'Notify OnSynchronizationChanged';
+        FNodeNotifyEvents.FOnSynchronizationChanged(FNodeNotifyEvents,LStatus);
+      end;
+    end;
   Except
     On E:Exception do begin
+      // A one-shot status-handler failure can recover without another producer
+      // input. Retry on the existing notifier, never on the network call stack.
+      if LNotifySynchronization and Assigned(FNodeNotifyEvents) then
+        FNodeNotifyEvents.NotifySynchronizationChanged;
       TLog.NewLog(lterror,ClassName,'Exception inside a Synchronized process: '+E.ClassName+':'+E.Message+' Step:'+DebugStep);
     end;
   End;
@@ -1628,7 +2420,30 @@ end;
 { TThreadNodeNotifyOperations }
 
 procedure TThreadNodeNotifyOperations.BCExecute;
+var LStart: TTickCount; LDelay: Cardinal;
 begin
+  if Terminated then Exit;
+  if Assigned(FLeaseOwner) then begin
+    // The transferred connection lease pins both connection and owner. Keep
+    // the old randomized send delay, but let orderly shutdown wake it promptly.
+    LDelay := Random(3000);
+    LStart := TPlatform.GetTickCount;
+    while TPlatform.GetElapsedMilliseconds(LStart)<LDelay do begin
+      if Terminated or FLeaseOwner.ShutdownRequested then Exit;
+      Sleep(10);
+    end;
+    LStart := TPlatform.GetTickCount;
+    while not Terminated and not FLeaseOwner.ShutdownRequested do begin
+      if FLeaseOwner.ConnectionLock(Self,FNetConnection,100) then begin
+        try
+          if FNetConnection.Connected then FNetConnection.Send_AddOperations(Nil);
+        finally FLeaseOwner.ConnectionUnlock(FNetConnection); end;
+        Exit;
+      end;
+      if TPlatform.GetElapsedMilliseconds(LStart)>=5000 then Exit;
+    end;
+    Exit;
+  end;
   Sleep(Random(3000)); // Delay 0..3 seconds to allow receive data and don't send if not necessary
   if TNetData.NetData.ConnectionLock(Self, FNetConnection, 5000) then begin
     try
@@ -1640,49 +2455,156 @@ begin
   end;
 end;
 
-constructor TThreadNodeNotifyOperations.Create(NetConnection: TNetConnection; MakeACopyOfOperationsHashTree: TOperationsHashTree);
+constructor TThreadNodeNotifyOperations.Create(NetConnection: TNetConnection;
+  MakeACopyOfOperationsHashTree: TOperationsHashTree; ALeaseOwner: TNetData);
 begin
   FNetConnection := NetConnection;
-  FNetConnection.AddOperationsToBufferForSend(MakeACopyOfOperationsHashTree);
+  FLeaseOwner := ALeaseOwner;
   Inherited Create(True);
+  FreeOnTerminate := false;
+  FNetConnection.AddOperationsToBufferForSend(MakeACopyOfOperationsHashTree);
   FreeOnTerminate := true;
   Suspended:=False;
 end;
 
 destructor TThreadNodeNotifyOperations.Destroy;
+var LLeaseOwner: TNetData;
 begin
-  inherited;
+  LLeaseOwner := FLeaseOwner;
+  try
+    inherited;
+  finally
+    FLeaseOwner := Nil;
+    if Assigned(LLeaseOwner) then LLeaseOwner.ReleaseDownloadConnection(FNetConnection);
+  end;
 end;
 
 { TSaveMempoolOperationsThread }
 
-procedure TSaveMempoolOperationsThread.BCExecute;
-var i : Integer;
-  LLocked : TPCOperationsComp;
+constructor TSaveMempoolOperationsThread.Create(ANode: TNode);
 begin
-  FPendingToSave := false;
+  FNode := ANode;
+  FWorkAvailable := TEvent.Create(Nil,False,False,'');
+  inherited Create(True);
+end;
+
+destructor TSaveMempoolOperationsThread.Destroy;
+begin
+  inherited;
+  FWorkAvailable.Free;
+end;
+
+procedure TSaveMempoolOperationsThread.Wake;
+begin
+  FWorkAvailable.SetEvent;
+end;
+
+procedure TSaveMempoolOperationsThread.Stop;
+begin
+  Terminate;
+  Wake;
+end;
+
+procedure TSaveMempoolOperationsThread.BCExecute;
+var LLocked : TPCOperationsComp;
+  LSaveFailed, LFinalAttempt: Boolean;
+  LRetryReconciliation: Boolean;
+  LLastSave: TTickCount; LElapsed: Int64; LWait: Cardinal;
+  LLastReconciliationFailure: TTickCount; LRetryWait: Cardinal;
+begin
+  // A request can arrive before this thread is first scheduled. Do not clear
+  // it here. Dirty publication is atomic and is consumed before capture, so a
+  // later mutation cannot be hidden by completion of an older file write.
+  LLastSave := TPlatform.GetTickCount;
+  LRetryReconciliation := False;
+  LLastReconciliationFailure := LLastSave;
   repeat
-    if FPendingToSave then begin
-      LLocked := FNode.LockMempoolRead;
+    LFinalAttempt := Terminated;
+    LSaveFailed := False;
+    if (not Terminated) and ((not LRetryReconciliation) or
+      (TPlatform.GetElapsedMilliseconds(LLastReconciliationFailure)>=10000)) then begin
       try
-        FPendingToSave := False;
-        FNode.Bank.Storage.SavePendingBufferOperations(LLocked.OperationsHashTree);
-      finally
-        FNode.UnlockMempoolRead;
+        FNode.ReconcileMempoolIfReady;
+        LRetryReconciliation := False;
+      except
+        on E: Exception do begin
+          // Retain the original raw package and retry on this owner's existing
+          // timed event wait. A transient validator failure must not leave an
+          // offline node waiting forever; persistent failures must not spin.
+          LRetryReconciliation := True;
+          LLastReconciliationFailure := TPlatform.GetTickCount;
+          TLog.NewLog(lterror,ClassName,'Cannot reconcile pending operations: '+E.ClassName+': '+E.Message);
+        end;
       end;
     end;
-    // Wait 10 seconds prior to save updates on mempool
-    i := 0;
-    while (i<1000) and (Not Terminated) do begin
-      Sleep(10);
-      inc(i);
+    LElapsed := TPlatform.GetElapsedMilliseconds(LLastSave);
+    if (Terminated or (LElapsed>=10000)) and TakeSaveRequest then begin
+      try
+        // The saved package contains the complete original operation sequence,
+        // not the deferred account overlay. Saving it during catch-up or final
+        // shutdown is safe; the normal next startup revalidates that sequence.
+        FNode.FLockMempool.AcquireReadLock;
+        LLocked := FNode.FMemPoolOperationsComp;
+        try
+          FNode.Bank.Storage.SavePendingBufferOperations(LLocked.OperationsHashTree);
+        finally
+          FNode.UnlockMempoolRead;
+        end;
+      except
+        on E: Exception do begin
+          LSaveFailed := True;
+          Touch;
+          TLog.NewLog(lterror,ClassName,'Cannot save pending operations: '+E.ClassName+': '+E.Message);
+        end;
+      end;
+      LLastSave := TPlatform.GetTickCount;
     end;
-  until (false) or (Terminated);
+    // Termination during the quiet wait returns to the capture above first.
+    // Normal shutdown therefore flushes the latest completed operation batch.
+    // A failing final I/O attempt is logged rather than retried forever.
+    if Terminated and ((LSaveFailed and LFinalAttempt) or not HasSaveRequest) then Break;
+    // Existing ten-second persistence pacing is retained, but reconciliation
+    // is woken by real scope/connectivity events. No status polling timer is
+    // involved, and stopping wakes the owner to make its final complete save.
+    if HasSaveRequest then begin
+      LElapsed := TPlatform.GetElapsedMilliseconds(LLastSave);
+      if LElapsed>=10000 then LWait := 0 else LWait := 10000-Cardinal(LElapsed);
+    end else LWait := Cardinal(-1);
+    if LRetryReconciliation then begin
+      LElapsed := TPlatform.GetElapsedMilliseconds(LLastReconciliationFailure);
+      if LElapsed>=10000 then LRetryWait := 0 else LRetryWait := 10000-Cardinal(LElapsed);
+      if (LWait=Cardinal(-1)) or (LRetryWait<LWait) then LWait := LRetryWait;
+    end;
+    FWorkAvailable.WaitFor(LWait);
+  until False;
 end;
 
 procedure TSaveMempoolOperationsThread.Touch;
 begin
-  FPendingToSave := True;
+  {$IFDEF FPC}
+  InterlockedExchange(FPendingToSave,1);
+  {$ELSE}
+  TInterlocked.Exchange(FPendingToSave,1);
+  {$ENDIF}
+  Wake;
+end;
+
+function TSaveMempoolOperationsThread.TakeSaveRequest: Boolean;
+begin
+  {$IFDEF FPC}
+  Result := InterlockedExchange(FPendingToSave,0)<>0;
+  {$ELSE}
+  Result := TInterlocked.Exchange(FPendingToSave,0)<>0;
+  {$ENDIF}
+end;
+
+function TSaveMempoolOperationsThread.HasSaveRequest: Boolean;
+begin
+  {$IFDEF FPC}
+  Result := InterlockedCompareExchange(FPendingToSave,0,0)<>0;
+  {$ELSE}
+  Result := TInterlocked.CompareExchange(FPendingToSave,0,0)<>0;
+  {$ENDIF}
 end;
 
 initialization

@@ -176,7 +176,7 @@ Uses
   UEPasaDecoder,
   UPCRPCSend,
   UOrderedList,
-  UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks, UPCRPCFileUtils;
+  UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks, UPCRPCFileUtils, UProgressDisplay;
 
 Type
   TRegisteredRPCProcessMethod = Record
@@ -3156,7 +3156,8 @@ Var c,c2,c3 : Cardinal;
   i,j,k,l : Integer;
   account : TAccount;
   senderpubkey,destpubkey : TAccountKey;
-  ansistr : String;
+  ansistr, LBankDiagnostic : String;
+  LProgress : TProgressInfo;
   nsaarr : TNodeServerAddressArray;
   pcops : TPCOperationsComp;
   ecpkey : TECPrivateKey;
@@ -3483,24 +3484,20 @@ begin
     // Create result
     k := params.AsInteger('max',100);
     j := params.AsInteger('start',0);
-    If FNode.TryLockNode(5000) then begin
+    // Formatting a pending snapshot shares read ownership with wallet readers.
+    If FNode.TryLockMempoolRead(5000, pcops) then begin
       Try
         jsonarr := GetResultArray;
-        pcops := FNode.LockMempoolRead;
-        try
-          for i := j to pcops.Count-1 do begin
-            If TPCOperation.OperationToOperationResume(0,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
-              opr.NOpInsideBlock:=i;
-              opr.Balance := -1; // Don't include!
-              FillOperationResumeToJSONObject(opr,jsonarr.GetAsObject(jsonarr.Count));
-            end;
-            if (k>0) And (jsonarr.Count>=k) then break;
+        for i := j to pcops.Count-1 do begin
+          If TPCOperation.OperationToOperationResume(0,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
+            opr.NOpInsideBlock:=i;
+            opr.Balance := -1; // Don't include!
+            FillOperationResumeToJSONObject(opr,jsonarr.GetAsObject(jsonarr.Count));
           end;
-        finally
-          FNode.UnlockMempoolRead;
+          if (k>0) And (jsonarr.Count>=k) then break;
         end;
       finally
-        FNode.UnlockNode;
+        FNode.UnlockMempoolRead;
       end;
       Result := true;
     end else begin
@@ -3811,8 +3808,8 @@ begin
         GetResultObject.GetAsVariant('ready').Value := True;
         if TNetData.NetData.IsDiscoveringServers then begin
           GetResultObject.GetAsVariant('status_s').Value := 'Discovering servers';
-        end else if TNetData.NetData.IsGettingNewBlockChainFromClient(ansistr) then begin
-          GetResultObject.GetAsVariant('status_s').Value := ansistr;
+        end else if TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then begin
+          GetResultObject.GetAsVariant('status_s').Value := FormatProgressInfo(LProgress);
         end else begin
           GetResultObject.GetAsVariant('status_s').Value := 'Running';
         end;
@@ -3820,6 +3817,11 @@ begin
         GetResultObject.GetAsVariant('ready_s').Value := 'Alone in the world...';
       end;
     end else begin
+      // ready_s historically exposed the complete network progress text.
+      if FNode.Bank.IsReady(LBankDiagnostic) then
+        if FNode.NetServer.Active then
+          if TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then
+            ansistr := FormatProgressInfo(LProgress);
       GetResultObject.GetAsVariant('ready_s').Value := ansistr;
     end;
     GetResultObject.GetAsVariant('port').Value:=FNode.NetServer.Port;
