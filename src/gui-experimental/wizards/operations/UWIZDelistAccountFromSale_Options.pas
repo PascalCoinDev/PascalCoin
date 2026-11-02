@@ -17,8 +17,14 @@ unit UWIZDelistAccountFromSale_Options;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
 
 interface
 
@@ -37,13 +43,17 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   USettings,
@@ -81,7 +91,7 @@ begin
   end;
 end;
 
-function TWIZDelistAccountFromSale_Options.Validate(out message: ansistring): boolean;
+function TWIZDelistAccountFromSale_Options.Validate(out message: String): boolean;
 begin
   Result := True;
 end;

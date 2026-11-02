@@ -13,12 +13,14 @@ unit UCellRenderers;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
 uses
-   Classes, Forms, Controls, Graphics, Dialogs, ExtCtrls, Grids,
+   Classes, Types, Forms, Controls, Graphics, Dialogs, ExtCtrls, Grids,
    UVisualGrid, variants;
 
 type
@@ -39,15 +41,16 @@ type
     class procedure OPHASH(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
 
     // General purpose
-    class function OperationShortHash(const AOpHash : AnsiString) : AnsiString;
-    class function OperationShortText(const OpType, OpSubType : DWord) : AnsiString;
-    class function AccountKeyShortText(const AText : AnsiString) : AnsiString;
+    class function OperationShortHash(const AOpHash : String) : String;
+    class function OperationShortText(const OpType, OpSubType : Cardinal) : String;
+    class function AccountKeyShortText(const AText : String) : String;
   end;
 
 implementation
 
 uses
-  SysUtils, DateUtils, UCommon, UCommon.Data, UAccounts, UNode, UConst, UCoreUtils;
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+  SysUtils, DateUtils, UCommon, UCommon.Data, UAccounts, UConst, UCoreUtils;
 
 const
   CT_PASCBALANCE_POS_COL = clGreen;
@@ -56,6 +59,24 @@ const
   CT_PASCBALANCE_0CONF_COL = clBlue;
 
 
+procedure DrawRendererText(ACanvas: TCanvas; ARect: TRect;
+  const AText: String; AAlignment: TAlignment);
+{$IFNDEF FPC}
+var LFlags: Cardinal; LText: String;
+{$ENDIF}
+begin
+  {$IFDEF FPC}
+  ACanvas.TextRect(ARect, ARect.Left, ARect.Top, AText, ACanvas.TextStyle);
+  {$ELSE}
+  LFlags := DT_SINGLELINE or DT_VCENTER or DT_NOPREFIX or DT_END_ELLIPSIS;
+  case AAlignment of
+    taRightJustify: LFlags := LFlags or DT_RIGHT;
+    taCenter: LFlags := LFlags or DT_CENTER;
+  end;
+  LText := String(AText);
+  DrawText(ACanvas.Handle, PChar(LText), Length(LText), ARect, LFlags);
+  {$ENDIF}
+end;
 { TCellRenderers }
 
 class function TCellRenderers.UnixTimeSanitizer(const CellData, RowData: Variant) : Variant;
@@ -68,7 +89,7 @@ end;
 
 class function TCellRenderers.OperationTypeSanitizer(const CellData, RowData: Variant) : Variant;
 var LData : TDataRowData absolute RowData;
-  LType, LSubType : DWord;
+  LType, LSubType : Cardinal;
 begin
  LType := LData.Data['Type'];
  LSubType := LData.Data['SubType'];
@@ -79,9 +100,8 @@ end;
 class procedure TCellRenderers.OperationTime (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
 var
   LValue : UInt64;
-  LTextStyle: TTextStyle;
   LRowData : TDataRowData;
-  LStr : AnsiString;
+  LStr : String;
 begin
   if NOT VarIsNumeric(CellData) then exit;
   LValue := CellData;
@@ -91,22 +111,21 @@ begin
     LStr := 'PENDING';
     Canvas.Font.Color := CT_PASCBALANCE_0CONF_COL;
   end;
-  Canvas.TextRect(Rect, Rect.Left, Rect.Top, LStr, Canvas.TextStyle);
+  DrawRendererText(Canvas, Rect, LStr, taLeftJustify);
   Handled := true;
 end;
 
 class procedure TCellRenderers.PASC_CheckAllBalance (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
 var
   LValue : Int64;
-  LTextStyle: TTextStyle;
   LRowData : TDataRowData;
-  LStr : AnsiString;
+  LStr : String;
   LAllBalance : boolean;
 begin
   LRowData := TDataRowData(RowData);
   if LRowData.HasData('AllBalance') AND TVariantTool.TryParseBool(LRowData['AllBalance'], LAllBalance) AND LAllBalance then begin
     Canvas.Font.Style := [fsBold];
-    Canvas.TextRect(Rect, Rect.Left, Rect.Top, 'ALL BALANCE', Canvas.TextStyle);
+    DrawRendererText(Canvas, Rect, 'ALL BALANCE', taRightJustify);
     Handled := true;
     exit;
   end;
@@ -116,26 +135,27 @@ end;
 class procedure TCellRenderers.PASC_CheckPendingBalance (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
 var
   LValue : Int64;
-  LTextStyle: TTextStyle;
   LRowData : TDataRowData;
-  LStr : AnsiString;
-  LAllBalance, LPending : boolean;
+  LStr : String;
+  LPending : boolean;
 begin
   if NOT TVariantTool.IsNumeric(CellData) then
     exit;
   LValue := CellData;
   LRowData := TDataRowData(RowData);
-  if LRowData.HasData('UnixTime')  AND (LRowData['UnixTime'] = 0) then
-    LPending := true
-  else if LRowData.HasData('LastUpdatedBlock') AND (LRowData['LastUpdatedBlock'] > TNode.Node.BlockTip) then
-    LPending := true
-  else
-    LPending := false;
+  // Paint only the fetched row. A live node query here can wait behind disk
+  // restore or a snapshot worker while Windows is dispatching WM_PAINT.
+  LPending := false;
+  // The explicit account snapshot flag takes precedence over UnixTime.
+  if not (LRowData.HasData('IsPending') and
+    TVariantTool.TryParseBool(LRowData['IsPending'], LPending)) then
+    if LRowData.HasData('UnixTime') then
+      LPending := LRowData['UnixTime'] = 0;
 
   if LPending then begin
     Canvas.Font.Color := CT_PASCBALANCE_0CONF_COL;
     LStr := '(' + TAccountComp.FormatMoney(LValue) + ')';
-    Canvas.TextRect(Rect, Rect.Left, Rect.Top, LStr, Canvas.TextStyle);
+    DrawRendererText(Canvas, Rect, LStr, taRightJustify);
     Handled := true;
   end else PASC(Sender, ACol, ARow, Canvas, Rect, State, CellData, RowData, Handled);
 end;
@@ -143,9 +163,8 @@ end;
 class procedure TCellRenderers.PASC (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
 var
   LValue : Int64;
-  LTextStyle: TTextStyle;
   LRowData : TDataRowData;
-  LStr : AnsiString;
+  LStr : String;
 begin
   if NOT TVariantTool.IsNumeric(CellData) then
     exit;
@@ -153,7 +172,7 @@ begin
   LRowData := TDataRowData(RowData);
   Canvas.Font.Color := IIF (LValue < 0, CT_PASCBALANCE_NEG_COL, IIF(LValue > 0, CT_PASCBALANCE_POS_COL, CT_PASCBALANCE_NEU_COL));
   LStr := TAccountComp.FormatMoney(LValue);
-  Canvas.TextRect(Rect, Rect.Left, Rect.Top, LStr, Canvas.TextStyle);
+  DrawRendererText(Canvas, Rect, LStr, taRightJustify);
   Handled := true;
 end;
 
@@ -168,7 +187,7 @@ end;
 class procedure TCellRenderers.OPHASH (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
 var
   LRowData : TDataRowData;
-  LStr : AnsiString;
+  LStr : String;
 begin
   if NOT VarIsStr(CellData) then
     exit;
@@ -176,9 +195,9 @@ begin
   LRowData := TDataRowData(RowData);
  // Canvas.Font.Size := Canvas.Font.Size - 1;
   Canvas.Font.Color := clGrayText;
-  Canvas.Font.Bold := true;
+  Canvas.Font.Style := Canvas.Font.Style + [fsBold];
   LStr := OperationShortHash(LStr);
-  Canvas.TextRect(Rect, Rect.Left, Rect.Top, LStr, Canvas.TextStyle);
+  DrawRendererText(Canvas, Rect, LStr, taLeftJustify);
   Handled := true;
 end;
 
@@ -191,26 +210,27 @@ end;
          Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey); }
 
 
-class function TCellRenderers.OperationShortHash(const AOpHash : AnsiString) : AnsiString;
+class function TCellRenderers.OperationShortHash(const AOpHash : String) : String;
 var
   len : SizeInt;
 begin
  len := Length(AOpHash);
   if len > 8 then
-    result := AOpHash.Substring(0, 4) + '...' + AOpHash.Substring(len - 4 - 1, 4)
+    // Copy uses one-based offsets: retain the actual final four characters.
+    result := Copy(AOpHash, 1, 4) + '...' + Copy(AOpHash, len - 3, 4)
   else
     result := AOpHash;
 end;
 
-class function TCellRenderers.OperationShortText(const OpType, OpSubType : DWord) : AnsiString;
+class function TCellRenderers.OperationShortText(const OpType, OpSubType : Cardinal) : String;
 begin
   Result := TCoreTool.GetOperationShortText(OpType, OpSubType);
 end;
 
-class function TCellRenderers.AccountKeyShortText(const AText : AnsiString) : AnsiString;
+class function TCellRenderers.AccountKeyShortText(const AText : String) : String;
 begin
  If Length(AText) > 20 then
-   Result := AText.SubString(0, 17) + '...'
+   Result := Copy(AText, 1, 17) + '...'
  else
    Result := AText;
 end;

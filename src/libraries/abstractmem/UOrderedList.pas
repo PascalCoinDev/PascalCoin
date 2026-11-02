@@ -88,7 +88,11 @@ begin
 end;
 function TComparison_Cardinal(const ALeft, ARight: Cardinal): Integer;
 begin
-  Result := ALeft - ARight;
+  // A Cardinal difference can underflow or exceed Integer's signed range.
+  // Comparisons need its order, without narrowing either account number.
+  if ALeft<ARight then Result := -1
+  else if ALeft>ARight then Result := 1
+  else Result := 0;
 end;
 function TComparison_Word(const ALeft, ARight: Word): Integer;
 begin

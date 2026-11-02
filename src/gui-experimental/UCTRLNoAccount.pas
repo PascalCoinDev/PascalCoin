@@ -13,12 +13,14 @@ unit UCTRLNoAccount;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
+  Classes, SysUtils, {$IFDEF FPC}FileUtil,{$ENDIF} Forms, Controls, Graphics, Dialogs, StdCtrls,
   Buttons, UCommon.UI, UCoreObjects;
 
 type
@@ -28,6 +30,7 @@ type
   TCTRLNoAccounts = class(TApplicationForm)
     btnGetAcc: TBitBtn;
     lblGetFirstAccount: TLabel;
+    procedure btnGetAccClick(Sender: TObject);
   private
     FPBalanceSummary : PBalanceSummary;
   public
@@ -37,7 +40,13 @@ type
 
 implementation
 
+uses UUserInterface;
+
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 const
   GNoAccountsText = 'No Accounts';
@@ -45,10 +54,25 @@ const
 
 procedure TCTRLNoAccounts.ActivateFirstTime;
 begin
+  if not Assigned(FPBalanceSummary) then begin
+    lblGetFirstAccount.Caption := GNoAccountsText;
+    exit;
+  end;
   case FPBalanceSummary^.TotalPASA of
     0: lblGetFirstAccount.Caption := GNoAccountsText;
     else lblGetFirstAccount.Caption := Format(GHasAccountsText, [FPBalanceSummary^.TotalPASA]);
   end;
+end;
+
+procedure TCTRLNoAccounts.btnGetAccClick(Sender: TObject);
+begin
+  // A PASA must be transferred or purchased; creating a key alone creates no account.
+  TUserInterface.ShowInfo(Self, 'Get an account',
+    'Create or select a key in Wallet Keys, then copy its public key.' + sLineBreak + sLineBreak +
+    'Ask an account owner to transfer a PASA to that public key. You can also buy a listed ' +
+    'account in Account Explorer once you have a funded account.' + sLineBreak + sLineBreak +
+    'The public key is safe to share. Keep your private key and wallet password secret.');
+  TUserInterface.ShowPrivateKeysDialog(Self);
 end;
 
 end.

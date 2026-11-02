@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{9D46BE91-7C33-48F3-A9D6-6C7B87D1595E}</ProjectGuid>
+    <MainSource>WalletNodeSynchronizationProbe.dpr</MainSource>
+    <Config>Debug</Config>
+    <Platform>Win64</Platform>
+    <Base>True</Base>
+    <TargetedPlatforms>3</TargetedPlatforms>
+    <AppType>Application</AppType>
+    <FrameworkType>VCL</FrameworkType>
+    <ProjectVersion>20.3</ProjectVersion>
+    <DCC_Namespace>System;Winapi;Vcl;Vcl.Imaging;Data;Xml</DCC_Namespace>
+    <DCC_UnitAlias>Generics.Collections=System.Generics.Collections;Generics.Defaults=System.Generics.Defaults;$(DCC_UnitAlias)</DCC_UnitAlias>
+    <DCC_UnitSearchPath>..\..\..\..\core;..\..\..\..\gui-experimental;..\..\..\..\gui-experimental\core.utils;..\..\..\..\gui-experimental\wizards\wallet;..\..\..\..\gui-experimental\wizards\operations;..\..\..\..\gui-classic;..\..\..\..\libraries\sphere10;..\..\..\..\libraries\simplebaselib4pascal;..\..\..\..\libraries\hashlib4pascal;..\..\..\..\libraries\cryptolib4pascal;..\..\..\..\libraries\synapse;..\..\..\..\libraries\pascalcoin;..\..\..\..\libraries\paszlib;..\..\..\..\libraries\abstractmem;..\..\..\..\libraries\regex</DCC_UnitSearchPath>
+    <DCC_IncludePath>..\..\..\..\core;..\..\..\..\libraries\generics.collections\inc;..\..\..\..\libraries\sphere10</DCC_IncludePath>
+    <DCC_UnitSearchPath>$(DCC_UnitSearchPath);..\..\..\..\libraries\gnugettext</DCC_UnitSearchPath>
+    <DCC_ResourcePath>..\..\lib\node-sync-wallet\Delphi\$(Platform)\$(Config)\res;..\..\..\..;..\..\..\..\gui-experimental;..\..\..\..\gui-classic;..\..\..\..\gui-experimental\wizards\wallet;..\..\..\..\gui-experimental\wizards\operations</DCC_ResourcePath>
+    <DCC_DcuOutput>..\..\lib\node-sync-wallet\Delphi\$(Platform)\$(Config)\dcu</DCC_DcuOutput>
+    <DCC_ExeOutput>..\..\..\..</DCC_ExeOutput>
+    <BRCC_OutputDir>..\..\lib\node-sync-wallet\Delphi\$(Platform)\$(Config)\res</BRCC_OutputDir>
+    <DCC_DebugInformation>true</DCC_DebugInformation>
+    <DCC_RangeChecking>true</DCC_RangeChecking>
+    <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+  </PropertyGroup>
+  <ItemGroup>
+    <RcCompile Include="..\grid-refresh\WalletGridRefreshDemo.Assets.rc" />
+    <RcCompile Include="..\..\..\..\libraries\sphere10\UVisualGrid.VCL.rc" />
+    <DelphiCompile Include="$(MainSource)"><MainSource>MainSource</MainSource></DelphiCompile>
+    <DCCReference Include="UWalletNodeSynchronizationChecks.pas" />
+  </ItemGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+    <BorlandProject>
+      <Delphi.Personality><Source><Source Name="MainSource">WalletNodeSynchronizationProbe.dpr</Source></Source></Delphi.Personality>
+      <Platforms><Platform value="Win32">True</Platform><Platform value="Win64">True</Platform></Platforms>
+    </BorlandProject>
+  </ProjectExtensions>
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" />
+</Project>

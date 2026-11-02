@@ -245,21 +245,22 @@ end;
 function TPCOperationsSignatureValidator.Validate(AOperationsList : TList<TPCOperation>) : Integer;
 var LLastTC : TTickCount;
   procedure DoNotify;
-  var LMsg : String;
-    LCurPos,LTotal : Int64;
+  var LProgress: TProgressInfo;
   begin
     if (Assigned(FProgressNotify)) and (TPlatform.GetElapsedMilliseconds(LLastTC)>200) then begin
       LLastTC := TPlatform.GetTickCount;
       FLock.Acquire;
       try
-        LMsg := Format('Validating signatures %d/%d',[FLastIndexOperations,FOperationsList.Count]);
-        LCurPos := FLastIndexOperations;
-        LTotal := FOperationsList.Count;
+        // Preserve the existing assigned-operation index, not a fabricated
+        // completed-signature count. Presentation belongs to the consumer.
+        LProgress := TProgressInfo.Create(psValidatingSignatures,
+          FLastIndexOperations, FOperationsList.Count);
+        LProgress.OperationsCount := FOperationsList.Count;
       finally
         FLock.Release;
       end;
       //
-      FProgressNotify(Self,LMsg,LCurPos,LTotal);
+      FProgressNotify(Self, LProgress);
     end;
   end;
 var LMaxThreads : Integer;

@@ -17,13 +17,19 @@ unit UWIZOperationSigner_Select;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
 
 interface
 
 uses
-  SysUtils, Graphics, StdCtrls, ExtCtrls, UWizard, UWIZOperation;
+  SysUtils, Graphics, StdCtrls, ExtCtrls, UCommon, UWizard, UWIZOperation, UPCDataTypes;
 
 type
 
@@ -37,21 +43,28 @@ type
     rbPrimary: TRadioButton;
     rbSecondary: TRadioButton;
     procedure cbSignerAccountChange(Sender: TObject);
-
+    procedure SigningModeChange(Sender: TObject);
+  private
+    FCandidates: TArray<TAccount>;
+    procedure UpdateSignerCandidates;
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UAccounts,
-  UPCDataTypes,
+  UNode,
   UCoreObjects;
 
 { TWIZOperationSigner_Select }
@@ -67,12 +80,26 @@ begin
   begin
     lblBalance.Font.Color := clGreen;
     lblBalance.Caption := Format('%s PASC',
-      [TAccountComp.FormatMoney(Model.Signer.SignerCandidates[PtrInt(
+      [TAccountComp.FormatMoney(FCandidates[PtrInt(
       cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])].Balance)]);
   end;
 end;
 
 procedure TWIZOperationSigner_Select.OnPresent;
+begin
+  rbPrimary.Checked := Model.Signer.OperationSigningMode = akaPrimary;
+  rbSecondary.Checked := Model.Signer.OperationSigningMode = akaSecondary;
+  UpdateSignerCandidates;
+  cbSignerAccount.SetFocus;
+end;
+
+procedure TWIZOperationSigner_Select.SigningModeChange(Sender: TObject);
+begin
+  if Assigned(Model) then
+    UpdateSignerCandidates;
+end;
+
+procedure TWIZOperationSigner_Select.UpdateSignerCandidates;
 
   function GetAccountNumberWithChecksum(AAccountNumber: cardinal): string;
   begin
@@ -83,32 +110,44 @@ var
   LAccount: TAccount;
   LAccountNumberWithChecksum: string;
   LIdx: integer;
+  LMode: TOperationSigningMode;
 begin
+  if rbSecondary.Checked then
+    LMode := akaSecondary
+  else
+    LMode := akaPrimary;
+  FCandidates := TWIZOperationsModel.FilterSignerCandidates(Model.Signer.SignerCandidates,
+    Model.Account.SelectedAccounts, TNode.Node.Bank.BlocksCount,
+    Model.Fee.SingleOperationFee, LMode);
   cbSignerAccount.Items.BeginUpdate;
   try
     cbSignerAccount.Items.Clear;
     cbSignerAccount.Items.Add('Select Signer Account');
-    for LIdx := Low(Model.Signer.SignerCandidates) to High(Model.Signer.SignerCandidates) do
+    for LIdx := Low(FCandidates) to High(FCandidates) do
     begin
-      LAccount := Model.Signer.SignerCandidates[LIdx];
+      LAccount := FCandidates[LIdx];
       LAccountNumberWithChecksum := GetAccountNumberWithChecksum(LAccount.account);
       cbSignerAccount.Items.AddObject(LAccountNumberWithChecksum, TObject(LIdx));
     end;
   finally
     cbSignerAccount.Items.EndUpdate;
   end;
-  if Length(Model.Signer.SignerCandidates) = 1 then
+  if Length(FCandidates) = 1 then
     cbSignerAccount.ItemIndex := 1
   else
-    cbSignerAccount.ItemIndex := Model.Signer.SelectedIndex;
+  begin
+    cbSignerAccount.ItemIndex := 0;
+    for LIdx := Low(FCandidates) to High(FCandidates) do
+      if FCandidates[LIdx].account = Model.Signer.SignerAccount.account then
+        cbSignerAccount.ItemIndex := LIdx + 1;
+  end;
   cbSignerAccountChange(Self);
-  cbSignerAccount.SetFocus;
 end;
 
 procedure TWIZOperationSigner_Select.OnNext;
 begin
   Model.Signer.SelectedIndex := cbSignerAccount.ItemIndex;
-  Model.Signer.SignerAccount := Model.Signer.SignerCandidates[PtrInt(
+  Model.Signer.SignerAccount := FCandidates[PtrInt(
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
   if rbPrimary.Checked then
     Model.Signer.OperationSigningMode := akaPrimary
@@ -116,7 +155,7 @@ begin
     Model.Signer.OperationSigningMode := akaSecondary;
 end;
 
-function TWIZOperationSigner_Select.Validate(out message: ansistring): boolean;
+function TWIZOperationSigner_Select.Validate(out message: String): boolean;
 begin
   Result := True;
   if cbSignerAccount.ItemIndex < 1 then

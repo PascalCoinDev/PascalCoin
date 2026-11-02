@@ -17,13 +17,19 @@ unit UWIZChangeAccountInfo_Details;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
 
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, Controls, StdCtrls, ExtCtrls, Buttons, UWizard, UWIZOperation;
+  Types, Math, Classes, SysUtils, Forms, Dialogs, Controls, StdCtrls, ExtCtrls, Buttons, UWizard, UWIZOperation;
 
 type
 
@@ -44,19 +50,23 @@ type
     procedure txtNameChange(Sender: TObject);
     procedure txtTypeChange(Sender: TObject);
     procedure UpdateUI();
-
-
-
+    procedure FormResize(Sender: TObject);
+  private
+    FPresented: Boolean;
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UNode,
@@ -73,10 +83,55 @@ uses
   UCommon.Collections,
   Generics.Collections,
   UWIZOperationFee_Custom,
-  UWIZOperationSigner_Select,
-  UWIZOperationPayload_Encryption;
+  UWIZOperationPayload_Encryption,
+  UWIZOperationConfirmation,
+  UWIZChangeAccountInfo_Skipped;
 
 { TWIZChangeAccountInfo_Details }
+
+type
+  TCaptionGroupBoxAccess = class(TGroupBox);
+
+procedure TWIZChangeAccountInfo_Details.FormResize(Sender: TObject);
+
+  procedure FitEditText(AEdit: TEdit);
+  var
+    LTextHeight, LBorderHeight: Integer;
+  begin
+    Canvas.Font.Assign(AEdit.Font);
+    LTextHeight := Canvas.TextHeight('Mg');
+    LBorderHeight := Max(4, AEdit.Height - AEdit.ClientHeight);
+    // Preserve the large font while fitting its native line and edit borders.
+    AEdit.Height := Max(AEdit.Height, LTextHeight + LBorderHeight);
+  end;
+
+  procedure PositionContents(AGroup: TGroupBox);
+  var
+    LContent: TRect;
+    LPadding, LTop, LDelta, I: Integer;
+  begin
+    LContent := AGroup.ClientRect;
+    TCaptionGroupBoxAccess(AGroup).AdjustClientRect(LContent);
+    Canvas.Font.Assign(AGroup.Font);
+    LPadding := Max(6, Canvas.TextHeight('0') * 2 div 3);
+    LTop := High(Integer);
+    for I := 0 to AGroup.ControlCount - 1 do
+      LTop := Min(LTop, AGroup.Controls[I].Top);
+    LDelta := LContent.Top + LPadding - LTop;
+    for I := 0 to AGroup.ControlCount - 1 do
+      AGroup.Controls[I].Top := AGroup.Controls[I].Top + LDelta;
+  end;
+
+begin
+  if not HandleAllocated or not Assigned(chkPayload) then Exit;
+  FitEditText(txtName);
+  FitEditText(txtType);
+  // VCL includes the caption in ClientRect; LCL already excludes it. Use each
+  // toolkit's native content inset, including after a font/DPI change.
+  PositionContents(gbName);
+  PositionContents(gpType);
+  PositionContents(gpOptions);
+end;
 
 procedure TWIZChangeAccountInfo_Details.txtNameChange(Sender: TObject);
 begin
@@ -90,8 +145,19 @@ end;
 
 procedure TWIZChangeAccountInfo_Details.OnPresent;
 begin
+  FormResize(Self);
+  if not FPresented then
+  begin
+    if Model.Account.Count = 1 then
+    begin
+      txtName.Text := Model.Account.SelectedAccounts[0].name.ToPrintable;
+      txtType.Text := IntToStr(Model.Account.SelectedAccounts[0].account_type);
+    end
+    else
+      txtType.Text := IntToStr(Model.ChangeAccountInfo.NewType);
+    FPresented := True;
+  end;
   UpdateUI();
-  txtType.Text := '0';
 
   if Model.Account.Count > 1 then
   begin
@@ -119,29 +185,34 @@ var
 begin
   LWizStepsToInject := LDisposables.AddObject(TList<TComponentClass>.Create) as TList<TComponentClass>;
 
+  // Rebuild the complete continuation after every Details validation. Going
+  // back and changing the type must not reuse an old skip list or its approval.
+  Model.ChangeAccountInfo.TargetAccounts := TWIZOperationsHelper.GetChangeAccountInfoTargets(
+    Model.Account.SelectedAccounts, Model.ChangeAccountInfo.NewType);
+  Model.ChangeAccountInfo.SkippedCount := Model.Account.Count - Length(Model.ChangeAccountInfo.TargetAccounts);
+  Model.ChangeAccountInfo.SkippedAccountsApproved := False;
+  if Model.ChangeAccountInfo.SkippedCount > 0 then
+    LWizStepsToInject.Add(TWIZChangeAccountInfo_Skipped);
+
   // Fee Section
   Model.Fee.SingleOperationFee := TSettings.DefaultFee;
   if chkCustomFee.Checked then
-    LWizStepsToInject.Add(TWIZOperationFee_Custom);
+    LWizStepsToInject.Add(TWIZOperationFee_Custom)
+  else
+    Model.ChangeAccountInfo.UseSingleFeePayer := False;
 
   // Payload Section
   Model.Payload.HasPayload := IIF(chkPayload.Checked, True, False);
   if Model.Payload.HasPayload then
     LWizStepsToInject.Add(TWIZOperationPayload_Encryption);
 
-  // Signer section
-  if Model.Account.Count = 1 then
-  begin
-    LWizStepsToInject.Add(TWIZOperationSigner_Select); // special case for changeaccount info wizard
-  end;
-
-  // Update wizard flow if applicable
-  if LWizStepsToInject.Count > 0 then
-    UpdatePath(ptInject, LWizStepsToInject.ToArray);
+  LWizStepsToInject.Add(TWIZOperationConfirmation);
+  UpdatePath(ptReplaceAllNext, LWizStepsToInject.ToArray);
 end;
 
-function TWIZChangeAccountInfo_Details.Validate(out message: ansistring): boolean;
+function TWIZChangeAccountInfo_Details.Validate(out message: String): boolean;
 var
+  LMessage: String;
   LAccNumberIndex, LIdx, LErrCode: integer;
   LCurrentAccount: TAccount;
   LNewName: TRawBytes;
@@ -169,9 +240,9 @@ begin
       begin
         if LNewName <> nil then
         begin
-          if (not TPCSafeBox.ValidAccountName(LNewName, message)) then
+          if (not TPascalCoinProtocol.IsValidAccountName(TNode.Node.Bank.SafeBox.CurrentProtocol, LNewName, LMessage)) then
           begin
-            message := Format('New name "%s" is not a valid name: %s ', [LNewName.ToPrintable, message]);
+            message := Format('New name "%s" is not a valid name: %s ', [LNewName.ToPrintable, LMessage]);
             Exit(False);
           end;
           LAccNumberIndex := (TNode.Node.Bank.SafeBox.FindAccountByName(LNewName));

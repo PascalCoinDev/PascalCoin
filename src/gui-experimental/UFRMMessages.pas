@@ -16,14 +16,17 @@ unit UFRMMessages;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
 {$I ..\config.inc}
 
 uses
-  LCLIntf, LCLType,
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+  {$IFDEF FPC}LCLIntf,{$ENDIF} {$IFDEF FPC}LCLType,{$ENDIF}
   SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Menus, UCommon.UI, UBaseTypes,
   UNode, UNetProtocol, UCrypto, UFRMMainForm,UConst;
@@ -50,37 +53,60 @@ type
     { private declarations }
     procedure UpdateAvailableConnections;
     procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : String);
+    procedure OnNetConnectionsUpdated(Sender : TObject);
   public
-    { public declarations }
+    procedure MarkRead;
   end;
 
 implementation
 
-uses UUserInterface, USettings, Generics.Collections;
+uses UUserInterface, USettings, UCommon, Generics.Collections;
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 { TFRMMessages }
 
 procedure TFRMMessages.FormActivate(Sender: TObject);
 begin
+  MarkRead;
   UpdateAvailableConnections;
 end;
 
 procedure TFRMMessages.FormCreate(Sender: TObject);
 begin
   TUserInterface.NodeMessageEvent.Add(OnNodeMessageEvent);
+  TUserInterface.NetConnectionsUpdated.Add(OnNetConnectionsUpdated);
 end;
 
 procedure TFRMMessages.FormDestroy(Sender: TObject);
 begin
   TUserInterface.NodeMessageEvent.Remove(OnNodeMessageEvent);
+  TUserInterface.NetConnectionsUpdated.Remove(OnNetConnectionsUpdated);
+end;
+
+procedure TFRMMessages.MarkRead;
+begin
+  FMessagesUnreadCount := 0;
+  if Owner is TFRMMainForm then
+    TFRMMainForm(Owner).SyncControl.ClearMessagesNotification;
+end;
+
+procedure TFRMMessages.OnNetConnectionsUpdated(Sender : TObject);
+begin
+  UpdateAvailableConnections;
 end;
 
 procedure TFRMMessages.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: String);
 Var s : String;
 begin
-  inc(FMessagesUnreadCount);
+  if Visible then
+    MarkRead
+  else
+    inc(FMessagesUnreadCount);
   if Assigned(NetConnection) then begin
     s := DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr;
     memoMessages.Lines.Add(DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr+' Length '+inttostr(Length(MessageData))+' bytes');
@@ -136,7 +162,7 @@ end;
 
 procedure TFRMMessages.bbSendAMessageClick(Sender: TObject);
 Var basem,m : String;
-  them, errors : AnsiString;
+  them, errors : String;
   i,n : Integer;
   nc : TNetConnection;
 begin

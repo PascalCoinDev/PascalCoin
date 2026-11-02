@@ -489,6 +489,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
       object miFindAccount: TMenuItem
         Caption = 'Find account'
         ShortCut = 16454
+        OnClick = sbSearchAccountClick
       end
       object miAccountInformation: TMenuItem
         Caption = 'Account Information'

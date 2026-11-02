@@ -117,6 +117,9 @@ Type
   end;
 
   TNetConnection = Class;
+  TNetClient = Class;
+  TThreadGetNewBlockChainFromClient = class;
+  TThreadDiscoverConnection = class;
 
   TNodeServerAddress = Record
     ip : String;
@@ -222,9 +225,9 @@ Type
   TNetClientsDestroyThread = Class(TPCThread)
   private
     FNetData : TNetData;
-    FTerminatedAllConnections : Boolean;
   protected
     procedure BCExecute; override;
+    procedure RegistryScanCompleted(AEmpty: Boolean); virtual;
   public
     Constructor Create(NetData : TNetData);
     Procedure WaitForTerminatedAllConnections;
@@ -279,7 +282,8 @@ Type
     FRegisteredRequests : TPCThreadList<Pointer>;
     FIsDiscoveringServers : Boolean;
     FLockGettingNewBlockChainFromClient : TPCCriticalSection;
-    FNewBlockChainFromClientStatus : String;
+    FNewBlockChainProgressLock : TPCCriticalSection;
+    FNewBlockChainFromClientStatus : TProgressInfo;
     FOnConnectivityChanged : TNotifyManyEvent;
     FOnNetConnectionsUpdated: TNotifyEvent;
     FOnNodeServersUpdated: TNotifyEvent;
@@ -292,6 +296,12 @@ Type
     FFixedServers : TNodeServerAddressArray;
     FNetClientsDestroyThread : TNetClientsDestroyThread;
     FNetConnectionsActive: Boolean;
+    FShutdownRequested: LongInt;
+    FBlockChainWorkerLock: TPCCriticalSection;
+    FBlockChainWorker: TThreadGetNewBlockChainFromClient;
+    FBlockChainStartPending: Boolean;
+    FDiscoveryWorkerLock: TPCCriticalSection;
+    FDiscoveryWorkers: TList<TThreadDiscoverConnection>;
     FMaxConnections : Integer;
     FNetworkAdjustedTime : TNetworkAdjustedTime;
     FIpInfos : TIpInfos;
@@ -303,8 +313,21 @@ Type
     procedure SetMinServersConnected(AValue: Integer);
     procedure SetNetConnectionsActive(const Value: Boolean);
     procedure SetMinFutureBlocksToDownloadNewSafebox(const Value: Integer);
-    procedure OnDownloadingSafeboxProgressNotify(sender : TObject; const mesage : String; curPos, totalCount : Int64);
+    procedure SetBlockChainProgress(const AProgress : TProgressInfo);
+    procedure OnDownloadingSafeboxProgressNotify(sender : TObject; const AProgress : TProgressInfo);
+    function GetShutdownRequested: Boolean;
+    procedure StopBlockChainWorker;
+    procedure StopDiscoveryWorkers;
+    function DiscoveryActiveLocked: Boolean;
+    function TryCreateDiscoveryClient(AWorker: TThreadDiscoverConnection): TNetClient;
   protected
+    function CreateClientsDestroyThread: TNetClientsDestroyThread; virtual;
+    function CreateDiscoveryWorker(const AAddress: TNodeServerAddress): TThreadDiscoverConnection; virtual;
+    function CreateDiscoveryClient: TNetClient; virtual;
+    procedure StartDiscoveryWorker(AWorker: TThreadDiscoverConnection); virtual;
+    procedure StartDiscoveryWorkers(const AAddresses: TNodeServerAddressArray);
+    function CreateBlockChainWorker: TThreadGetNewBlockChainFromClient; virtual;
+    procedure StartBlockChainWorker(AResumePending: Boolean = false);
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     Procedure DiscoverServersTerminated(Sender : TObject);
     procedure DoProcessReservedAreaMessage(senderConnection : TNetConnection; const headerData : TNetHeaderData; receivedData : TStream; responseData : TStream); virtual;
@@ -337,16 +360,21 @@ Type
     Function ConnectionExists(ObjectPointer : TObject) : Boolean;
     Function ConnectionLock(Sender : TObject; ObjectPointer : TObject; MaxWaitMiliseconds : Cardinal) : Boolean;
     Procedure ConnectionUnlock(ObjectPointer : TObject);
+    // Balanced lifetime leases for owned downloads and delayed notifications.
+    // A transferred lease must be released before the NetData owner can retire.
+    procedure AcquireDownloadConnections(AConnections: TList<TNetConnection>);
+    procedure ReleaseDownloadConnection(AConnection: TNetConnection);
     Function FindConnectionByClientRandomValue(Sender : TNetConnection) : TNetConnection;
     Procedure DiscoverServers;
     Procedure DisconnectClients;
-    procedure OnReadingNewSafeboxProgressNotify(sender : TObject; const mesage : String; curPos, totalCount : Int64);
-    Procedure GetNewBlockChainFromClient(Connection : TNetConnection; const why : String);
+    procedure BeginShutdown;
+    procedure OnReadingNewSafeboxProgressNotify(sender : TObject; const AProgress : TProgressInfo);
+    Procedure GetNewBlockChainFromClient(Connection : TNetConnection; const why : String); virtual;
     Property NodeServersAddresses : TOrderedServerAddressListTS read FNodeServersAddresses;
     Property NetConnections : TPCThreadList<TNetConnection> read FNetConnections;
     Property NetStatistics : TNetStatistics read FNetStatistics;
     Property IsDiscoveringServers : Boolean read FIsDiscoveringServers;
-    function IsGettingNewBlockChainFromClient(var status : String) : Boolean;
+    function IsGettingNewBlockChainFromClient(var status : TProgressInfo) : Boolean;
     Property MaxRemoteOperationBlock : TOperationBlock read FMaxRemoteOperationBlock;
     Property NodePrivateKey : TECPrivateKey read FNodePrivateKey;
     property OnConnectivityChanged : TNotifyManyEvent read FOnConnectivityChanged;
@@ -363,6 +391,7 @@ Type
     Procedure NotifyReceivedHelloMessage;
     Procedure NotifyStatisticsChanged;
     Property NetConnectionsActive : Boolean read FNetConnectionsActive write SetNetConnectionsActive;
+    property ShutdownRequested: Boolean read GetShutdownRequested;
     Property NetworkAdjustedTime : TNetworkAdjustedTime read FNetworkAdjustedTime;
     Property MaxNodeServersAddressesBuffer : Integer read FMaxNodeServersAddressesBuffer write SetMaxNodeServersAddressesBuffer;
     Property OnProcessReservedAreaMessage : TProcessReservedAreaMessage read FOnProcessReservedAreaMessage write FOnProcessReservedAreaMessage;
@@ -402,7 +431,16 @@ Type
     FBufferReceivedOperationsHash : TOrderedRawList;
     FBufferToSendOperations : TOperationsHashTree;
     FClientTimestampIp : String;
+    FDownloadOwner: TNetData;
+    FDownloadRetiring: Boolean;
+    FDownloadLeaseCount: Integer;
+    FDownloadLeasesDrained: TEvent;
+    FDrainingReceivedBlocks: Boolean;
+    FReceivedProtocolInvalid: Boolean;
+    FPendingOperationsRequested: LongInt;
+    function MustDrainReceivedBlocks: Boolean;
     function GetConnected: Boolean;
+    function IsPendingStateReadyForPeer: Boolean;
     procedure SetConnected(const Value: Boolean);
     procedure TcpClient_OnConnect(Sender: TObject);
     procedure TcpClient_OnDisconnect(Sender: TObject);
@@ -410,10 +448,10 @@ Type
     Procedure DoProcess_Hello(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_Message(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetBlocks_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
-    Procedure DoProcess_GetBlocks_Response(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetBlockchainOperations_Request(AHeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetOperationsBlock_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
-    Procedure DoProcess_NewBlock(AHeaderData : TNetHeaderData; DataBuffer: TStream);
+    Procedure DoProcess_NewBlock(AHeaderData : TNetHeaderData; DataBuffer: TStream;
+      ABufferedOnly: Boolean = False);
     Procedure DoProcess_AddOperations(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetSafeBox_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetPendingOperations_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
@@ -424,6 +462,17 @@ Type
     Function ReadTcpClientBuffer(MaxWaitMiliseconds : Cardinal; var HeaderData : TNetHeaderData; BufferData : TStream) : Boolean;
     function GetClient: TNetTcpIpClient;
   protected
+    // Existing processing owners finish locally held block frames without
+    // admitting another protocol request, including matched-response callers.
+    procedure DrainReceivedBlockFrames;
+    // Close admission first, disconnect without freeing the transport, then
+    // wait outside registry/socket locks for borrowed download use to retire.
+    procedure RetireDownloadUsage;
+    // Specialized transports and native protocol regressions share this exact
+    // decoder/application path. Buffered blocks finish after transport shutdown.
+    procedure DoProcess_GetBlocks_Response(HeaderData: TNetHeaderData; DataBuffer: TStream);
+    function CanRequestBlockDownload: Boolean;
+    function BlockProcessingTerminated: Boolean;
     Procedure Send(NetTranferType : TNetTransferType; operation, errorcode : Word; request_id : Integer; DataBuffer : TStream);
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     Procedure SendError(NetTranferType : TNetTransferType; operation, request_id : Integer; error_code : Integer; const error_text : String);
@@ -455,14 +504,15 @@ Type
     Procedure FinalizeConnection;
   End;
 
-  TNetClient = Class;
   TNetClientThread = Class(TPCThread)
   private
     FNetClient : TNetClient;
+    FStopAfterCurrentBuffer: LongInt;
   protected
     procedure BCExecute; override;
   public
     Constructor Create(NetClient : TNetClient; AOnTerminateThread : TNotifyEvent);
+    procedure RequestStopAfterCurrentBuffer;
   End;
 
   TNetClient = Class(TNetConnection)
@@ -483,26 +533,37 @@ Type
   protected
     Procedure OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient); override;
     procedure SetActive(const Value: Boolean); override;
+    function DrainClientBuffersOnStop: Boolean; override;
     procedure SetMaxConnections(AValue: Integer); override;
   public
     Constructor Create; override;
   End;
 
   TThreadDiscoverConnection = Class(TPCThread)
-    FNodeServerAddress : TNodeServerAddress;
+  private
+    FNetData: TNetData;
+    FExecutionFinished: Boolean;
+    function StopRequested: Boolean;
   protected
+    FNodeServerAddress : TNodeServerAddress;
     procedure BCExecute; override;
   public
-    Constructor Create(NodeServerAddress: TNodeServerAddress; NotifyOnTerminate : TNotifyEvent);
+    Constructor Create(ANetData: TNetData; const NodeServerAddress: TNodeServerAddress);
+    procedure StartOwned;
   End;
 
   { TThreadGetNewBlockChainFromClient }
 
   TThreadGetNewBlockChainFromClient = Class(TPCThread)
+  private
+    FNetData: TNetData;
+    FExecutionFinished: LongInt;
+    function GetExecutionFinished: Boolean;
   protected
     procedure BCExecute; override;
+    function SelectConnection(const AConnections: TList<TNetConnection>): TNetConnection; virtual;
   public
-    Constructor Create;
+    Constructor Create(ANetData: TNetData);
   End;
 
 
@@ -1046,7 +1107,7 @@ Var l : TList<TNetConnection>;
 begin
   l := FNetConnections.LockList;
   try
-    if (index>=0) And (index<l.Count) then Result := ( l[index] )
+    if (index>=0) And (index<l.Count) and (not l[index].FDownloadRetiring) then Result := ( l[index] )
     else Result := Nil;
   finally
     FNetConnections.UnlockList;
@@ -1102,8 +1163,14 @@ begin
   try
     for i := 0 to l.Count - 1 do begin
       if (TObject(l[i])=ObjectPointer) then begin
-        if (Not (TNetConnection(l[i]).FDoFinalizeConnection)) And (TNetConnection(l[i]).Connected) then begin
+        if (not TNetConnection(l[i]).FDownloadRetiring) and
+          (Not (TNetConnection(l[i]).FDoFinalizeConnection)) And (TNetConnection(l[i]).Connected) then begin
           nc := TNetConnection(l[i]);
+          // Registry validation alone does not retain the pointer after unlock.
+          // Pin it BEFORE waiting for FNetLock; retirement waits for this same
+          // lease, including a successful legacy lock held by its caller.
+          if nc.FDownloadLeaseCount = 0 then nc.FDownloadLeasesDrained.ResetEvent;
+          Inc(nc.FDownloadLeaseCount);
           Break;
         end else Exit;
       end;
@@ -1112,12 +1179,18 @@ begin
     FNetConnections.UnlockList;
   end;
   if Assigned(nc) then begin
-    repeat
-      if (nc.Connected) and Assigned(nc.FNetLock) then begin
-        If nc.FNetLock.TryEnter then Result := True
-        else Sleep(1);
-      end else Exit;
-    until (Result) Or (TPlatform.GetElapsedMilliseconds(tc)>MaxWaitMiliseconds);
+    try
+      repeat
+        if (nc.Connected) and Assigned(nc.FNetLock) then begin
+          If nc.FNetLock.TryEnter then Result := True
+          else Sleep(1);
+        end else Exit;
+      until (Result) Or (TPlatform.GetElapsedMilliseconds(tc)>MaxWaitMiliseconds);
+    finally
+      // Failure/timeout has no matching ConnectionUnlock. A successful call
+      // transfers exactly one pin to that balanced release, including recursion.
+      if not Result then ReleaseDownloadConnection(nc);
+    end;
   end;
 end;
 
@@ -1182,27 +1255,28 @@ var i : Integer;
   l : TList<TNetConnection>;
   nc : TNetConnection;
 begin
+  nc := nil;
   l := FNetConnections.LockList;
   try
     for i := 0 to l.Count - 1 do begin
       if TObject(l[i])=ObjectPointer then begin
-        TNetConnection(l[i]).FNetLock.Release;
-        exit;
+        nc := TNetConnection(l[i]);
+        Break;
       end;
     end;
   finally
     FNetConnections.UnlockList;
   end;
-  Try
-    nc := (ObjectPointer as TNetConnection);
-    if (not assigned(nc.FNetLock)) then raise Exception.Create('NetLock object not assigned');
-    nc.FNetLock.Release;
-  Except
-    on E:Exception do begin
-      TLog.NewLog(ltError,Classname,'Error unlocking Object '+IntToHex(PtrInt(ObjectPointer),8)+' Errors ('+E.ClassName+'): '+E.Message);
-    end;
-  End;
-  TLog.NewLog(ltDebug,ClassName,'Unlocked a NetLock object out of connections list');
+  if not Assigned(nc) then begin
+    // A balanced successful lock cannot disappear from this registry while its
+    // pin remains. Do not dereference an unregistered, possibly freed pointer.
+    TLog.NewLog(ltError,ClassName,'Cannot unlock unregistered NetConnection '+IntToHex(PtrInt(ObjectPointer),8));
+    Exit;
+  end;
+  nc.FNetLock.Release;
+  // Release FNetLock first; no registry ownership is held across socket work or
+  // a lock wait, and the pin still keeps nc alive until this final release.
+  ReleaseDownloadConnection(nc);
 end;
 
 constructor TNetData.Create(AOwner: TComponent);
@@ -1226,13 +1300,18 @@ begin
   FNodeServersAddresses := TOrderedServerAddressListTS.Create(Self);
   FLastRequestId := 0;
   FNetConnections := TPCThreadList<TNetConnection>.Create('TNetData_NetConnections');
+  FBlockChainWorkerLock := TPCCriticalSection.Create('TNetData_BlockChainWorker');
+  FBlockChainStartPending := False;
+  FDiscoveryWorkerLock := TPCCriticalSection.Create('TNetData_DiscoveryWorkers');
+  FDiscoveryWorkers := TList<TThreadDiscoverConnection>.Create;
   FLockGettingNewBlockChainFromClient := TPCCriticalSection.Create('LockGettingNewBlockChainFromClient');
-  FNewBlockChainFromClientStatus := '';
+  FNewBlockChainProgressLock := TPCCriticalSection.Create('NewBlockChainProgress');
+  FNewBlockChainFromClientStatus := Default(TProgressInfo);
   FNodePrivateKey := TECPrivateKey.Create;
   FNodePrivateKey.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
   FThreadCheckConnections := TThreadCheckConnections.Create(Self);
   FNetDataNotifyEventsThread := TNetDataNotifyEventsThread.Create(Self);
-  FNetClientsDestroyThread := TNetClientsDestroyThread.Create(Self);
+  FNetClientsDestroyThread := CreateClientsDestroyThread;
   FNetworkAdjustedTime := TNetworkAdjustedTime.Create;
   FMaxNodeServersAddressesBuffer:=(CT_MAX_NODESERVERS_BUFFER DIV 2);
   FMinServersConnected:=CT_MinServersConnected;
@@ -1250,8 +1329,8 @@ end;
 destructor TNetData.Destroy;
 Var l : TList<TNetConnection>;
   i : Integer;
-  tdc : TThreadDiscoverConnection;
 begin
+  BeginShutdown;
   TLog.NewLog(ltInfo,ClassName,'TNetData.Destroy START');
   {$IFDEF DELPHI_SYDNEY_PLUS }
   SetLength(FOnConnectivityChanged.Handlers, 0);
@@ -1272,17 +1351,9 @@ begin
   FThreadCheckConnections.WaitFor;
   FreeAndNil(FThreadCheckConnections);
 
-  // Now finish all DiscoverConnection threads
-  Repeat
-    tdc := TThreadDiscoverConnection( TPCThreadClass.GetThreadByClass(TThreadDiscoverConnection,nil) );
-    if Assigned(tdc) then begin
-      tdc.FreeOnTerminate := false;
-      tdc.Terminate;
-      tdc.WaitFor;
-      tdc.Free;
-      TLog.NewLog(ltInfo,ClassName,'TThreadDiscoverConnection finished');
-    end;
-  Until Not Assigned(tdc);
+  // Execute's global registry cannot see a constructed but not yet scheduled
+  // discovery. Join the workers registered with this owner before Start instead.
+  StopDiscoveryWorkers;
 
   // Closing connections
   l := FNetConnections.LockList;
@@ -1295,7 +1366,9 @@ begin
     FNetConnections.UnlockList;
   End;
 
-
+  // Admission was closed by BeginShutdown. Disconnect first to wake any silent
+  // response wait, then join the owned downloader before any registry is freed.
+  StopBlockChainWorker;
   FNetClientsDestroyThread.WaitForTerminatedAllConnections;
   FNetClientsDestroyThread.Terminate;
   FNetClientsDestroyThread.WaitFor;
@@ -1312,9 +1385,33 @@ begin
   FreeAndNil(FNetworkAdjustedTime);
   FreeAndNil(FIpInfos);
   FreeAndNil(FLockGettingNewBlockChainFromClient);
+  FreeAndNil(FNewBlockChainProgressLock);
+  FreeAndNil(FBlockChainWorkerLock);
+  FreeAndNil(FDiscoveryWorkers);
+  FreeAndNil(FDiscoveryWorkerLock);
   inherited;
   if (_NetData=Self) then _NetData := Nil;
   TLog.NewLog(ltInfo,ClassName,'TNetData.Destroy END');
+end;
+
+procedure TNetData.BeginShutdown;
+begin
+  // Transport-off still drains received blocks. Application shutdown is a
+  // separate signal, observed only between complete validation/commit units.
+  {$IFDEF FPC}
+  InterlockedExchange(FShutdownRequested,1);
+  {$ELSE}
+  TInterlocked.Exchange(FShutdownRequested,1);
+  {$ENDIF}
+end;
+
+function TNetData.GetShutdownRequested: Boolean;
+begin
+  {$IFDEF FPC}
+  Result := InterlockedCompareExchange(FShutdownRequested,0,0)<>0;
+  {$ELSE}
+  Result := TInterlocked.CompareExchange(FShutdownRequested,0,0)<>0;
+  {$ENDIF}
 end;
 
 procedure TNetData.DisconnectClients;
@@ -1347,16 +1444,15 @@ begin
 end;
 
 procedure TNetData.DiscoverServers;
-Var P : PNodeServerAddress;
-  i,j,k : Integer;
-  tdc : TThreadDiscoverConnection;
-  canAdd : Boolean;
+Var j : Integer;
   nsa : TNodeServerAddressArray;
 begin
-  if Not FNetConnectionsActive then exit;
-  if TPCThread.ThreadClassFound(TThreadDiscoverConnection,nil)>=0 then begin
-    {$IFDEF HIGHLOG}TLog.NewLog(ltInfo,ClassName,'Already discovering servers...');{$ENDIF}
-    exit;
+  if (not FNetConnectionsActive) or ShutdownRequested then exit;
+  FDiscoveryWorkerLock.Acquire;
+  try
+    if ShutdownRequested or DiscoveryActiveLocked then Exit;
+  finally
+    FDiscoveryWorkerLock.Release;
   end;
   FNodeServersAddresses.CleanBlackList(False);
   If NetStatistics.ClientsConnections>0 then begin
@@ -1375,24 +1471,253 @@ begin
   end;
   if length(nsa)>0 then begin
     TLog.NewLog(ltDebug,Classname,'Start discovering up to '+inttostr(length(nsa))+' servers... (max:'+inttostr(j)+')');
-    //
-    for i := 0 to high(nsa) do begin
-      FIsDiscoveringServers := true;
-      tdc := TThreadDiscoverConnection.Create(nsa[i],DiscoverServersTerminated);
-    end;
+    StartDiscoveryWorkers(nsa);
   end;
 end;
 
 procedure TNetData.DiscoverServersTerminated(Sender: TObject);
+var LFinished: Boolean;
 begin
+  FDiscoveryWorkerLock.Acquire;
+  try
+    TThreadDiscoverConnection(Sender).FExecutionFinished := true;
+    LFinished := FIsDiscoveringServers and not DiscoveryActiveLocked;
+    if LFinished then FIsDiscoveringServers := false;
+  finally
+    FDiscoveryWorkerLock.Release;
+  end;
+  if ShutdownRequested then Exit;
   NotifyNodeServersUpdated;
-  if TPCThread.ThreadClassFound(TThreadDiscoverConnection,Nil)>=0 then exit;
-  FIsDiscoveringServers := false;
+  if not LFinished then Exit;
+  // Publish the completed transition after clearing the state, not on a timer.
+  NotifyStatisticsChanged;
   // If here, discover servers finished, so we can try to get/receive data
   {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,Format('Discovering servers finished. Now we have %d active connections and %d connections to other servers',
     [ConnectionsCount(false),ConnectionsCount(true)]));{$ENDIF}
-  if TPCThread.ThreadClassFound(TThreadGetNewBlockChainFromClient,nil)>=0 then exit;
-  TThreadGetNewBlockChainFromClient.Create;
+  StartBlockChainWorker;
+end;
+
+function TNetData.CreateClientsDestroyThread: TNetClientsDestroyThread;
+begin
+  Result := TNetClientsDestroyThread.Create(Self);
+end;
+
+function TNetData.CreateDiscoveryWorker(const AAddress: TNodeServerAddress): TThreadDiscoverConnection;
+begin
+  Result := TThreadDiscoverConnection.Create(Self,AAddress);
+end;
+
+function TNetData.CreateDiscoveryClient: TNetClient;
+begin
+  Result := TNetClient.Create(nil);
+end;
+
+procedure TNetData.StartDiscoveryWorker(AWorker: TThreadDiscoverConnection);
+begin
+  AWorker.StartOwned;
+end;
+
+procedure TNetData.StartDiscoveryWorkers(const AAddresses: TNodeServerAddressArray);
+var LRetired: TList<TThreadDiscoverConnection>;
+  LWorker: TThreadDiscoverConnection;
+  LAddress: TNodeServerAddress;
+begin
+  if ShutdownRequested or not FNetConnectionsActive then Exit;
+  LRetired := TList<TThreadDiscoverConnection>.Create;
+  try
+    FDiscoveryWorkerLock.Acquire;
+    try
+      if ShutdownRequested or not FNetConnectionsActive or DiscoveryActiveLocked then Exit;
+      for LWorker in FDiscoveryWorkers do LRetired.Add(LWorker);
+      FDiscoveryWorkers.Clear;
+      try
+        for LAddress in AAddresses do begin
+          LWorker := CreateDiscoveryWorker(LAddress);
+          if not Assigned(LWorker) then raise EThread.Create('Discovery worker factory returned nil');
+          // Register while suspended. Even a pending, unscheduled worker belongs
+          // to shutdown; Execute's global thread registry is not its owner.
+          FDiscoveryWorkers.Add(LWorker);
+          try
+            StartDiscoveryWorker(LWorker);
+          except
+            FDiscoveryWorkers.Remove(LWorker);
+            LWorker.Terminate;
+            LRetired.Add(LWorker);
+            raise;
+          end;
+        end;
+      finally
+        FIsDiscoveringServers := DiscoveryActiveLocked;
+      end;
+    finally
+      FDiscoveryWorkerLock.Release;
+    end;
+    if FIsDiscoveringServers then NotifyStatisticsChanged;
+  finally
+    // Completed and failed-start workers may still be leaving Execute. Their
+    // destructor joins them without holding discovery admission or the registry.
+    for LWorker in LRetired do LWorker.Free;
+    LRetired.Free;
+  end;
+end;
+
+procedure TNetData.StopDiscoveryWorkers;
+var LWorkers: TList<TThreadDiscoverConnection>;
+  LWorker: TThreadDiscoverConnection;
+begin
+  if not Assigned(FDiscoveryWorkerLock) then Exit;
+  LWorkers := TList<TThreadDiscoverConnection>.Create;
+  try
+    FDiscoveryWorkerLock.Acquire;
+    try
+      for LWorker in FDiscoveryWorkers do begin
+        LWorker.Terminate;
+        LWorkers.Add(LWorker);
+      end;
+      FDiscoveryWorkers.Clear;
+      FIsDiscoveringServers := false;
+    finally
+      FDiscoveryWorkerLock.Release;
+    end;
+    // All are terminated before the first join. TThread.Destroy also starts a
+    // never-started terminated thread so its native handle is joined safely.
+    for LWorker in LWorkers do LWorker.Free;
+  finally
+    LWorkers.Free;
+  end;
+end;
+
+function TNetData.DiscoveryActiveLocked: Boolean;
+var LWorker: TThreadDiscoverConnection;
+begin
+  Result := true;
+  for LWorker in FDiscoveryWorkers do
+    if not LWorker.FExecutionFinished then Exit;
+  Result := false;
+end;
+
+function TNetData.TryCreateDiscoveryClient(AWorker: TThreadDiscoverConnection): TNetClient;
+begin
+  Result := nil;
+  FDiscoveryWorkerLock.Acquire;
+  try
+    if AWorker.StopRequested then Exit;
+    Result := CreateDiscoveryClient;
+    if not Assigned(Result) then raise EThread.Create('Discovery client factory returned nil');
+    FNetConnections.LockList;
+    try
+      // Discovery retains its client through Connect/finalization just as a
+      // downloader retains a selected peer. The destroyer skips held leases.
+      if Result.FDownloadLeaseCount = 0 then Result.FDownloadLeasesDrained.ResetEvent;
+      Inc(Result.FDownloadLeaseCount);
+    finally
+      FNetConnections.UnlockList;
+    end;
+  finally
+    FDiscoveryWorkerLock.Release;
+  end;
+end;
+
+function TNetData.CreateBlockChainWorker: TThreadGetNewBlockChainFromClient;
+begin
+  Result := TThreadGetNewBlockChainFromClient.Create(Self);
+end;
+
+procedure TNetData.StartBlockChainWorker(AResumePending: Boolean);
+var LPrevious, LFailed: TThreadGetNewBlockChainFromClient;
+begin
+  // Late producer callbacks deny admission without touching an owner lock that
+  // shutdown may already have retired. Repeat the check under admission below.
+  if ShutdownRequested or (AResumePending and not FNetConnectionsActive) then Exit;
+  LPrevious := nil;
+  LFailed := nil;
+  try
+    FBlockChainWorkerLock.Acquire;
+    try
+      if ShutdownRequested then Exit;
+      if AResumePending and not FBlockChainStartPending then Exit;
+      // A replacement peer's HELLO can arrive while the previous download is
+      // still unwinding. Retain that intent until the owned maintenance thread
+      // can start its successor; the completing worker must never join itself.
+      FBlockChainStartPending := True;
+      if Assigned(FBlockChainWorker) and
+        not FBlockChainWorker.GetExecutionFinished then Exit;
+      FBlockChainStartPending := False;
+      LPrevious := FBlockChainWorker;
+      FBlockChainWorker := nil;
+      // Construct suspended and publish ownership before Start. A shutdown can
+      // never observe an untracked running worker or join an unstarted one.
+      FBlockChainWorker := CreateBlockChainWorker;
+      if not Assigned(FBlockChainWorker) then
+        raise EThread.Create('Blockchain worker factory returned nil');
+      try
+        FBlockChainWorker.Start;
+      except
+        LFailed := FBlockChainWorker;
+        FBlockChainWorker := nil;
+        LFailed.Terminate;
+        raise;
+      end;
+    finally
+      FBlockChainWorkerLock.Release;
+    end;
+  finally
+    // Both joins/destruction are outside admission. Start/constructor failures
+    // also retain an owner until the failed object has been disposed.
+    LPrevious.Free;
+    LFailed.Free;
+  end;
+end;
+
+procedure TNetData.StopBlockChainWorker;
+var LWorker: TThreadGetNewBlockChainFromClient;
+begin
+  if not Assigned(FBlockChainWorkerLock) then Exit;
+  FBlockChainWorkerLock.Acquire;
+  try
+    LWorker := FBlockChainWorker;
+    FBlockChainWorker := nil;
+    if Assigned(LWorker) then LWorker.Terminate;
+  finally
+    FBlockChainWorkerLock.Release;
+  end;
+  if Assigned(LWorker) then begin
+    LWorker.WaitFor;
+    LWorker.Free;
+  end;
+end;
+
+procedure TNetData.AcquireDownloadConnections(AConnections: TList<TNetConnection>);
+var LList: TList<TNetConnection>; LConnection: TNetConnection;
+begin
+  LList := FNetConnections.LockList;
+  try
+    if ShutdownRequested or not FNetConnectionsActive then Exit;
+    for LConnection in LList do
+      if (not LConnection.FDownloadRetiring) and
+        (not LConnection.FDoFinalizeConnection) and LConnection.Connected then begin
+        AConnections.Add(LConnection);
+        if LConnection.FDownloadLeaseCount = 0 then
+          LConnection.FDownloadLeasesDrained.ResetEvent;
+        Inc(LConnection.FDownloadLeaseCount);
+      end;
+  finally
+    FNetConnections.UnlockList;
+  end;
+end;
+
+procedure TNetData.ReleaseDownloadConnection(AConnection: TNetConnection);
+begin
+  FNetConnections.LockList;
+  try
+    if AConnection.FDownloadLeaseCount <= 0 then
+      raise Exception.Create('Unbalanced blockchain connection lease');
+    Dec(AConnection.FDownloadLeaseCount);
+    if AConnection.FDownloadLeaseCount = 0 then
+      AConnection.FDownloadLeasesDrained.SetEvent;
+  finally
+    FNetConnections.UnlockList;
+  end;
 end;
 
 procedure TNetData.DoProcessReservedAreaMessage(senderConnection : TNetConnection; const headerData: TNetHeaderData; receivedData: TStream; responseData: TStream);
@@ -1489,6 +1814,7 @@ begin
   l := FNetConnections.LockList;
   try
     if (index>=0) And (index<l.Count) then begin
+      if l[index].FDownloadRetiring then Exit;
       NetConnection := TNetConnection( l[index] );
       Result := true;
       exit;
@@ -1512,6 +1838,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
   begin
     Result := false;
     BlocksList.Clear;
+    if not Connection.CanRequestBlockDownload then Exit;
     // First receive operations from
     SendData := TMemoryStream.Create;
     ReceiveData := TMemoryStream.Create;
@@ -1938,6 +2265,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     LSafeboxLastOperationBlock : TOperationBlock;
     errors : String;
     request_id : Cardinal;
+    LProgress : TProgressInfo;
   Begin
     Result := False;
     LChunks := TPCSafeboxChunks.Create;
@@ -1949,7 +2277,10 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       // Now receiveData is the ALL safebox
       TNode.Node.DisableNewBlocks;
       try
-          FNewBlockChainFromClientStatus := Format('Received new safebox with %d blocks from %s',[LSafeboxLastOperationBlock.block+1,Connection.ClientRemoteAddr]);
+          LProgress := TProgressInfo.Create(psReceivedSafebox);
+          LProgress.BlockCount := Int64(LSafeboxLastOperationBlock.block)+1;
+          LProgress.PeerAddress := Connection.ClientRemoteAddr;
+          SetBlockChainProgress(LProgress);
           If TNode.Node.Bank.LoadBankFromChunks(LChunks,LSafeboxLastOperationBlock.initial_safe_box_hash,TNode.Node.Bank.SafeBox,OnReadingNewSafeboxProgressNotify,errors) then begin
             TLog.NewLog(ltInfo,ClassName,'Received new safebox!');
             If Not IsMyBlockchainValid then begin
@@ -2066,6 +2397,8 @@ var rid : Cardinal;
   my_op, client_op : TOperationBlock;
   errors : String;
   LTickCount : TTickCount;
+  LProgress : TProgressInfo;
+  LProcessingFailed: Boolean;
 begin
   // Protection against discovering servers...
   if FIsDiscoveringServers then begin
@@ -2073,6 +2406,7 @@ begin
     exit;
   end;
   if (Not TNode.Node.UpdateBlockchain) then Exit;
+  if not Connection.CanRequestBlockDownload then Exit;
 
   if (Not Assigned(TNode.Node.Bank.StorageClass)) then Exit;
   //
@@ -2081,10 +2415,20 @@ begin
     TLog.NewLog(ltdebug,CT_LogSender,'Is getting new blockchain from client...');
     exit;
   end;
+  TNode.Node.BeginBlockChainUpdate;
+  LProcessingFailed := False;
   Try
+    try
+    // Keep the selected remote tip across request/batch gaps; the transfer scope
+    // alone cannot represent a synchronization session waiting for its next batch.
+    TNode.Node.SetSynchronizationTarget(Connection,Connection.RemoteOperationBlock.block+1);
     TLog.NewLog(ltdebug,CT_LogSender,'Starting receiving: '+why);
-    FNewBlockChainFromClientStatus := Format('Downloading block %d from %s',[Connection.RemoteOperationBlock.block,Connection.ClientRemoteAddr]);
+    LProgress := TProgressInfo.Create(psDownloadingBlockchain);
+    LProgress.BlockNumber := Connection.RemoteOperationBlock.block;
+    LProgress.PeerAddress := Connection.ClientRemoteAddr;
+    SetBlockChainProgress(LProgress);
     FMaxRemoteOperationBlock := Connection.FRemoteOperationBlock;
+    NotifyStatisticsChanged;
     if TNode.Node.Bank.BlocksCount=0 then begin
       TLog.NewLog(ltdebug,CT_LogSender,'I have no blocks');
       If Connection.FRemoteOperationBlock.protocol_version>=CT_PROTOCOL_2 then begin
@@ -2136,9 +2480,25 @@ begin
       // High to new value:
       DownloadNewBlockchain(my_op.block+1,True);
     end;
+    except
+      LProcessingFailed := True;
+      raise;
+    end;
   Finally
-    FLockGettingNewBlockChainFromClient.Release;
-    TLog.NewLog(ltdebug,CT_LogSender,Format('Finalizing process in %d milis',[TPlatform.GetElapsedMilliseconds(LTickCount)]));
+    try
+      // A matching response is consumed outside DoSendAndWaitForResponse.
+      // Retain this real downloader's physical scope through its local suffix,
+      // rather than briefly publishing Offline before its owner drains it.
+      if (not LProcessingFailed) and Connection.MustDrainReceivedBlocks then
+        Connection.DrainReceivedBlockFrames;
+    finally
+      try TNode.Node.EndBlockChainUpdate;
+      finally
+        FLockGettingNewBlockChainFromClient.Release;
+        NotifyStatisticsChanged;
+        TLog.NewLog(ltdebug,CT_LogSender,Format('Finalizing process in %d milis',[TPlatform.GetElapsedMilliseconds(LTickCount)]));
+      end;
+    end;
   end;
 end;
 
@@ -2176,17 +2536,23 @@ begin
   end;
 end;
 
-function TNetData.IsGettingNewBlockChainFromClient(var status: String): Boolean;
+function TNetData.IsGettingNewBlockChainFromClient(var status: TProgressInfo): Boolean;
 begin
   if FLockGettingNewBlockChainFromClient.TryEnter then begin
     try
       Result := False;
-      status := '';
+      status := Default(TProgressInfo);
     finally
       FLockGettingNewBlockChainFromClient.Release;
     end;
   end else begin
-    status := FNewBlockChainFromClientStatus;
+    // Copy only the small managed snapshot, never wait for download completion.
+    FNewBlockChainProgressLock.Acquire;
+    try
+      status := FNewBlockChainFromClientStatus;
+    finally
+      FNewBlockChainProgressLock.Release;
+    end;
     Result := True;
   end;
 end;
@@ -2289,20 +2655,33 @@ begin
   FNetDataNotifyEventsThread.FNotifyOnStatisticsChanged := true;
 end;
 
-procedure TNetData.OnDownloadingSafeboxProgressNotify(sender: TObject;
-  const mesage: String; curPos, totalCount: Int64);
-Var pct : String;
+procedure TNetData.SetBlockChainProgress(const AProgress: TProgressInfo);
 begin
-  if (totalCount>0) then pct := FormatFloat('0.00',curPos*100/totalCount)+'%' else pct := '';
-  FNewBlockChainFromClientStatus := Format('%s %s',[mesage,pct]);
+  // Synchronize record/string ownership separately from the long download gate.
+  // Formatting and notification callbacks must run outside this short copy lock.
+  FNewBlockChainProgressLock.Acquire;
+  try
+    FNewBlockChainFromClientStatus := AProgress;
+  finally
+    FNewBlockChainProgressLock.Release;
+  end;
+  if TNode.NodeExists then TNode.Node.SetSynchronizationProgress(AProgress);
 end;
 
-procedure TNetData.OnReadingNewSafeboxProgressNotify(sender: TObject; const mesage: String; curPos, totalCount: Int64);
-Var pct : String;
+procedure TNetData.OnDownloadingSafeboxProgressNotify(sender: TObject;
+  const AProgress: TProgressInfo);
 begin
-  if (totalCount>0) then pct := FormatFloat('0.00',curPos*100/totalCount)+'%' else pct := '';
+  SetBlockChainProgress(AProgress);
+  NotifyStatisticsChanged;
+end;
 
-  FNewBlockChainFromClientStatus := Format('Checking new safebox: %s %s',[mesage,pct]);
+procedure TNetData.OnReadingNewSafeboxProgressNotify(sender: TObject; const AProgress: TProgressInfo);
+var LProgress : TProgressInfo;
+begin
+  LProgress := AProgress;
+  LProgress.Context := pcCheckingNewSafebox;
+  SetBlockChainProgress(LProgress);
+  NotifyStatisticsChanged;
 end;
 
 class function TNetData.OperationToText(operation: Word): String;
@@ -2367,7 +2746,16 @@ end;
 
 procedure TNetData.SetNetConnectionsActive(const Value: Boolean);
 begin
+  if Value and ShutdownRequested then Exit;
+  // Explicit OFF -> ON is a fresh connection attempt, as on application
+  // startup. Retain normal automatic retry backoff while networking stays on.
+  if Value and not FNetConnectionsActive then
+    FNodeServersAddresses.ResetConnectAttempts;
   FNetConnectionsActive := Value;
+  // Stop new acquisition before closing sockets. Received work retains its
+  // synchronizing state until its physical scopes drain; only then can local
+  // pages resume without the discarded remote target keeping them suspended.
+  TNode.Node.SetSynchronizationNetworkActive(Value);
   NotifyConnectivityChanged;
   if FNetConnectionsActive then DiscoverServers
   else DisconnectClients;
@@ -2458,6 +2846,8 @@ begin
         Until (Not n.Connected) Or (tc + 5000 < TPlatform.GetTickCount);
         sleep(5);
         DebugStep := 'Assigning old client';
+        n.DrainReceivedBlockFrames;
+        n.RetireDownloadUsage;
         n.SetClient( NetTcpIpClientClass.Create(Nil) );
         sleep(500); // Delay - Sleep time before destroying (1.5.3)
         DebugStep := 'Freeing NetServerClient';
@@ -2474,6 +2864,9 @@ end;
 
 procedure TNetServer.SetActive(const Value: Boolean);
 begin
+  // An enable request queued before Quit must not reopen the listener after
+  // shutdown was published while its preceding network task was draining.
+  if Value and TNetData.NetDataExists and TNetData.NetData.ShutdownRequested then Exit;
   if Value then begin
     TLog.NewLog(ltinfo,Classname,'Activating server on port '+IntToStr(Port));
   end else begin
@@ -2486,6 +2879,11 @@ begin
   end else if TNetData.NetDataExists then begin
     TNetData.NetData.DisconnectClients;
   end;
+end;
+
+function TNetServer.DrainClientBuffersOnStop: Boolean;
+begin
+  Result := True;
 end;
 
 procedure TNetServer.SetMaxConnections(AValue: Integer);
@@ -2534,6 +2932,9 @@ function TNetConnection.ConnectTo(ServerIP: String; ServerPort: Word) : Boolean;
 Var nsa : TNodeServerAddress;
   i : Integer;
 begin
+  Result := False;
+  if (not TNetData.NetData.NetConnectionsActive) or
+    TNetData.NetData.ShutdownRequested then Exit;
   If FIsConnecting then Exit;
   Try
     FIsConnecting:=True;
@@ -2548,7 +2949,15 @@ begin
       nsa.netConnection := Self;
       TNetData.NetData.NodeServersAddresses.SetNodeServerAddress(nsa);
       TNetData.NetData.NotifyNetConnectionUpdated;
+      FReceivedProtocolInvalid := False;
       Result := Client.Connect;
+      // A connect already in flight may finish after OFF. Do not let its new
+      // socket begin another download; already received block buffers are separate.
+      if Result and ((not TNetData.NetData.NetConnectionsActive) or
+        TNetData.NetData.ShutdownRequested) then begin
+        Client.Disconnect;
+        Result := False;
+      end;
     Finally
       FNetLock.Release;
     End;
@@ -2594,7 +3003,9 @@ begin
   FRemoteOperationBlock := CT_OperationBlock_NUL;
   FRemoteAccumulatedWork := 0;
   SetClient( TBufferedNetTcpIpClient.Create(Self) );
-  TNetData.NetData.FNetConnections.Add(Self);
+  FDownloadOwner := TNetData.NetData;
+  FDownloadLeasesDrained := TEvent.Create(nil, true, true, '');
+  FDownloadOwner.FNetConnections.Add(Self);
   TNetData.NetData.NotifyNetConnectionUpdated;
   FBufferLock := TPCCriticalSection.Create('TNetConnection_BufferLock');
   FBufferReceivedOperationsHash := TOrderedRawList.Create;
@@ -2604,12 +3015,13 @@ end;
 
 destructor TNetConnection.Destroy;
 begin
+  RetireDownloadUsage;
+  if TNode.NodeExists then TNode.Node.SetSynchronizationPeerConnected(Self,False);
   Try
     {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,'Destroying '+Classname+' '+IntToHex(PtrInt(Self),8));{$ENDIF}
     Connected := false;
   Finally
     TNetData.NetData.NodeServersAddresses.DeleteNetConnection(Self);
-    TNetData.NetData.FNetConnections.Remove(Self);
   End;
   TNetData.NetData.UnRegisterRequest(Self,0,0);
   Try
@@ -2622,8 +3034,43 @@ begin
     FreeAndNil(FBufferReceivedOperationsHash);
     FreeAndNil(FBufferToSendOperations);
     FreeAndNil(FRemoteAggregatedHashrate);
+    FreeAndNil(FDownloadLeasesDrained);
+    // Keep the registry entry until all fields used by a retiring downloader
+    // have gone. NetData's connection-drain completion must not race that work.
+    if Assigned(FDownloadOwner) then FDownloadOwner.FNetConnections.Remove(Self);
     inherited;
   End;
+end;
+
+procedure TNetConnection.RetireDownloadUsage;
+var LHasLease: Boolean;
+begin
+  if not Assigned(FDownloadOwner) or not Assigned(FDownloadLeasesDrained) then Exit;
+  FDownloadOwner.FNetConnections.LockList;
+  try
+    FDownloadRetiring := true;
+  finally
+    FDownloadOwner.FNetConnections.UnlockList;
+  end;
+  // Wake a selected downloader's silent socket wait without replacing/freeing
+  // its transport. Already decoded receive buffers retain their ordinary owner.
+  Connected := false;
+  repeat
+    FDownloadOwner.FNetConnections.LockList;
+    try
+      LHasLease := FDownloadLeaseCount <> 0;
+    finally
+      FDownloadOwner.FNetConnections.UnlockList;
+    end;
+    if not LHasLease then Exit;
+    // There is no registry/FNetLock held here. Main-thread destruction must also
+    // service existing synchronized notifications that a downloader can emit.
+    if TThread.CurrentThread.ThreadID = MainThreadID then begin
+      CheckSynchronize;
+      FDownloadLeasesDrained.WaitFor(10);
+    end else
+      FDownloadLeasesDrained.WaitFor(INFINITE);
+  until false;
 end;
 
 procedure TNetConnection.DisconnectInvalidClient(ItsMyself : Boolean; const why: String);
@@ -2631,6 +3078,9 @@ Var include_in_list : Boolean;
   ns : TNodeServerAddress;
   aux_s : String;
 begin
+  // An invalid session must not gain a second acceptance path through the
+  // disconnected buffered-only drain. A later explicit Connect resets this.
+  FReceivedProtocolInvalid := True;
   FIsDownloadingBlocks := false;
   if ItsMyself then begin
     TLog.NewLog(ltInfo,Classname,'Disconecting myself '+ClientRemoteAddr+' > '+Why)
@@ -2668,6 +3118,10 @@ Var HeaderData : TNetHeaderData;
   ops : String;
   iPending : Integer;
 begin
+  if MustDrainReceivedBlocks then begin
+    DrainReceivedBlockFrames;
+    Exit;
+  end;
   if FDoFinalizeConnection then begin
     if Connected then begin
       TLog.NewLog(ltdebug,Classname,'Executing DoFinalizeConnection at client '+ClientRemoteAddr);
@@ -2682,6 +3136,23 @@ begin
     end;
   finally
     ms.Free;
+  end;
+  // The socket may have been disconnected during the atomic current frame.
+  // Its retained block drain has finished; never allocate a HELLO/request now.
+  if MustDrainReceivedBlocks or BlockProcessingTerminated then Exit;
+  // Pending exchange may have been requested at the end of a block response,
+  // while its outer catch-up scope still hid the overlay. Service that one
+  // retained protocol intent on the normal I/O owner after reconciliation;
+  // never make block download wait for a pending replay or use a UI timer.
+  if (not FIsWaitingForResponse) and (FLastDataReceivedTS>0) and
+    IsPendingStateReadyForPeer and CanRequestBlockDownload then begin
+    {$IFDEF FPC}
+    iPending := InterlockedExchange(FPendingOperationsRequested,0);
+    {$ELSE}
+    iPending := TInterlocked.Exchange(FPendingOperationsRequested,0);
+    {$ENDIF}
+    if iPending<>0 then DoProcess_GetPendingOperations;
+    if MustDrainReceivedBlocks or BlockProcessingTerminated then Exit;
   end;
   If ((FLastDataReceivedTS>0) Or ( NOT (Self is TNetServerClient)))
     and (TPlatform.GetElapsedMilliseconds(FLastHelloTS)>(1000*FRandomWaitSecondsSendHello)) then begin
@@ -2702,6 +3173,91 @@ begin
   end;
 end;
 
+function TNetConnection.MustDrainReceivedBlocks: Boolean;
+begin
+  Result := FDoFinalizeConnection or (not Connected) or
+    (TNetData.NetDataExists and (not TNetData.NetData.NetConnectionsActive));
+end;
+
+procedure TNetConnection.DrainReceivedBlockFrames;
+var
+  LClient: TBufferedNetTcpIpClient;
+  LReadBuffer, LPayload: TMemoryStream;
+  LHeader: TNetHeaderData;
+  LNeedMore, LPhysicalScope: Boolean;
+  LReceivedBytes: Int64;
+begin
+  if BlockProcessingTerminated or FReceivedProtocolInvalid or
+    (not Assigned(FTcpIpClient)) then Exit;
+  LClient := FTcpIpClient as TBufferedNetTcpIpClient;
+  LPhysicalScope := False;
+  LPayload := TMemoryStream.Create;
+  LClient.PauseReceiving;
+  try
+    // No registry or buffer gate is held while a last admitted read publishes.
+    // An outer legacy/recursive FNetLock may remain owned by this caller;
+    // the transport's fixed TcpClient_OnDisconnect callback only publishes
+    // cached status/statistics/notify flags and never acquires FNetLock.
+    // DoReceivedData runs after the receive reservation has ended.
+    // This also leaves the IO worker reusable if the
+    // same transport is connected again after the balanced resume below.
+    LClient.Disconnect;
+    LClient.WaitForReceiveIdle;
+    TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+    try
+      if FDrainingReceivedBlocks then Exit;
+      FDrainingReceivedBlocks := True;
+      try
+        LReadBuffer := LClient.ReadBufferLock;
+        try
+          LReceivedBytes := LReadBuffer.Size;
+          FClientBufferRead.Position := FClientBufferRead.Size;
+          if LReceivedBytes>0 then FClientBufferRead.CopyFrom(LReadBuffer,0);
+          LReadBuffer.Size := 0;
+        finally LClient.ReadBufferUnlock; end;
+        // Disconnect already retired the live-peer counters. Account retained
+        // bytes only; a first buffered frame must not resurrect a dead server.
+        if LReceivedBytes>0 then TNetData.NetData.IncStatistics(0,0,0,0,LReceivedBytes,0);
+        FClientBufferRead.Position := 0;
+        while (not BlockProcessingTerminated) and (not FReceivedProtocolInvalid) do begin
+          if not TNetData.ExtractHeaderInfo(FClientBufferRead,LHeader,LPayload,LNeedMore) then Break;
+          // Keep ordinary protocol validation. A complete frame is not proof
+          // that its protocol, error/type or full block payload is acceptable.
+          if LHeader.protocol.protocol_version>CT_NetProtocol_Available then begin
+            DisconnectInvalidClient(False,'Invalid buffered Net protocol version');
+            Break;
+          end;
+          if LHeader.is_error then Continue;
+          if ((LHeader.operation=CT_NetOp_GetBlocks) and (LHeader.header_type=ntp_response)) or
+             ((LHeader.operation in [CT_NetOp_NewBlock,CT_NetOp_NewBlock_Fast_Propagation]) and
+              (LHeader.header_type=ntp_autosend)) then begin
+            if not LPhysicalScope then begin
+              TNode.Node.BeginBlockChainUpdate;
+              LPhysicalScope := True;
+            end;
+            if LHeader.operation=CT_NetOp_GetBlocks then begin
+              TNetData.NetData.UnRegisterRequest(Self,LHeader.operation,LHeader.request_id);
+              DoProcess_GetBlocks_Response(LHeader,LPayload);
+            end else DoProcess_NewBlock(LHeader,LPayload,True);
+          end;
+          // No HELLO, requests, reserved callbacks or fast-propagation fetches
+          // are dispatched here. Full blocks and fast announcements whose
+          // referenced operations are already local can finish offline. An
+          // incomplete/invalid suffix is safely discarded.
+        end;
+        FClientBufferRead.Size := 0;
+      finally FDrainingReceivedBlocks := False; end;
+    finally FNetLock.Release; end;
+  finally
+    try
+      if LPhysicalScope then TNode.Node.EndBlockChainUpdate;
+    finally
+      LClient.ResumeReceiving;
+      LPayload.Free;
+    end;
+  end;
+end;
+
 procedure TNetConnection.DoProcess_AddOperations(HeaderData: TNetHeaderData; DataBuffer: TStream);
 var c,i : Integer;
     optype : Byte;
@@ -2712,6 +3268,13 @@ var c,i : Integer;
   DoDisconnect : Boolean;
   Lopc,Lprc : Integer;
 begin
+  // A first HELLO can announce a newer chain before its downloader starts.
+  // Defer pending work rather than execute modern operations on an old overlay.
+  if (HeaderData.header_type=ntp_autosend) and not IsPendingStateReadyForPeer then begin
+    {$IFDEF FPC}InterlockedExchange(FPendingOperationsRequested,1);
+    {$ELSE}TInterlocked.Exchange(FPendingOperationsRequested,1);{$ENDIF}
+    Exit;
+  end;
   DoDisconnect := true;
   operations := TOperationsHashTree.Create;
   try
@@ -2941,6 +3504,27 @@ begin
   end;
 end;
 
+function TNetConnection.BlockProcessingTerminated: Boolean;
+begin
+  if TNetData.NetDataExists and TNetData.NetData.ShutdownRequested then
+    Exit(True);
+  Result := False;
+  {$IFNDEF FPC}
+  // Delphi rejects CheckTerminated for main/externally created threads. These
+  // public transport methods are also called by UI/RPC code; only owned workers
+  // have a cancellation flag to inspect through that RTL API.
+  if TThread.CurrentThread.ExternalThread then Exit;
+  {$ENDIF}
+  Result := TThread.CheckTerminated;
+end;
+
+function TNetConnection.CanRequestBlockDownload: Boolean;
+begin
+  Result := TNode.Node.CanRequestBlockChainData and
+    (not FDoFinalizeConnection) and Connected and
+    (not BlockProcessingTerminated);
+end;
+
 procedure TNetConnection.DoProcess_GetBlocks_Response(HeaderData: TNetHeaderData; DataBuffer: TStream);
   var LTmpOp : TPCOperationsComp;
     LOpCountCardinal,c : Cardinal;
@@ -2951,7 +3535,10 @@ procedure TNetConnection.DoProcess_GetBlocks_Response(HeaderData: TNetHeaderData
   LBlocks : TList<TPCOperationsComp>;
   LSafeboxTransaction : TPCSafeBoxTransaction;
   LPrevious : Boolean;
+  LOperationBlock : TOperationBlock;
 begin
+  TNode.Node.BeginBlockChainUpdate;
+  try
   DoDisconnect := true;
   {$IFDEF USE_ABSTRACTMEM}
   if (TNode.Node.Bank.Storage is TAbstractMemBlockchainStorage) then begin
@@ -2980,6 +3567,7 @@ begin
       LOpCount := LOpCountCardinal;
       DoDisconnect :=false;
       for i := 0 to LOpCount-1 do begin
+        if BlockProcessingTerminated then Exit;
         LTmpOp := TPCOperationsComp.Create(nil);
         try
           LTmpOp.bank := TNode.Node.Bank;
@@ -2999,7 +3587,13 @@ begin
         end;
       end;
 
+      if LBlocks.Count>0 then
+        TNode.Node.LogBlockChainBatchReceived(Self,LBlocks.Count,
+          LBlocks[0].OperationBlock.block,LBlocks[LBlocks.Count-1].OperationBlock.block,
+          DataBuffer.Size);
+      if BlockProcessingTerminated then Exit;
       TPCOperationsBlockValidator.MultiThreadValidateOperationsBlock(LBlocks);
+      if BlockProcessingTerminated then Exit;
       LSafeboxTransaction := TPCSafeBoxTransaction.Create(TNode.Node.Bank.SafeBox);
       try
         TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(LSafeboxTransaction,LBlocks,Nil);
@@ -3008,9 +3602,22 @@ begin
       end;
 
       for i := 0 to LBlocks.Count-1 do begin
+        // Network-off stops acquisition, not this received backlog. Explicit
+        // worker shutdown may retire it only between complete atomic blocks.
+        if BlockProcessingTerminated then Exit;
+        while not TNode.Node.TryLockNode(100) do
+          if BlockProcessingTerminated then Exit;
+        try
+        if BlockProcessingTerminated then Exit;
+        // Preserve this path's existing no-rebroadcast policy, but protect the
+        // bank commit AND synchronous mempool reconciliation as one node write.
+        // Readers must not observe a new confirmed base with old pending deltas.
         if (LBlocks[i].OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
+          // A successful bank commit clears the supplied operations. Retain
+          // its original header for the same audit record as announced blocks.
+          LOperationBlock := LBlocks[i].OperationBlock;
           if (TNode.Node.Bank.AddNewBlockChainBlock(LBlocks[i],TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock, errors)) then begin
-            // Ok, one more!
+            TNode.Node.LogBlockChainResult(Self,LOperationBlock,True,'');
           end else begin
             // Is not a valid entry????
             // Perhaps an orphan blockchain: Me or Client!
@@ -3024,10 +3631,14 @@ begin
           FIsDownloadingBlocks := false;
           exit;
         end;
+        finally
+          TNode.Node.UnlockNode;
+        end;
         sleep(1);
       end;
 
       FIsDownloadingBlocks := false;
+      if not CanRequestBlockDownload then Exit;
       if ((LOpCount>0) And (FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount)) then begin
         Send_GetBlocks(TNode.Node.Bank.BlocksCount,100+Random(300),c);
       end else begin
@@ -3042,6 +3653,7 @@ begin
       LBlocks.Free;
     End;
   Finally
+    FIsDownloadingBlocks := False;
     if DoDisconnect then begin
       DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
     end;
@@ -3054,6 +3666,9 @@ begin
       end;
     end;
     {$ENDIF}
+  end;
+  finally
+    TNode.Node.EndBlockChainUpdate;
   end;
 end;
 
@@ -3242,6 +3857,25 @@ var responseStream : TMemoryStream;
   errors : String;
   opht : TOperationsHashTree;
   LLockedMempool : TPCOperationsComp;
+
+  procedure SendUnavailableOperations;
+  var LEmpty: TOperationsHashTree; LCount: Cardinal;
+  begin
+    // Legacy requesters parse this response without checking error frames.
+    // An unavailable overlay exposes zero available operations, using the
+    // existing count/tree encodings rather than a misleading protocol error.
+    responseStream.Clear;
+    if b=1 then begin
+      LCount := 0;
+      responseStream.Write(LCount,SizeOf(LCount));
+    end else begin
+      LEmpty := TOperationsHashTree.Create;
+      try LEmpty.SaveOperationsHashTreeToStream(responseStream,False);
+      finally LEmpty.Free; end;
+    end;
+    DoDisconnect := False;
+    Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,responseStream);
+  end;
 begin
   {
   This call is used to obtain pending operations not included in blockchain
@@ -3258,6 +3892,7 @@ begin
   DoDisconnect := true;
   responseStream := TMemoryStream.Create;
   try
+    try
     if HeaderData.header_type<>ntp_request then begin
       errors := 'Not request';
       exit;
@@ -3265,6 +3900,8 @@ begin
     DataBuffer.Read(b,1);
     if (b=1) then begin
       // Return count
+      if not TNode.Node.PendingOperationsAvailable then
+        raise EPendingOperationsUnavailable.Create('Pending operations are unavailable during blockchain synchronization');
       c := TNode.Node.MempoolOperationsCount;
       responseStream.Write(c,SizeOf(c));
     end else if (b=2) then begin
@@ -3302,6 +3939,11 @@ begin
     end;
     DoDisconnect:=False;
     Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,responseStream);
+    except
+      on E: EPendingOperationsUnavailable do begin
+        SendUnavailableOperations;
+      end;
+    end;
   finally
     responseStream.Free;
     if DoDisconnect then begin
@@ -3319,12 +3961,17 @@ Var dataSend, dataReceived : TMemoryStream;
   errors : String;
   i,Lopc,Lprc : Integer;
 begin
+  if not IsPendingStateReadyForPeer then begin
+    {$IFDEF FPC}InterlockedExchange(FPendingOperationsRequested,1);
+    {$ELSE}TInterlocked.Exchange(FPendingOperationsRequested,1);{$ENDIF}
+    Exit;
+  end;
   {$IFDEF PRODUCTION}
   If FNetProtocolVersion.protocol_available<=6 then Exit; // Note: GetPendingOperations started on protocol_available=7
   {$ENDIF}
   request_id := 0;
   cAddedOperations := 0;
-  if Not Connected then exit;
+  if not CanRequestBlockDownload then Exit;
   // First receive operations from
   dataSend := TMemoryStream.Create;
   dataReceived := TMemoryStream.Create;
@@ -3335,6 +3982,10 @@ begin
     If Not DoSendAndWaitForResponse(CT_NetOp_GetPendingOperations,request_id,dataSend,dataReceived,20000,headerData) then begin
       Exit;
     end;
+    // Matching protocol errors are valid responses, not count/tree payloads.
+    // Their text is already logged by the header decoder; never blacklist the
+    // peer by interpreting an unavailable/error message as operation bytes.
+    if headerData.is_error then Exit;
     dataReceived.Position:=0;
     cTotalByOther := 0;
     If (dataReceived.Read(cTotalByOther,SizeOf(cTotal))<SizeOf(cTotal)) then begin
@@ -3360,6 +4011,7 @@ begin
       If Not DoSendAndWaitForResponse(CT_NetOp_GetPendingOperations,request_id,dataSend,dataReceived,50000,headerData) then begin
         Exit;
       end;
+      if headerData.is_error then Exit;
       dataReceived.Position:=0;
       //
       opht := TOperationsHashTree.Create;
@@ -3374,6 +4026,13 @@ begin
         If (opht.OperationsCount>0) then begin
           inc(cReceived,opht.OperationsCount);
           i := TNode.Node.AddOperations(Self,opht,Nil,errors);
+          if i<0 then begin
+            // A new block can start after the request was sent. Retain a
+            // later exchange instead of adding a negative count to Cardinal.
+            {$IFDEF FPC}InterlockedExchange(FPendingOperationsRequested,1);
+            {$ELSE}TInterlocked.Exchange(FPendingOperationsRequested,1);{$ENDIF}
+            Exit;
+          end;
           inc(cAddedOperations,i);
         end else Break; // No more
         inc(cStart,opht.OperationsCount);
@@ -3422,6 +4081,9 @@ begin
   responseStream := TMemoryStream.Create;
   accountsStream := TMemoryStream.Create;
   try
+    try
+      if not TNode.Node.PendingOperationsAvailable then
+        raise EPendingOperationsUnavailable.Create('Pending operations are unavailable during blockchain synchronization');
     // Response first 4 bytes are current block number
     c := TNode.Node.Bank.BlocksCount-1;
     responseStream.Write(c,SizeOf(c));
@@ -3473,6 +4135,14 @@ begin
       DoDisconnect := False;
       SendError(ntp_response,HeaderData.operation,HeaderData.request_id,CT_NetError_NotAvailable,'No OrderedAccountKeysList available');
     end;
+    except
+      on E: EPendingOperationsUnavailable do begin
+        // Busy pending state is temporary, not an invalid peer request.
+        DoDisconnect := False;
+        SendError(ntp_response,HeaderData.operation,HeaderData.request_id,
+          CT_NetError_NotAvailable,E.Message);
+      end;
+    end;
   finally
     responseStream.Free;
     accountsStream.Free;
@@ -3518,6 +4188,9 @@ begin
   DoDisconnect := true;
   responseStream := TMemoryStream.Create;
   try
+    try
+      if not TNode.Node.PendingOperationsAvailable then
+        raise EPendingOperationsUnavailable.Create('Pending operations are unavailable during blockchain synchronization');
     // Response first 4 bytes are current block number
     c := TNode.Node.Bank.BlocksCount-1;
     responseStream.Write(c,SizeOf(c));
@@ -3586,6 +4259,14 @@ begin
     end;
     DoDisconnect:=False;
     Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,responseStream);
+    except
+      on E: EPendingOperationsUnavailable do begin
+        // Busy pending state is temporary, not an invalid peer request.
+        DoDisconnect := False;
+        SendError(ntp_response,HeaderData.operation,HeaderData.request_id,
+          CT_NetError_NotAvailable,E.Message);
+      end;
+    end;
   finally
     responseStream.Free;
     if DoDisconnect then begin
@@ -3664,6 +4345,7 @@ Begin
 
     if op.LoadBlockFromStream(DataBuffer,errors) then begin
       FRemoteOperationBlock := op.OperationBlock;
+      TNode.Node.UpdateSynchronizationPeerTarget(Self,FRemoteOperationBlock.block+1);
       if (DataBuffer.Size-DataBuffer.Position>=4) then begin
         DataBuffer.Read(c,4);
         for i := 1 to c do begin
@@ -3695,9 +4377,7 @@ Begin
           ((FRemoteAggregatedHashrate.CompareTo(TNode.Node.Bank.SafeBox.AggregatedHashrate)>0))
           then begin
           TNetData.NetData.FMaxRemoteOperationBlock := FRemoteOperationBlock;
-          if TPCThread.ThreadClassFound(TThreadGetNewBlockChainFromClient,nil)<0 then begin
-            TThreadGetNewBlockChainFromClient.Create;
-          end;
+          TNetData.NetData.StartBlockChainWorker;
         end;
       end;
 
@@ -3786,7 +4466,8 @@ begin
   end;
 end;
 
-procedure TNetConnection.DoProcess_NewBlock(AHeaderData: TNetHeaderData; DataBuffer: TStream);
+procedure TNetConnection.DoProcess_NewBlock(AHeaderData: TNetHeaderData; DataBuffer: TStream;
+  ABufferedOnly: Boolean);
 Type
   TNewFastPropagationBlockOperation = Record
     opReference : TOpReference;
@@ -3831,27 +4512,23 @@ var operationsComp : TPCOperationsComp;
     DoDisconnect := False;
     notFoundOpReferencesCount := 0;
     if (oprefcount>0) then begin
-      // Try TNode locking process
-      If Not TNode.Node.TryLockNode(3000) then Exit; // Cannot lock...
+      // Reference reconstruction uses operation bytes, not pending balances.
+      // It must remain available while a received catch-up overlay is deferred.
+      If Not TNode.Node.TryLockMempoolOperationsRead(3000, LLockedMempool) then Exit;
       Try
         if (operationsComp.OperationBlock.block<>TNode.Node.Bank.BlocksCount) then Exit; // Meanwhile other threads have added it
         // Fill not included operations:
-        LLockedMempool := TNode.Node.LockMempoolRead;
-        try
-          for i:=0 to High(nfpboarr) do begin
-            iNodeOpReference := LLockedMempool.OperationsHashTree.IndexOfOpReference(nfpboarr[i].opReference);
-            if iNodeOpReference>=0 then begin
-              nfpboarr[i].opStreamData := LLockedMempool.OperationsHashTree.GetOperation(iNodeOpReference).GetOperationStreamData;
-              nfpboarr[i].opStreamDataUsingV5EncodeStyle:=True; // Flag to indicate that opStreamData is saved in V5 format
-            end else begin
-              inc(notFoundOpReferencesCount);
-            end;
+        for i:=0 to High(nfpboarr) do begin
+          iNodeOpReference := LLockedMempool.OperationsHashTree.IndexOfOpReference(nfpboarr[i].opReference);
+          if iNodeOpReference>=0 then begin
+            nfpboarr[i].opStreamData := LLockedMempool.OperationsHashTree.GetOperation(iNodeOpReference).GetOperationStreamData;
+            nfpboarr[i].opStreamDataUsingV5EncodeStyle:=True; // Flag to indicate that opStreamData is saved in V5 format
+          end else begin
+            inc(notFoundOpReferencesCount);
           end;
-        finally
-          TNode.Node.UnlockMempoolRead;
         end;
       Finally
-        TNode.Node.UnlockNode;
+        TNode.Node.UnlockMempoolRead;
       End;
     end;
     if (notFoundOpReferencesCount>CT_MAX_OPS_PER_BLOCKCHAINOPERATIONS) then begin
@@ -3859,6 +4536,7 @@ var operationsComp : TPCOperationsComp;
       TLog.NewLog(ltdebug,ClassName,Format('Too many pending operations (%d of %d) in Fast propagation block %d',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block]));
       Exit;
     end else if (notFoundOpReferencesCount>0) then begin
+      if ABufferedOnly or (not CanRequestBlockDownload) then Exit;
       // Must obtain not found calling CT_NetOp_GetBlockchainOperations
       TLog.NewLog(ltdebug,ClassName,Format('Pending operations (%d of %d) in Fast propagation block %d',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block]));
       sendStream := TMemoryStream.Create;
@@ -3948,6 +4626,8 @@ var operationsComp : TPCOperationsComp;
 var c : Cardinal;
   LRawAggregatedHashrate : TRawBytes;
 begin
+  TNode.Node.BeginBlockChainUpdate;
+  try
   errors := '';
   DoDisconnect := true;
   try
@@ -3977,6 +4657,7 @@ begin
           TLog.NewLog(ltdebug,ClassName,'Received NEW BLOCK with height: '+inttostr(operationsComp.OperationBlock.block)+' Accumulated values '+IntToStr(FRemoteAccumulatedWork)+' '+FRemoteAggregatedHashrate.ToDecimal+' from '+ClientRemoteAddr);
         end;
         FRemoteOperationBlock := operationsComp.OperationBlock;
+        TNode.Node.UpdateSynchronizationPeerTarget(Self,FRemoteOperationBlock.block+1);
         if (FRemoteAccumulatedWork>TNode.Node.Bank.SafeBox.WorkSum)
            or
            (FRemoteAggregatedHashrate.CompareTo( TNode.Node.Bank.SafeBox.AggregatedHashrate ) > 0)
@@ -3989,6 +4670,7 @@ begin
               If Not ProcessNewFastBlockPropagation then begin
                 if DoDisconnect then Exit
                 else begin
+                  if ABufferedOnly then Exit;
                   Send_GetBlocks(operationsComp.OperationBlock.block,1,c);
                   Exit;
                 end;
@@ -4003,12 +4685,14 @@ begin
               // Really is a new block? (Check it)
               if (operationsComp.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
                 // Received a new invalid block... perhaps I'm an orphan blockchain
-                TNetData.NetData.GetNewBlockChainFromClient(Self,'Higher Work with same block height. I''m a orphan blockchain candidate');
+                if not ABufferedOnly then
+                  TNetData.NetData.GetNewBlockChainFromClient(Self,'Higher Work with same block height. I''m a orphan blockchain candidate');
               end;
             end;
           end else begin
             // Received a new higher work
-            TNetData.NetData.GetNewBlockChainFromClient(Self,Format('Higher Work and distinct blocks count. Need to download BlocksCount:%d  my BlocksCount:%d',[operationsComp.OperationBlock.block+1,TNode.Node.Bank.BlocksCount]));
+            if not ABufferedOnly then
+              TNetData.NetData.GetNewBlockChainFromClient(Self,Format('Higher Work and distinct blocks count. Need to download BlocksCount:%d  my BlocksCount:%d',[operationsComp.OperationBlock.block+1,TNode.Node.Bank.BlocksCount]));
           end;
         end;
       end;
@@ -4019,6 +4703,9 @@ begin
     if DoDisconnect then begin
       DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(AHeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
     end;
+  end;
+  finally
+    TNode.Node.EndBlockChainUpdate;
   end;
 end;
 
@@ -4034,7 +4721,11 @@ var tc : TTickCount;
   was_waiting_for_response : Boolean;
   iDebugStep : Integer;
   reservedResponse : TMemoryStream;
+  LPhysicalScope, LProcessingFailed: Boolean;
 begin
+  LPhysicalScope := False;
+  LProcessingFailed := False;
+  try
   iDebugStep := 0;
   Try
     Result := false;
@@ -4046,11 +4737,13 @@ begin
     iDebugStep := 100;
     If Not Assigned(FTcpIpClient) then exit;
     if Not Client.Connected then exit;
+    if not CanRequestBlockDownload then Exit;
     iDebugStep := 110;
     tc := TPlatform.GetTickCount;
     If TPCThread.TryProtectEnterCriticalSection(Self,MaxWaitTime,FNetLock) then begin
       Try
         iDebugStep := 120;
+        if not CanRequestBlockDownload then Exit;
         was_waiting_for_response := RequestId>0;
         try
           if was_waiting_for_response then begin
@@ -4074,6 +4767,12 @@ begin
                 Result := true;
               end else begin
                 iDebugStep := 1000;
+                if ((HeaderData.operation=CT_NetOp_GetBlocks) and (HeaderData.header_type=ntp_response)) or
+                   ((HeaderData.operation in [CT_NetOp_NewBlock,CT_NetOp_NewBlock_Fast_Propagation]) and
+                    (HeaderData.header_type=ntp_autosend)) then begin
+                  TNode.Node.BeginBlockChainUpdate;
+                  LPhysicalScope := True;
+                end;
                 case HeaderData.operation of
                   CT_NetOp_Hello : Begin
                     if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
@@ -4122,6 +4821,11 @@ begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
                         TArray<TLimitLifetime>.Create(TLimitLifetime.Create(1200,100,0),TLimitLifetime.Create(10,40,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetSafeBox_Request(HeaderData,ReceiveDataBuffer)
+                    end else if HeaderData.header_type=ntp_response then begin
+                      // A timed-out chunk can finish after another request has
+                      // started. Discard that obsolete response without banning
+                      // the peer; matching chunks still undergo full validation.
+                      TLog.NewLog(ltDebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
                     end else DisconnectInvalidClient(false,'Received '+TNetData.HeaderDataToText(HeaderData));
                   end;
                   CT_NetOp_GetPendingOperations : Begin
@@ -4165,6 +4869,13 @@ begin
                 else
                   DisconnectInvalidClient(false,'Invalid operation: '+TNetData.HeaderDataToText(HeaderData));
                 end;
+                // Keep the outer physical scope across an OFF/EOF boundary,
+                // through the final retained frames below. In the ordinary
+                // connected path it must not cover the next socket wait.
+                if LPhysicalScope and (not MustDrainReceivedBlocks) then begin
+                  TNode.Node.EndBlockChainUpdate;
+                  LPhysicalScope := False;
+                end;
               end;
             end else sleep(1);
             iDebugStep := 900;
@@ -4179,10 +4890,20 @@ begin
     end;
   Except
     On E:Exception do begin
+      LProcessingFailed := True;
       E.Message := E.Message+' DoSendAndWaitForResponse step '+Inttostr(iDebugStep)+' Header.operation:'+Inttostr(HeaderData.operation);
       Raise;
     end;
   End;
+  finally
+    if LPhysicalScope then begin
+      try
+        // This call's FNetLock level has ended. An outer legacy/recursive
+        // level can remain; see the fixed callback dependency in the drain.
+        if (not LProcessingFailed) and MustDrainReceivedBlocks then DrainReceivedBlockFrames;
+      finally TNode.Node.EndBlockChainUpdate; end;
+    end;
+  end;
 end;
 
 procedure TNetConnection.FinalizeConnection;
@@ -4204,6 +4925,16 @@ end;
 function TNetConnection.GetConnected: Boolean;
 begin
   Result := Assigned(FTcpIpClient) And (FTcpIpClient.Connected);
+end;
+
+function TNetConnection.IsPendingStateReadyForPeer: Boolean;
+var LStatus: TNodeSynchronizationStatus;
+begin
+  // Use cached node facts: this check must not take a safebox/mempool lock on
+  // the I/O thread. Pending exchange resumes once our tip includes the peer's.
+  LStatus := TNode.Node.GetSynchronizationStatus;
+  Result := LStatus.PendingOperationsAvailable and
+    (LStatus.LocalBlockCount > FRemoteOperationBlock.block);
 end;
 
 procedure TNetConnection.Notification(AComponent: TComponent; Operation: TOperation);
@@ -4486,8 +5217,9 @@ begin
   Result := false;
   request_id := 0;
   if (FRemoteOperationBlock.block<TNetData.NetData.Bank.BlocksCount) Or (FRemoteOperationBlock.block=0) then exit;
-  if Not Connected then exit;
+  if not CanRequestBlockDownload then Exit;
   // First receive operations from
+  TNode.Node.SetSynchronizationTarget(Self,FRemoteOperationBlock.block+1);
   data := TMemoryStream.Create;
   try
     if TNetData.NetData.Bank.BlocksCount=0 then c1:=0
@@ -4701,6 +5433,11 @@ begin
     FTcpIpClient.OnConnect := TcpClient_OnConnect;
     FTcpIpClient.OnDisconnect := TcpClient_OnDisconnect;
   end;
+  // Accepted server sockets are already connected when assigned, so they do
+  // not emit a new OnConnect after these handlers are installed.
+  if TNode.NodeExists then
+    TNode.Node.SetSynchronizationPeerConnected(Self,
+      Assigned(FTcpIpClient) and GetConnected);
   TNetData.NetData.NotifyNetConnectionUpdated;
 end;
 
@@ -4716,6 +5453,7 @@ end;
 
 procedure TNetConnection.TcpClient_OnConnect(Sender: TObject);
 begin
+  if TNode.NodeExists then TNode.Node.SetSynchronizationPeerConnected(Self,True);
   TNetData.NetData.IncStatistics(1,0,1,0,0,0);
   TLog.NewLog(ltdebug,Classname,'Connected to a server '+ClientRemoteAddr);
   TNetData.NetData.NotifyNetConnectionUpdated;
@@ -4723,6 +5461,11 @@ end;
 
 procedure TNetConnection.TcpClient_OnDisconnect(Sender: TObject);
 begin
+  // The address is available for reconnect even while a downloader retains the
+  // old connection object. Pointer-keyed removal cannot detach a replacement.
+  if Assigned(FDownloadOwner) then
+    FDownloadOwner.NodeServersAddresses.DeleteNetConnection(Self);
+  if TNode.NodeExists then TNode.Node.SetSynchronizationPeerConnected(Self,False);
   if self is TNetServerClient then TNetData.NetData.IncStatistics(-1,-1,0,0,0,0)
   else begin
     if FHasReceivedData then TNetData.NetData.IncStatistics(-1,0,-1,-1,0,0)
@@ -4739,12 +5482,32 @@ end;
 
 procedure TNetClientThread.BCExecute;
 begin
+  try
   while (Not Terminated) do begin
+    // Disconnect cleanup requests an exit AFTER the current received buffer.
+    // It must not set Terminated and cancel a still-valid buffered block tail.
+    {$IFDEF FPC}
+    if InterlockedCompareExchange(FStopAfterCurrentBuffer,0,0)<>0 then Break;
+    {$ELSE}
+    if TInterlocked.CompareExchange(FStopAfterCurrentBuffer,0,0)<>0 then Break;
+    {$ENDIF}
     If FNetClient.Connected then begin
       FNetClient.DoProcessBuffer;
     end;
     Sleep(1);
   end;
+  finally
+    FNetClient.DrainReceivedBlockFrames;
+  end;
+end;
+
+procedure TNetClientThread.RequestStopAfterCurrentBuffer;
+begin
+  {$IFDEF FPC}
+  InterlockedExchange(FStopAfterCurrentBuffer,1);
+  {$ELSE}
+  TInterlocked.Exchange(FStopAfterCurrentBuffer,1);
+  {$ENDIF}
 end;
 
 constructor TNetClientThread.Create(NetClient: TNetClient; AOnTerminateThread : TNotifyEvent);
@@ -4766,11 +5529,12 @@ end;
 destructor TNetClient.Destroy;
 begin
   {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Starting TNetClient.Destroy');{$ENDIF}
+  RetireDownloadUsage;
   FNetClientThread.OnTerminate := Nil;
-  if Not FNetClientThread.Terminated then begin
-    FNetClientThread.Terminate;
-    FNetClientThread.WaitFor;
-  end;
+  // A disconnected socket can own a fully received multi-block response. Join
+  // its ordinary completion; explicit application shutdown has its own latch.
+  FNetClientThread.RequestStopAfterCurrentBuffer;
+  FNetClientThread.WaitFor;
   FreeAndNil(FNetClientThread);
   inherited;
 end;
@@ -4790,54 +5554,72 @@ Var NC : TNetClient;
   ok : Boolean;
   ns : TNodeServerAddress;
 begin
-  Repeat // Face to face conflict when 2 nodes connecting together
-    Sleep(Random(1000));
-  until (Terminated) Or (Random(5)=0);
-  if Terminated then exit;
-  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Starting discovery of connection '+FNodeServerAddress.ip+':'+InttoStr(FNodeServerAddress.port));{$ENDIF}
-  DebugStep := 'Locking list';
-  // Register attempt
-  If TNetData.NetData.NodeServersAddresses.GetNodeServerAddress(FNodeServerAddress.ip,FNodeServerAddress.port,true,ns) then begin
-    ns.last_attempt_to_connect := Now;
-    inc(ns.total_failed_attemps_to_connect);
-    TNetData.NetData.NodeServersAddresses.SetNodeServerAddress(ns);
-  end;
-  DebugStep := 'Synchronizing notify';
-  if Terminated then exit;
-  TNetData.NetData.NotifyNodeServersUpdated;
-  // Try to connect
+  NC := nil;
   ok := false;
-  DebugStep := 'Trying to connect';
-  if Terminated then exit;
-  NC := TNetClient.Create(Nil);
-  Try
+  try
+    if StopRequested then Exit;
+    Repeat // Face to face conflict when 2 nodes connecting together
+      Sleep(Random(1000));
+    until StopRequested Or (Random(5)=0);
+    if StopRequested then exit;
+    {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Starting discovery of connection '+FNodeServerAddress.ip+':'+InttoStr(FNodeServerAddress.port));{$ENDIF}
+    DebugStep := 'Locking list';
+    // This worker retains its original owner; shutdown must not resurrect the
+    // singleton through a late discovery callback or connection attempt.
+    If FNetData.NodeServersAddresses.GetNodeServerAddress(FNodeServerAddress.ip,FNodeServerAddress.port,true,ns) then begin
+      ns.last_attempt_to_connect := Now;
+      inc(ns.total_failed_attemps_to_connect);
+      FNetData.NodeServersAddresses.SetNodeServerAddress(ns);
+    end;
+    DebugStep := 'Synchronizing notify';
+    if StopRequested then exit;
+    FNetData.NotifyNodeServersUpdated;
+    DebugStep := 'Trying to connect';
+    NC := FNetData.TryCreateDiscoveryClient(Self);
+    if not Assigned(NC) or StopRequested then Exit;
     DebugStep := 'Connecting';
     If NC.ConnectTo(FNodeServerAddress.ip,FNodeServerAddress.port) then begin
-      if Terminated then exit;
+      if StopRequested then exit;
       Sleep(500);
       DebugStep := 'Is connected now?';
-      if Terminated then exit;
+      if StopRequested then exit;
       ok :=NC.Connected;
     end;
-    if Terminated then exit;
-  Finally
-    if (not ok) And (Not Terminated) then begin
-      DebugStep := 'Destroying non connected';
-      NC.FinalizeConnection;
+    DebugStep := 'Synchronizing notify final';
+    if not StopRequested then FNetData.NotifyNodeServersUpdated;
+  finally
+    try
+      if Assigned(NC) then begin
+        try
+          // Cancellation used to skip finalization and orphan a real client
+          // plus its buffer thread. Every unsuccessful/stopped attempt retires.
+          if (not ok) or StopRequested then NC.FinalizeConnection;
+        finally
+          FNetData.ReleaseDownloadConnection(NC);
+        end;
+      end;
+    finally
+      FNetData.DiscoverServersTerminated(Self);
     end;
-  End;
-  DebugStep := 'Synchronizing notify final';
-  if Terminated then exit;
-  TNetData.NetData.NotifyNodeServersUpdated;
+  end;
 end;
 
-constructor TThreadDiscoverConnection.Create(NodeServerAddress: TNodeServerAddress; NotifyOnTerminate : TNotifyEvent);
+constructor TThreadDiscoverConnection.Create(ANetData: TNetData; const NodeServerAddress: TNodeServerAddress);
 begin
+  FNetData := ANetData;
   FNodeServerAddress := NodeServerAddress;
   inherited Create(true);
-  OnTerminate := NotifyOnTerminate;
-  FreeOnTerminate := true;
-  Suspended := false;
+  FreeOnTerminate := false;
+end;
+
+procedure TThreadDiscoverConnection.StartOwned;
+begin
+  Start;
+end;
+
+function TThreadDiscoverConnection.StopRequested: Boolean;
+begin
+  Result := Terminated or FNetData.ShutdownRequested or not FNetData.NetConnectionsActive;
 end;
 
 { TThreadCheckConnections }
@@ -4910,6 +5692,14 @@ begin
         end;
       end;
     end;
+    if not Terminated then begin
+      try
+        FNetData.StartBlockChainWorker(True);
+      except
+        on E: Exception do
+          TLog.NewLog(ltError,Classname,'Cannot resume blockchain download: '+E.Message);
+      end;
+    end;
     sleep(100);
   end;
 end;
@@ -4923,6 +5713,47 @@ end;
 { TThreadGetNewBlockChainFromClient }
 
 procedure TThreadGetNewBlockChainFromClient.BCExecute;
+var LConnections: TList<TNetConnection>; LSelected: TNetConnection; I: Integer;
+begin
+  LConnections := nil;
+  try
+    LConnections := TList<TNetConnection>.Create;
+    if Terminated or FNetData.ShutdownRequested or not TNode.Node.UpdateBlockchain then Exit;
+    FNetData.AcquireDownloadConnections(LConnections);
+    LSelected := SelectConnection(LConnections);
+    if Assigned(LSelected) and (LConnections.IndexOf(LSelected) < 0) then
+      raise Exception.Create('Blockchain candidate is not in its leased snapshot');
+    // Only the selected connection is retained across download/network waits.
+    // An unrelated disconnected peer can retire immediately.
+    for I := LConnections.Count - 1 downto 0 do
+      if LConnections[I] <> LSelected then begin
+        FNetData.ReleaseDownloadConnection(LConnections[I]);
+        LConnections.Delete(I);
+      end;
+    if Assigned(LSelected) and not Terminated and not FNetData.ShutdownRequested then
+      FNetData.GetNewBlockChainFromClient(LSelected,Format(
+        'Candidate block: %d Aggregated: %d %s (My %d %s)',
+        [LSelected.FRemoteOperationBlock.block,LSelected.FRemoteAccumulatedWork,
+         LSelected.FRemoteAggregatedHashrate.ToDecimal,TNode.Node.Bank.SafeBox.WorkSum,
+         TNode.Node.Bank.SafeBox.AggregatedHashrate.ToDecimal]));
+  finally
+    try
+      if Assigned(LConnections) then
+        for I := LConnections.Count - 1 downto 0 do
+          FNetData.ReleaseDownloadConnection(LConnections[I]);
+    finally
+      LConnections.Free;
+      {$IFDEF FPC}
+      InterlockedExchange(FExecutionFinished,1);
+      {$ELSE}
+      TInterlocked.Exchange(FExecutionFinished,1);
+      {$ENDIF}
+    end;
+  end;
+end;
+
+function TThreadGetNewBlockChainFromClient.SelectConnection(
+  const AConnections: TList<TNetConnection>): TNetConnection;
 Var i,j : Integer;
   LMaxAggregatedTarget : UInt64;
   candidates : TList<TNetConnection>;
@@ -4930,20 +5761,22 @@ Var i,j : Integer;
   nc : TNetConnection;
   LMaxAggregatedHashrate : TBigNum;
 begin
-  if Not TNode.Node.UpdateBlockchain then Exit;
+  Result := nil;
+  if Terminated then Exit;
 
   // Search better candidates:
   candidates := TList<TNetConnection>.Create;
   LMaxAggregatedHashrate := TBigNum.Create(0);
   try
     lop := CT_OperationBlock_NUL;
-    TNetData.NetData.FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
+    FNetData.FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
     // First round: Find by most work
     LMaxAggregatedTarget := 0;
-    j := TNetData.NetData.ConnectionsCountAll;
+    j := AConnections.Count;
     nc := Nil;
     for i := 0 to j - 1 do begin
-      if TNetData.NetData.GetConnection(i,nc) then begin
+      if not Terminated then begin
+        nc := AConnections[i];
         // Preventing downloading
         if nc.FIsDownloadingBlocks then exit;
         //
@@ -4958,7 +5791,8 @@ begin
     if (LMaxAggregatedHashrate.CompareTo( 1 ) > 0) then begin
       // Search by Aggregated Hashrate
       for i := 0 to j - 1 do begin
-        If TNetData.NetData.GetConnection(i,nc) then begin
+        If not Terminated then begin
+          nc := AConnections[i];
           if (nc.FRemoteAggregatedHashrate.CompareTo(LMaxAggregatedHashrate)>=0) then begin
             candidates.Add(nc);
             lop := nc.FRemoteOperationBlock;
@@ -4968,7 +5802,8 @@ begin
     end else if (LMaxAggregatedTarget>0) then begin
       // Not found searching by Aggregated Hashrate, searching by Aggregated Target
       for i := 0 to j - 1 do begin
-        If TNetData.NetData.GetConnection(i,nc) then begin
+        If not Terminated then begin
+          nc := AConnections[i];
           if (nc.FRemoteAccumulatedWork>=LMaxAggregatedTarget) then begin
             candidates.Add(nc);
             lop := nc.FRemoteOperationBlock;
@@ -4976,14 +5811,12 @@ begin
         end;
       end;
     end;
-    TNetData.NetData.FMaxRemoteOperationBlock := lop;
+    FNetData.FMaxRemoteOperationBlock := lop;
     if (candidates.Count>0) then begin
       // Random a candidate
       i := 0;
       if (candidates.Count>1) then i := Random(candidates.Count); // i = 0..count-1
-      nc := TNetConnection(candidates[i]);
-      TNetData.NetData.GetNewBlockChainFromClient(nc,Format('Candidate block: %d Aggregated: %d %s (My %d %s)',[nc.FRemoteOperationBlock.block,nc.FRemoteAccumulatedWork,nc.FRemoteAggregatedHashrate.ToDecimal,
-        TNode.Node.Bank.SafeBox.WorkSum,TNode.Node.Bank.SafeBox.AggregatedHashrate.ToDecimal]));
+      Result := TNetConnection(candidates[i]);
     end;
   finally
     LMaxAggregatedHashrate.Free;
@@ -4991,11 +5824,20 @@ begin
   end;
 end;
 
-constructor TThreadGetNewBlockChainFromClient.Create;
+constructor TThreadGetNewBlockChainFromClient.Create(ANetData: TNetData);
 begin
+  FNetData := ANetData;
   Inherited Create(True);
-  FreeOnTerminate := true;
-  Suspended := false;
+  FreeOnTerminate := false;
+end;
+
+function TThreadGetNewBlockChainFromClient.GetExecutionFinished: Boolean;
+begin
+  {$IFDEF FPC}
+  Result := InterlockedCompareExchange(FExecutionFinished,0,0) <> 0;
+  {$ELSE}
+  Result := TInterlocked.CompareExchange(FExecutionFinished,0,0) <> 0;
+  {$ENDIF}
 end;
 
 { TNetDataNotifyEventsThread }
@@ -5058,6 +5900,7 @@ procedure TNetClientsDestroyThread.BCExecute;
 Var l,l_to_del : TList<TNetConnection>;
   i : Integer;
   LNetConnection : TNetConnection;
+  LEmpty: Boolean;
 begin
   l_to_del := TList<TNetConnection>.Create;
   Try
@@ -5065,17 +5908,24 @@ begin
       l_to_del.Clear;
       l := FNetData.NetConnections.LockList;
       try
-        FTerminatedAllConnections := l.Count=0;
+        LEmpty := l.Count=0;
         for i := 0 to l.Count-1 do begin
           If (TObject(l[i]) is TNetClient) And (not TNetConnection(l[i]).Connected)
             And (TNetConnection(l[i]).FDoFinalizeConnection)
-            And (Not TNetConnection(l[i]).IsConnecting) then begin
+            And (Not TNetConnection(l[i]).IsConnecting)
+            And (TNetConnection(l[i]).FDownloadLeaseCount = 0) then begin
+            // Do not stall this one destroy worker on a selected peer's lease:
+            // unrelated disconnected peers must be free to retire meanwhile.
+            TNetConnection(l[i]).FDownloadRetiring := true;
             l_to_del.Add(l[i]);
           end;
         end;
       finally
         FNetData.NetConnections.UnlockList;
       end;
+      // Observe only a completed scan, outside the registry lock. Production
+      // ownership and selection stay here; a probe can pause this same worker.
+      RegistryScanCompleted(LEmpty);
       sleep(500); // Delay - Sleep time before destroying (1.5.3)
       if l_to_del.Count>0 then begin
         TLog.NewLog(ltDebug,ClassName,'Destroying NetClients: '+inttostr(l_to_del.Count));
@@ -5108,21 +5958,39 @@ end;
 constructor TNetClientsDestroyThread.Create(NetData: TNetData);
 begin
   FNetData:=NetData;
-  FTerminatedAllConnections := true;
   Inherited Create(false);
+end;
+
+procedure TNetClientsDestroyThread.RegistryScanCompleted(AEmpty: Boolean);
+begin
 end;
 
 procedure TNetClientsDestroyThread.WaitForTerminatedAllConnections;
 var LTC : TTickCount;
+  LConnections: TList<TNetConnection>;
+  LEmpty: Boolean;
 begin
   LTC := TPlatform.GetTickCount;
-  while (Not FTerminatedAllConnections) do begin
+  repeat
+    LConnections := FNetData.FNetConnections.LockList;
+    try
+      LEmpty := LConnections.Count = 0;
+    finally
+      FNetData.FNetConnections.UnlockList;
+    end;
+    // Only the current registry is authoritative. An earlier empty destroyer
+    // scan says nothing about a discovery client registered since that scan.
+    if LEmpty then Exit;
+    // A client may already be waiting for its synchronized OnTerminate while
+    // the destroy worker joins it. Service that callback on the main thread
+    // instead of leaving all three participants waiting for one another.
+    if TThread.CurrentThread.ThreadID = MainThreadID then CheckSynchronize;
     if TPlatform.GetElapsedMilliseconds(LTC)>1000 then begin
       LTC := TPlatform.GetTickCount;
       TLog.NewLog(ltdebug,ClassName,'Waiting all connections terminated');
     end;
     Sleep(50);
-  end;
+  until false;
 end;
 
 { TNetworkAdjustedTime }

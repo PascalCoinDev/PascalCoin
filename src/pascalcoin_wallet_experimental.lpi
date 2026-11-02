@@ -13,11 +13,20 @@
       <MainUnit Value="0"/>
       <Title Value="PascalCoin Wallet"/>
       <ResourceType Value="res"/>
+      <Icon Value="0"/>
     </General>
     <i18n>
       <EnableI18N LFM="False"/>
     </i18n>
-    <BuildModes Count="2">
+    <VersionInfo>
+      <UseVersionInfo Value="True"/>
+      <MajorVersionNr Value="5"/>
+      <MinorVersionNr Value="9"/>
+      <RevisionNr Value="0"/>
+      <BuildNr Value="0"/>
+      <StringTable ProductName="PascalCoin" ProductVersion="5.9.0.0" FileVersion="5.9.0.0"/>
+    </VersionInfo>
+    <BuildModes Count="3">
       <Item1 Name="Default" Default="True"/>
       <Item2 Name="Debug">
         <CompilerOptions>
@@ -28,8 +37,8 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir);libraries\generics.collections\inc"/>
-            <OtherUnitFiles Value="core;gui-experimental;libraries\synapse;libraries\abstractmem;\libraries\regex;libraries\sphere10;libraries\simplebaselib4pascal;libraries\cryptolib4pascal;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;gui-classic;libraries\paszlib;libraries\regex"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <OtherUnitFiles Value="core;gui-experimental;libraries\synapse;libraries\abstractmem;libraries\sphere10;libraries\simplebaselib4pascal;libraries\cryptolib4pascal;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;gui-classic;libraries\paszlib;libraries\regex"/>
+            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\experimental\Debug"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
@@ -43,6 +52,7 @@
           </CodeGeneration>
           <Linking>
             <Debugging>
+              <GenerateDebugInfo Value="True"/>
               <DebugInfoType Value="dsDwarf2Set"/>
               <TrashVariables Value="True"/>
               <UseExternalDbgSyms Value="True"/>
@@ -58,10 +68,53 @@
               <ShowHintsForUnusedUnitsInMainSrc Value="True"/>
               <ShowHintsForSenderNotUsed Value="True"/>
             </Verbosity>
-            <CustomOptions Value="-dBorland -dVer150 -dDelphi7 -dCompiler6_Up -dPUREPASCAL -vd"/>
+            <CustomOptions Value="-dBorland -dVer150 -dDelphi7 -dCompiler6_Up -dPUREPASCAL -dDEBUG"/>
           </Other>
         </CompilerOptions>
       </Item2>
+      <Item3 Name="Release">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <PathDelim Value="\"/>
+          <Target>
+            <Filename Value="PascalCoinWalletExperimental"/>
+          </Target>
+          <SearchPaths>
+            <IncludeFiles Value="$(ProjOutDir);libraries\generics.collections\inc"/>
+            <OtherUnitFiles Value="core;gui-experimental;libraries\synapse;libraries\abstractmem;libraries\sphere10;libraries\simplebaselib4pascal;libraries\cryptolib4pascal;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;gui-classic;libraries\paszlib;libraries\regex"/>
+            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\experimental\Release"/>
+          </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <SyntaxMode Value="Delphi"/>
+            </SyntaxOptions>
+          </Parsing>
+          <CodeGeneration>
+            <Optimizations>
+              <OptimizationLevel Value="2"/>
+            </Optimizations>
+          </CodeGeneration>
+          <Linking>
+            <Debugging>
+              <GenerateDebugInfo Value="False"/>
+              <StripSymbols Value="True"/>
+              <UseExternalDbgSyms Value="False"/>
+            </Debugging>
+            <Options>
+              <Win32>
+                <GraphicApplication Value="True"/>
+              </Win32>
+            </Options>
+          </Linking>
+          <Other>
+            <Verbosity>
+              <ShowHintsForUnusedUnitsInMainSrc Value="True"/>
+              <ShowHintsForSenderNotUsed Value="True"/>
+            </Verbosity>
+            <CustomOptions Value="-dBorland -dVer150 -dDelphi7 -dCompiler6_Up -dPUREPASCAL -dRELEASE"/>
+          </Other>
+        </CompilerOptions>
+      </Item3>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
@@ -77,7 +130,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="107">
+    <Units Count="113">
       <Unit0>
         <Filename Value="pascalcoin_wallet_experimental.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -654,6 +707,37 @@
         <Filename Value="libraries\regex\uregexpr.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit106>
+      <Unit107>
+        <Filename Value="libraries\sphere10\UCache.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UCache"/>
+      </Unit107>
+      <Unit108>
+        <Filename Value="gui-experimental\UWalletStartup.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit108>
+      <Unit109>
+        <Filename Value="gui-experimental\UWalletStartupTask.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit109>
+      <Unit110>
+        <Filename Value="gui-experimental\UWalletLanguages.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit110>
+      <Unit111>
+        <Filename Value="gui-classic\UFRMOperationsExplorer.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FRMOperationsExplorer"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit111>
+      <Unit112>
+        <Filename Value="gui-classic\UFRMRPCCalls.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FRMRPCCalls"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit112>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -665,7 +749,7 @@
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);libraries\generics.collections\inc"/>
       <OtherUnitFiles Value="core;gui-experimental;libraries\simplebaselib4pascal;libraries\hashlib4pascal;libraries\cryptolib4pascal;libraries\synapse;libraries\sphere10;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;libraries\paszlib;gui-classic;libraries\abstractmem;libraries\regex"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\experimental\Default"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>
@@ -689,7 +773,7 @@
         <ShowHintsForUnusedUnitsInMainSrc Value="True"/>
         <ShowHintsForSenderNotUsed Value="True"/>
       </Verbosity>
-      <CustomOptions Value="-dBorland -dVer150 -dDelphi7 -dCompiler6_Up -dPUREPASCAL -vd"/>
+      <CustomOptions Value="-dBorland -dVer150 -dDelphi7 -dCompiler6_Up -dPUREPASCAL"/>
     </Other>
   </CompilerOptions>
   <Debugging>

@@ -1,0 +1,124 @@
+﻿object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
+  Left = 0
+  Height = 379
+  Top = 0
+  Width = 450
+  ActiveControl = txtName
+  Anchors = [akTop, akLeft, akBottom]
+  Caption = 'WIZChangeAccountInfo_Details'
+  ClientHeight = 379
+  ClientWidth = 450
+  OnResize = FormResize
+  object gbName: TGroupBox
+    Left = 8
+    Height = 124
+    Top = 8
+    Width = 431
+    Anchors = [akTop, akLeft, akRight]
+    Caption = 'Name'
+    TabOrder = 0
+    object txtName: TEdit
+      Left = 16
+      Height = 56
+      Top = 32
+      Width = 394
+      Alignment = taRightJustify
+      Anchors = [akTop, akLeft, akRight]
+      AutoSize = False
+      Font.Height = -43
+      Font.Style = [fsBold]
+      OnChange = txtNameChange
+      ParentFont = False
+      TabOrder = 0
+    end
+    object lblNameNotice: TLabel
+      Left = 16
+      Height = 14
+      Top = 8
+      Width = 130
+      Caption = 'Please enter new name'
+      ParentColor = False
+      ParentFont = False
+    end
+    object lblNameDetails: TLabel
+      Left = 329
+      Height = 14
+      Top = 8
+      Width = 78
+      Anchors = [akTop, akRight]
+      Caption = 'Name Details'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+    end
+  end
+  object gpType: TGroupBox
+    Left = 8
+    Height = 122
+    Top = 144
+    Width = 431
+    Anchors = [akTop, akLeft, akRight]
+    Caption = 'Type'
+    ParentFont = False
+    TabOrder = 1
+    object txtType: TEdit
+      Left = 16
+      Height = 56
+      Top = 32
+      Width = 394
+      Alignment = taRightJustify
+      Anchors = [akTop, akLeft, akRight]
+      AutoSize = False
+      Font.Height = -43
+      Font.Style = [fsBold]
+      NumbersOnly = True
+      OnChange = txtTypeChange
+      ParentFont = False
+      TabOrder = 0
+    end
+    object lblTypeNotice: TLabel
+      Left = 16
+      Height = 14
+      Top = 11
+      Width = 125
+      Caption = 'Please enter new type'
+      ParentColor = False
+    end
+    object lblTypeDetails: TLabel
+      Left = 333
+      Height = 14
+      Top = 8
+      Width = 74
+      Anchors = [akTop, akRight]
+      Caption = 'Type Details'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+    end
+  end
+  object gpOptions: TGroupBox
+    Left = 8
+    Height = 89
+    Top = 280
+    Width = 431
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Options'
+    TabOrder = 2
+    object chkCustomFee: TCheckBox
+      Left = 16
+      Height = 18
+      Top = 8
+      Width = 174
+      Caption = 'Allow me to choose the fee'
+      TabOrder = 0
+    end
+    object chkPayload: TCheckBox
+      Left = 16
+      Height = 18
+      Top = 40
+      Width = 163
+      Caption = 'Attach a message payload'
+      TabOrder = 1
+    end
+  end
+end

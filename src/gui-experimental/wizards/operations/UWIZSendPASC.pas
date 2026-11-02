@@ -17,7 +17,9 @@ unit UWIZSendPASC;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -33,8 +35,8 @@ type
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;
     function DetermineHasPrevious: boolean; override;
-    function FinishRequested(out message: ansistring): boolean; override;
-    function CancelRequested(out message: ansistring): boolean; override;
+    function FinishRequested(out message: String): boolean; override;
+    function CancelRequested(out message: String): boolean; override;
   end;
 
 implementation
@@ -70,16 +72,17 @@ begin
   Result := inherited DetermineHasPrevious;
 end;
 
-function TWIZSendPASCWizard.FinishRequested(out message: ansistring): boolean;
+function TWIZSendPASCWizard.FinishRequested(out message: String): boolean;
 begin
   // Execute the PASC Sending here
   Result := TWIZOperationsHelper.ExecuteSendPASC(Model.Account.SelectedAccounts, Model.SendPASC.DestinationAccount, Model.SendPASC.SingleAmountToSend, Model.Fee.SingleOperationFee, Model.SendPASC.SendPASCMode, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
-  if TWIZOperationsModel.RelockOnFinish then
-  TWallet.Keys.LockWallet;
+  if Result then
+    Model.RelockWallet;
 end;
 
-function TWIZSendPASCWizard.CancelRequested(out message: ansistring): boolean;
+function TWIZSendPASCWizard.CancelRequested(out message: String): boolean;
 begin
+  Model.RelockWallet;
   Result := True;
 end;
 

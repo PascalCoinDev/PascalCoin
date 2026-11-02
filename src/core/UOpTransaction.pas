@@ -519,7 +519,12 @@ begin
     exit;
   end;
   account_signer := AccountTransaction.Account(FData.account_signer);
-  account_target := AccountTransaction.Account(FData.account_target);
+  // No mutation occurs between these reads. A self-change validates the same
+  // account value twice; keep that exact record instead of rereading safebox.
+  if FData.account_signer = FData.account_target then
+    account_target := account_signer
+  else
+    account_target := AccountTransaction.Account(FData.account_target);
   if ((account_signer.n_operation+1)<>FData.n_operation) then begin
     errors := 'Invalid n_operation';
     Exit;

@@ -16,14 +16,18 @@ unit UFRMOperationExplorer;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
 {$I ..\config.inc}
 
 uses
-    LCLIntf, LCLType, SysUtils, Controls, Forms, Dialogs, ExtCtrls, StdCtrls, Grids, Menus, Classes,
+  Types,
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+    {$IFDEF FPC}LCLIntf,{$ENDIF} {$IFDEF FPC}LCLType,{$ENDIF} SysUtils, Controls, Forms, Dialogs, ExtCtrls, StdCtrls, Grids, Menus, Classes,
     UCommon.UI, UGridUtils, UConst;
 
 type
@@ -40,7 +44,10 @@ type
     miFindOperationByOpHash: TMenuItem;
     miTools: TMenuItem;
     Panel1: TPanel;
-    procedure dgOperationsExplorerClick(Sender: TObject);
+    procedure dgOperationsExplorerMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure dgOperationsExplorerMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure ebFilterOperationsAccountExit(Sender: TObject);
     procedure ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);
     procedure FormCreate(Sender: TObject);
@@ -52,13 +59,22 @@ type
     { private declarations }
     FUpdating : boolean;
     FOperationsExplorerGrid : TOperationsGrid;
+    FOperationClickPending: Boolean;
+    FMouseDownCell, FMouseDownPoint: TPoint;
+    FMouseDownTopRow: Integer;
+    function TryGetOperationCell(X, Y: Integer; out ACell: TPoint): Boolean;
   public
     { public declarations }
   end;
 
 implementation
 
-{$r *.lfm}
+// Keep Lazarus-only streamed properties out of VCL form creation.
+{$IFDEF FPC}
+{$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses UUserInterface, UFRMPayloadDecoder, UBlockChain;
 
@@ -111,9 +127,56 @@ begin
   End;
 end;
 
-procedure TFRMOperationExplorer.dgOperationsExplorerClick(Sender: TObject);
+function TFRMOperationExplorer.TryGetOperationCell(X, Y: Integer;
+  out ACell: TPoint): Boolean;
 begin
-  TUserInterface.ShowOperationInfoDialog(Self, FOperationsExplorerGrid.SelectedOperation);
+  Result := False;
+  if (X < 0) or (Y < 0) or (X >= dgOperationsExplorer.ClientWidth) or
+    (Y >= dgOperationsExplorer.ClientHeight) then
+    Exit;
+  dgOperationsExplorer.MouseToCell(X, Y, ACell.X, ACell.Y);
+  Result := (ACell.X >= dgOperationsExplorer.FixedCols) and
+    (ACell.X < dgOperationsExplorer.ColCount) and
+    (ACell.Y >= dgOperationsExplorer.FixedRows) and (ACell.Y > 0) and
+    (ACell.Y < dgOperationsExplorer.RowCount) and
+    (ACell.Y <= FOperationsExplorerGrid.OperationsResume.Count);
+end;
+
+procedure TFRMOperationExplorer.dgOperationsExplorerMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  FOperationClickPending := False;
+  if Button <> mbLeft then
+    Exit;
+  if not TryGetOperationCell(X, Y, FMouseDownCell) then
+    Exit;
+  FMouseDownPoint := Point(X, Y);
+  FMouseDownTopRow := dgOperationsExplorer.TopRow;
+  FOperationClickPending := True;
+end;
+
+procedure TFRMOperationExplorer.dgOperationsExplorerMouseUp(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  LWasPending: Boolean;
+  LCell: TPoint;
+begin
+  // VCL also raises Click when wheel/keyboard navigation changes the row.
+  // Only a matching left-button press/release may open a details dialog.
+  LWasPending := FOperationClickPending;
+  FOperationClickPending := False;
+  if (Button <> mbLeft) or not LWasPending then
+    Exit;
+  if not TryGetOperationCell(X, Y, LCell) then
+    Exit;
+  if (LCell.X <> FMouseDownCell.X) or (LCell.Y <> FMouseDownCell.Y) or
+    (dgOperationsExplorer.TopRow <> FMouseDownTopRow) or
+    (Abs(X - FMouseDownPoint.X) > GetSystemMetrics(SM_CXDRAG)) or
+    (Abs(Y - FMouseDownPoint.Y) > GetSystemMetrics(SM_CYDRAG)) then
+    Exit;
+  // Use the clicked data row; headers and blank space must not reuse an old selection.
+  TUserInterface.ShowOperationInfoDialog(Self,
+    FOperationsExplorerGrid.OperationsResume.Items[LCell.Y - 1]);
 end;
 
 procedure TFRMOperationExplorer.ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);

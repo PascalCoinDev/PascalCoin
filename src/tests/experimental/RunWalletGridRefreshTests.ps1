@@ -1,0 +1,152 @@
+<#
+.SYNOPSIS
+Builds and runs main-wallet refresh and received-block checks on a private desktop.
+.DESCRIPTION
+The default target is the dedicated FPCUnit fixture. Use -Demo to run the native
+interactive demo's automatic scenarios instead. Use -NetworkOff for the real
+connectivity toggle and deferred-refresh lifecycle regression. Use -Backlog for
+the actual buffered-response processor, outgoing/incoming transport ownership,
+explicit shutdown, inherited data sources and committed footer/status checks
+using five historical blocks. One build runs seven fresh private processes.
+Use -LargeBacklog with -LargeDataRoot for the opt-in matching public-chain
+fixture. It reuses an explicitly owned Data junction while creating fresh
+settings and one watch-only key; it is not part of the seven small scenarios.
+The other targets use typed
+mock sources and real wallet controls. Network cases restrict peers to loopback;
+all targets use fresh isolated wallet settings. Existing wallet keys and the input desktop
+are never used by this script.
+#>
+# Copyright © 2026 Herman Schoenfeld <https://sphere10.com>. MIT license.
+param(
+    [string] $FpcPath = '<fpc>\bin\x86_64-win64\fpc.exe',
+    [string] $LazarusDirectory = '<lazarus>',
+    [string] $OutputDirectory,
+    [switch] $Demo,
+    [switch] $NetworkOff,
+    [switch] $Backlog,
+    [switch] $LargeBacklog,
+    [string] $LargeDataRoot
+)
+
+$ErrorActionPreference = 'Stop'
+if (@($Demo, $NetworkOff, $Backlog, $LargeBacklog).Where({ $_.IsPresent }).Count -gt 1) {
+    throw 'Choose only one of -Demo, -NetworkOff, -Backlog or -LargeBacklog.'
+}
+$ownedLargeRoot = $null
+if ($LargeBacklog) {
+    if ([string]::IsNullOrWhiteSpace($LargeDataRoot)) { throw '-LargeBacklog requires -LargeDataRoot.' }
+    $ownedLargeRoot = (Resolve-Path -LiteralPath $LargeDataRoot).Path
+    if (-not (Test-Path -LiteralPath (Join-Path $ownedLargeRoot 'LargeBacklog.owned') -PathType Leaf)) {
+        throw 'The large fixture requires its explicitly owned data marker.'
+    }
+} elseif ($LargeDataRoot) { throw '-LargeDataRoot is only valid with -LargeBacklog.' }
+$compiler = (Resolve-Path -LiteralPath $FpcPath).Path
+$lazarus = (Resolve-Path -LiteralPath $LazarusDirectory).Path
+$source = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
+$targetInfo = ((& $compiler '-iTP' '-iTO') -join ' ').Trim() -split '\s+'
+if ($LASTEXITCODE -ne 0 -or $targetInfo.Count -ne 2 -or $targetInfo[1] -ne 'win64') {
+    throw 'These native grid refresh checks require a Windows x64 FPC compiler.'
+}
+$target = $targetInfo -join '-'
+$runId = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+if (-not $OutputDirectory) { $OutputDirectory = Join-Path $PSScriptRoot "lib\grid-refresh-$runId" }
+$output = [IO.Path]::GetFullPath($OutputDirectory)
+if (Test-Path -LiteralPath $output) { throw "Choose a new output directory: $output" }
+$units = Join-Path $output 'units'
+$brokerUnits = Join-Path $output 'broker-units'
+New-Item -ItemType Directory -Path $units, $brokerUnits -Force | Out-Null
+
+$gridDirectory = Join-Path $PSScriptRoot 'native\grid-refresh'
+$backlogDirectory = Join-Path $PSScriptRoot 'native\network-backlog'
+$program = if ($Demo) { Join-Path $gridDirectory 'WalletGridRefreshDemo.lpr' }
+           elseif ($NetworkOff) { Join-Path $gridDirectory 'WalletNetworkOffProbe.lpr' }
+           elseif ($Backlog) { Join-Path $backlogDirectory 'BufferedBlockBacklogProbe.lpr' }
+           elseif ($LargeBacklog) { Join-Path $backlogDirectory 'LargeBufferedBlockBacklogProbe.lpr' }
+           else { Join-Path $PSScriptRoot 'ui\WalletGridRefreshTests.lpr' }
+$name = [IO.Path]::GetFileNameWithoutExtension($program)
+$executable = Join-Path $output "$name.exe"
+$arguments = @('-B', '-MDelphi', '-O1', '-gl', '-Cr', '-Co', '-WG',
+    '-dBorland', '-dVer150', '-dDelphi7', '-dCompiler6_Up', '-dPUREPASCAL',
+    "-FU$units", "-FE$output", "-o$executable",
+    "-Fi$source\libraries\generics.collections\inc",
+    "-Fu$lazarus\lcl\units\$target", "-Fu$lazarus\lcl\units\$target\win32",
+    "-Fu$lazarus\components\lazutils\lib\$target", "-Fu$lazarus\packager\units\$target",
+    "-Fu$gridDirectory", "-Fu$backlogDirectory", "-Fu$PSScriptRoot\ui")
+$directories = @('core', 'gui-experimental', 'gui-experimental\core.utils',
+    'gui-experimental\wizards\wallet', 'gui-experimental\wizards\operations', 'gui-classic',
+    'libraries\simplebaselib4pascal', 'libraries\hashlib4pascal', 'libraries\cryptolib4pascal',
+    'libraries\synapse', 'libraries\sphere10', 'libraries\generics.collections',
+    'libraries\pascalcoin', 'libraries\paszlib', 'libraries\abstractmem', 'libraries\regex',
+    'libraries\gnugettext')
+foreach ($directory in $directories) { $arguments += "-Fu$source\$directory" }
+if ($LargeBacklog) { $arguments += '-dLARGE_BACKLOG_PROBE' }
+$arguments += $program
+$arguments | Set-Content -LiteralPath (Join-Path $output 'compiler-arguments.txt')
+& $compiler @arguments *> (Join-Path $output 'build.log')
+if ($LASTEXITCODE -ne 0) {
+    Get-Content -LiteralPath (Join-Path $output 'build.log') -Tail 60
+    exit $LASTEXITCODE
+}
+# Prefer the deployed runtime, then the repository's canonical Windows DLL.
+$crypto = Join-Path $source 'libcrypto-1_1-x64.dll'
+if (-not (Test-Path -LiteralPath $crypto)) {
+    $crypto = Join-Path (Split-Path -Parent $source) 'windows-dll\libcrypto-1_1-x64.dll'
+}
+if (-not (Test-Path -LiteralPath $crypto)) { throw "OpenSSL runtime not found: $crypto" }
+Copy-Item -LiteralPath $crypto -Destination $output
+
+$broker = Join-Path $output 'PrivateDesktopBroker.exe'
+& $compiler '-MDelphi' '-O2' '-gl' "-FU$brokerUnits" "-o$broker" `
+    (Join-Path $PSScriptRoot 'native\PrivateDesktopBroker.lpr') *> (Join-Path $output 'broker-build.log')
+if ($LASTEXITCODE -ne 0) {
+    Get-Content -LiteralPath (Join-Path $output 'broker-build.log') -Tail 40
+    exit $LASTEXITCODE
+}
+$temporaryData = Join-Path $output 'temporary-data'
+New-Item -ItemType Directory -Path $temporaryData | Out-Null
+$previousTemp = $env:TEMP
+$previousTmp = $env:TMP
+$previousBacklogCase = $env:PASCALCOIN_BACKLOG_CASE
+$previousLargeDataRoot = $env:PASCALCOIN_LARGE_BACKLOG_ROOT
+$status = 0
+try {
+    $env:TEMP = $temporaryData
+    $env:TMP = $temporaryData
+    if ($LargeBacklog) { $env:PASCALCOIN_LARGE_BACKLOG_ROOT = $ownedLargeRoot }
+    $cases = if ($Backlog) {
+        @('direct', 'outgoing', 'outgoing-shutdown', 'incoming',
+          'incoming-settings', 'incoming-shutdown', 'connected-miner')
+    } else { @('') }
+    foreach ($case in $cases) {
+        $suffix = if ($case) { "-$case" } else { '' }
+        $log = Join-Path $output "tests$suffix.log"
+        $brokerLog = Join-Path $output "broker$suffix.log"
+        if ($Backlog) { $env:PASCALCOIN_BACKLOG_CASE = $case }
+        & $broker $executable $log *> $brokerLog
+        $status = $LASTEXITCODE
+        if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log }
+        elseif ($status -eq 0) {
+            Write-Error 'The grid refresh check did not produce its result log.' -ErrorAction Continue
+            $status = 1
+        }
+        if ($status -eq 0 -and -not $Demo -and -not $LargeBacklog) {
+            $heap = "$log.heap.log"
+            if (-not (Test-Path -LiteralPath $heap) -or
+                -not ([IO.File]::ReadAllText($heap) -match '(?m)^0 unfreed memory blocks')) {
+                Write-Error 'The grid refresh fixture did not produce a clean heap report.' -ErrorAction Continue
+                $status = 1
+            }
+        }
+        if ($status -ne 0) {
+            Get-Content -LiteralPath $brokerLog -Tail 25
+            break
+        }
+    }
+} finally {
+    $env:TEMP = $previousTemp
+    $env:TMP = $previousTmp
+    $env:PASCALCOIN_BACKLOG_CASE = $previousBacklogCase
+    $env:PASCALCOIN_LARGE_BACKLOG_ROOT = $previousLargeDataRoot
+}
+Write-Host "Wallet grid refresh evidence: $output"
+exit $status

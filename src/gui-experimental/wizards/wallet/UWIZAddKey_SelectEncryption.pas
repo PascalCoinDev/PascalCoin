@@ -13,7 +13,9 @@ unit UWIZAddKey_SelectEncryption;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -27,15 +29,20 @@ type
   TWIZAddKey_SelectEncryption = class(TWizardForm<TWIZAddKeyModel>)
     rgKeyType: TRadioGroup;
     procedure FormCreate(Sender: TObject);
-    class function GetOptionText(const EC_OpenSSL_NID: Word): AnsiString;
+    class function GetOptionText(const EC_OpenSSL_NID: Word): String;
   public
+    procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message : AnsiString) : boolean; override;
+    function Validate(out message : String) : boolean; override;
   end;
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UAccounts, UConst, UMemory, Generics.Collections;
@@ -61,7 +68,23 @@ begin
   Self.Model.EncryptionTypeNID := PtrInt(rgKeyType.Items.Objects[rgKeyType.ItemIndex]);
 end;
 
-function TWIZAddKey_SelectEncryption.Validate(out message : AnsiString) : boolean;
+procedure TWIZAddKey_SelectEncryption.OnPresent;
+var
+  i: Integer;
+  LNID: Word;
+begin
+  LNID := Model.EncryptionTypeNID;
+  if LNID = 0 then
+    LNID := CT_Default_EC_OpenSSL_NID;
+  for i := 0 to rgKeyType.Items.Count - 1 do
+    if PtrInt(rgKeyType.Items.Objects[i]) = LNID then
+    begin
+      rgKeyType.ItemIndex := i;
+      Break;
+    end;
+end;
+
+function TWIZAddKey_SelectEncryption.Validate(out message : String) : boolean;
 begin
   Result := true;
   if rgKeyType.ItemIndex < 0 then begin
@@ -71,7 +94,7 @@ begin
 end;
 
 
-class function TWIZAddKey_SelectEncryption.GetOptionText(const EC_OpenSSL_NID: Word): AnsiString;
+class function TWIZAddKey_SelectEncryption.GetOptionText(const EC_OpenSSL_NID: Word): String;
 begin
   case EC_OpenSSL_NID of
     CT_NID_secp256k1 : begin

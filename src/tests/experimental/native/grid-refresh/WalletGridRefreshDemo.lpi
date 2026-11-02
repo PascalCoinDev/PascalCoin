@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <General>
+      <Flags>
+        <MainUnitHasUsesSectionForAllUnits Value="False"/>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+      </Flags>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <Title Value="PascalCoin mock grid refresh demo"/>
+      <ResourceType Value="res"/>
+    </General>
+    <BuildModes Count="1"><Item1 Name="Default" Default="True"/></BuildModes>
+    <RequiredPackages Count="1"><Item1><PackageName Value="LCL"/></Item1></RequiredPackages>
+    <Units Count="3">
+      <Unit0><Filename Value="WalletGridRefreshDemo.lpr"/><IsPartOfProject Value="True"/></Unit0>
+      <Unit1><Filename Value="UWalletGridMocks.pas"/><IsPartOfProject Value="True"/></Unit1>
+      <Unit2><Filename Value="UWalletGridRefreshHarness.pas"/><IsPartOfProject Value="True"/></Unit2>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <Target><Filename Value="..\..\..\..\WalletGridRefreshDemoFPC"/></Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir);..\..\..\..\libraries\generics.collections\inc"/>
+      <OtherUnitFiles Value="..\..\..\..\core;..\..\..\..\gui-experimental;..\..\..\..\gui-experimental\core.utils;..\..\..\..\gui-experimental\wizards\wallet;..\..\..\..\gui-experimental\wizards\operations;..\..\..\..\gui-classic;..\..\..\..\libraries\sphere10;..\..\..\..\libraries\simplebaselib4pascal;..\..\..\..\libraries\hashlib4pascal;..\..\..\..\libraries\cryptolib4pascal;..\..\..\..\libraries\synapse;..\..\..\..\libraries\pascalcoin;..\..\..\..\libraries\paszlib;..\..\..\..\libraries\abstractmem;..\..\..\..\libraries\regex"/>
+      <UnitOutputDirectory Value="..\..\lib\grid-refresh\FPC\$(TargetCPU)-$(TargetOS)\units"/>
+    </SearchPaths>
+    <Parsing><SyntaxOptions><SyntaxMode Value="Delphi"/></SyntaxOptions></Parsing>
+    <CodeGeneration><Checks><RangeChecks Value="True"/><OverflowChecks Value="True"/></Checks></CodeGeneration>
+    <Linking>
+      <Debugging><GenerateDebugInfo Value="True"/></Debugging>
+      <Options><Win32><GraphicApplication Value="True"/></Win32></Options>
+    </Linking>
+    <Other><CustomOptions Value="-dBorland -dVer150 -dDelphi7 -dCompiler6_Up -dPUREPASCAL"/></Other>
+  </CompilerOptions>
+</CONFIG>

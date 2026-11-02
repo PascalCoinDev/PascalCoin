@@ -16,7 +16,9 @@ unit UFRMPendingOperations;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -57,7 +59,11 @@ implementation
 
 uses UUserInterface, UBlockChain;
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 { TFRMPendingOperations }
 
@@ -82,7 +88,7 @@ begin
 end;
 
 procedure TFRMPendingOperations.miFindOperationbyOpHashClick(Sender: TObject);
-var ophash:AnsiString;
+var ophash:String;
 begin
   if Not TUserInterface.AskEnterString(Self, 'Search operation by OpHash','Insert Operation Hash value (OpHash)',ophash)
     then exit;

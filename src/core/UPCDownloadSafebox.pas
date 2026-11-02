@@ -37,6 +37,7 @@ type
   private
     FDownloadedBank: TPCBank;
     FOnProgressNotify: TProgressNotify;
+  protected
     type
     TDownloadSBThread = Class(TPCThread)
     private
@@ -55,11 +56,14 @@ type
       Count : Cardinal;
       Thread : TDownloadSBThread;
     end;
+  private
     var
     FNode : TNode;
     FSavedSafeboxHighOperationBlock : TOperationBlock;
     FChunks : TPCThreadList<TPCDownloadSafeboxChunk>;
   protected
+    function CreateChunkThread(ABlockStart, ACount : Cardinal) : TDownloadSBThread; virtual;
+    procedure WaitForChunkThread(AThread : TThread); virtual;
   public
     constructor Create;
     destructor Destroy; override;
@@ -133,18 +137,22 @@ begin
     FOwner.FChunks.LockList;
     try
       if TNetData.NetData.GetConnection(Random(TNetData.NetData.ConnectionsCountAll),LConnection) then begin
-        if Assigned(LConnection) And (Not LConnection.Connected) then LConnection := Nil;
+        // ConnectionLock validates and pins this raw registry candidate before
+        // dereferencing it; a disconnected peer may otherwise retire here.
+        if not TNetData.NetData.ConnectionLock(Self,LConnection,100) then
+          LConnection := Nil;
       end else LConnection := Nil;
-      if Assigned(LConnection) then begin
-        if TNetData.NetData.ConnectionLock(Self,LConnection,100) then begin
-          TNetData.NetData.ConnectionUnlock(LConnection);
-        end else LConnection := Nil;
-      end;
     finally
       FOwner.FChunks.UnlockList;
     end;
     if Assigned(LConnection) then begin
-      if DownloadSafebox(LConnection,FOwner.FSavedSafeboxHighOperationBlock.initial_safe_box_hash,Self.FStream) then Break;
+      try
+        // Retain both the request lock and its lifetime lease through response
+        // validation, including when a replacement peer disconnects mid-chunk.
+        if DownloadSafebox(LConnection,FOwner.FSavedSafeboxHighOperationBlock.initial_safe_box_hash,Self.FStream) then Break;
+      finally
+        TNetData.NetData.ConnectionUnlock(LConnection);
+      end;
     end;
     Sleep(100);
   until Terminated;
@@ -182,22 +190,43 @@ end;
 destructor TPCDownloadSafebox.Destroy;
 var i : Integer;
   Ll : TList<TPCDownloadSafeboxChunk>;
+  LThreads : TList<TDownloadSBThread>;
 begin
-  Ll := FChunks.LockList;
+  LThreads := TList<TDownloadSBThread>.Create;
   Try
-    for i:=0 to Ll.Count-1 do begin
-      if assigned(Ll.Items[i].Thread) then begin
-        Ll.Items[i].Thread.Terminate;
-        Ll.Items[i].Thread.WaitFor;
-        Ll.Items[i].Thread.Free;
+    Ll := FChunks.LockList;
+    Try
+      for i:=0 to Ll.Count-1 do begin
+        if assigned(Ll.Items[i].Thread) then begin
+          // Cancel every worker before joining any of them.
+          Ll.Items[i].Thread.Terminate;
+          LThreads.Add(Ll.Items[i].Thread);
+        end;
       end;
-    end;
+    Finally
+      FChunks.UnlockList;
+    End;
+    // Retrying workers acquire FChunks too; joining under that lock deadlocks.
+    // Keep their shared list and streams alive until every worker has stopped.
+    for i:=0 to LThreads.Count-1 do WaitForChunkThread(LThreads[i]);
+    for i:=0 to LThreads.Count-1 do LThreads[i].Free;
   Finally
-    FChunks.UnlockList;
+    LThreads.Free;
   End;
   FreeAndNil(FChunks);
   FreeAndNil(FDownloadedBank);
   inherited;
+end;
+
+function TPCDownloadSafebox.CreateChunkThread(ABlockStart,
+  ACount : Cardinal) : TDownloadSBThread;
+begin
+  Result := TDownloadSBThread.Create(Self,ABlockStart,ACount);
+end;
+
+procedure TPCDownloadSafebox.WaitForChunkThread(AThread : TThread);
+begin
+  AThread.WaitFor;
 end;
 
 function TPCDownloadSafebox.DownloadSafebox(AOwnerThread : TThread; ASavedSafeboxHighOperationBlock: TOperationBlock; AChunks : TPCSafeboxChunks): Boolean;
@@ -210,7 +239,8 @@ var LDownloadedSafeboxBlocksCount, request_id : Cardinal;
   Ldsbc : TPCDownloadSafeboxChunk;
   LTerminated : Boolean;
   LTerminatedCount, LTotal : Integer;
-  LFileName, Lstatus : String;
+  LFileName: String;
+  LProgress: TProgressInfo;
 Begin
   Result := False;
   // Check
@@ -249,14 +279,13 @@ Begin
       for i:=0 to Ll.Count-1 do begin
         Ldsbc := Ll.Items[i];
         if Not Assigned(Ldsbc.Thread) then begin
-          Ldsbc.Thread := TPCDownloadSafebox.TDownloadSBThread.Create(Self,Ldsbc.BlockStart,Ldsbc.Count);
+          Ldsbc.Thread := CreateChunkThread(Ldsbc.BlockStart,Ldsbc.Count);
           Ll.Items[i] := Ldsbc;
         end else begin
           if Ldsbc.Thread.Terminated then Inc(LTerminatedCount);
         end;
       end;
       LTerminated := LTerminatedCount >= Ll.Count;
-      Lstatus := Format('Downloading Safebox chunks %d/%d',[LTerminatedCount,Ll.Count]);
     Finally
       FChunks.UnlockList;
     End;
@@ -266,7 +295,10 @@ Begin
     if Assigned(AOwnerThread) then LContinue := Not AOwnerThread.CheckTerminated
     else LContinue := True;
     if (LContinue) and (Assigned(FOnProgressNotify)) then begin
-      FOnProgressNotify(Self,LStatus,LTerminatedCount,LTotal);
+      LProgress := TProgressInfo.Create(psDownloadingSafeboxChunks, LTerminatedCount, LTotal);
+      LProgress.ChunksCount := LTotal;
+      LProgress.BlockCount := LDownloadedSafeboxBlocksCount;
+      FOnProgressNotify(Self, LProgress);
     end;
   end;
 
@@ -282,7 +314,11 @@ Begin
       LFileName := TNode.Node.Bank.GetStorageFolder('')+PathDelim+'safebox_'+IntToStr(LDownloadedSafeboxBlocksCount)+'.safebox';
 
       if (Assigned(FOnProgressNotify)) then begin
-        FOnProgressNotify(Self,Format('Saving Safebox %d chunks to %s',[LTotal,ExtractFileName(LFileName)]),0,0);
+        LProgress := TProgressInfo.Create(psSavingSafebox);
+        LProgress.ChunksCount := LTotal;
+        LProgress.FileName := LFileName;
+        LProgress.BlockCount := LDownloadedSafeboxBlocksCount;
+        FOnProgressNotify(Self, LProgress);
       end;
       AChunks.SaveSafeboxfile(LFileName);
     finally

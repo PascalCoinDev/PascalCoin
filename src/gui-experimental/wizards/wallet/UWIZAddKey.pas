@@ -13,7 +13,9 @@ unit UWIZAddKey;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -45,8 +47,8 @@ type
       constructor Create(AOwner: TComponent); override;
       function DetermineHasNext : boolean; override;
       function DetermineHasPrevious : boolean;  override;
-      function FinishRequested(out message : AnsiString) : boolean; override;
-      function CancelRequested(out message : AnsiString) : boolean; override;
+      function FinishRequested(out message : String) : boolean; override;
+      function CancelRequested(out message : String) : boolean; override;
   end;
 
 implementation
@@ -77,7 +79,7 @@ begin
   Result := inherited DetermineHasPrevious;
 end;
 
-function TWIZAddKeyWizard.FinishRequested(out message : AnsiString) : boolean;
+function TWIZAddKeyWizard.FinishRequested(out message : String) : boolean;
 begin
   // Execute the key addition here
   try
@@ -95,7 +97,7 @@ begin
   end;
 end;
 
-function TWIZAddKeyWizard.CancelRequested(out message : AnsiString) : boolean;
+function TWIZAddKeyWizard.CancelRequested(out message : String) : boolean;
 begin
   Result := true;
 end;

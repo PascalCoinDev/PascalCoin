@@ -1,0 +1,40 @@
+﻿object FRMLogs: TFRMLogs
+  Left = 0
+  Height = 466
+  Top = 0
+  Width = 868
+  Caption = 'Logs'
+  ClientHeight = 466
+  ClientWidth = 868
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  Position = poOwnerFormCenter
+  Visible = False
+  object pnlTopLogs: TPanel
+    Left = 0
+    Height = 41
+    Top = 0
+    Width = 868
+    Align = alTop
+    BevelOuter = bvNone
+    TabOrder = 0
+    object cbShowDebugLogs: TCheckBox
+      Left = 15
+      Height = 19
+      Top = 10
+      Width = 115
+      Caption = 'Show Debug Logs'
+      TabOrder = 0
+    end
+  end
+  object memoLogs: TMemo
+    Left = 0
+    Height = 425
+    Top = 41
+    Width = 868
+    Align = alClient
+    ScrollBars = ssBoth
+    TabOrder = 1
+    WordWrap = False
+  end
+end

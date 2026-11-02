@@ -13,7 +13,9 @@ unit UFRMSaleAccounts;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 {$I ..\config.inc}
 
@@ -71,7 +73,7 @@ uses UNode;
 {$R *.dfm}
 
 procedure TFRMSaleAccounts.actExecuteExecute(Sender: TObject);
-Var errors : AnsiString;
+Var errors : String;
   P : PAccount;
   i,iAcc : Integer;
   wk : TWalletKey;

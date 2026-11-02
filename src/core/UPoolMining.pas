@@ -133,11 +133,15 @@ Type
   TPoolMiningServerThread = Class(TPCThread)
   private
     FPoolMiningServer : TPoolMiningServer;
+    FWake: TEvent;
+    FPendingWork: LongInt;
   protected
     procedure BCExecute; override;
   public
     Constructor Create(APoolMiningServer : TPoolMiningServer);
     Destructor Destroy; override;
+    procedure RequestCapture(AClearJobs: Boolean);
+    procedure WakeForStop;
   End;
 
 
@@ -152,11 +156,13 @@ Type
     FClientsWins: Integer;
     FClientsCount: Integer;
     FOnMiningServerNewBlockFound: TNotifyEvent;
+    FOnStatusChanged: TNotifyEvent;
     FPoolJobs : TPCThreadList<Pointer>;
     FPoolThread : TPoolMiningServerThread;
     FMinerOperations : TPCOperationsComp;
     FMaxOperationsPerBlock: Integer;
     FMax0FeeOperationsPerBlock: Integer;
+    FStopping: Boolean;
     Procedure CheckMinerRecover(nbOperations: TPCOperationsComp);
     Procedure DoProcessJSON(json : TPCJSONObject; ResponseMethod : String; Client : TJSONRPCTcpIpClient);
     Procedure OnNodeNewBlock(Sender : TObject);
@@ -166,11 +172,17 @@ Type
     procedure SetMinerPayload(const Value: TRawBytes);
     Procedure ClearPoolJobs;
     Procedure CaptureNewJobAndSendToMiners;
+    procedure RequestCapture(AClearJobs: Boolean = false);
     Procedure SendJobToMiner(Operations : TPCOperationsComp; Client : TJSONRPCTcpIpClient; IsResponse : Boolean; idResponse : Variant);
-    Procedure FillMinerOperations;
+    procedure NotifyStatusChanged;
     procedure SetMax0FeeOperationsPerBlock(const Value: Integer);
     procedure SetMaxOperationsPerBlock(const Value: Integer);
   protected
+    Procedure FillMinerOperations;
+    // Copy the current job while its pool owner is retained. Network sends use
+    // only this value snapshot after releasing the job list, never a borrowed job.
+    procedure CaptureJobValues(Operations: TPCOperationsComp;
+      out AValues: TMinerValuesForWork; out AJobsCount, AOperationsCount: Integer); virtual;
     Procedure OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient); override;
     procedure SetActive(const Value: Boolean); override;
   public
@@ -182,6 +194,8 @@ Type
     Property ClientsCount : Integer read FClientsCount;
     Property ClientsWins : Integer read FClientsWins;
     Property OnMiningServerNewBlockFound : TNotifyEvent read FOnMiningServerNewBlockFound write FOnMiningServerNewBlockFound;
+    // Producer-thread notification; UI consumers must marshal to their owner.
+    property OnStatusChanged: TNotifyEvent read FOnStatusChanged write FOnStatusChanged;
     Property Max0FeeOperationsPerBlock : Integer read FMax0FeeOperationsPerBlock write SetMax0FeeOperationsPerBlock;
     Property MaxOperationsPerBlock : Integer read FMaxOperationsPerBlock write SetMaxOperationsPerBlock;
   End;
@@ -564,9 +578,13 @@ Var P, PToDelete : PPoolJob;
   params : TPCJSONObject;
   OpB : TOperationBlock;
   LLockedMempool : TPCOperationsComp;
+  LRegistered : Boolean;
 begin
   if Not Active then exit;
   if FClientsCount<=0 then exit;
+  // Catch-up intentionally hides the pending overlay until its final replay.
+  // Do not rebuild miner jobs from it or turn block notifications into replay.
+  if not FNodeNotifyEvents.Node.PendingOperationsAvailable then Exit;
   doAdd := false;
   P := Nil;
   l := FPoolJobs.LockList;
@@ -587,13 +605,18 @@ begin
       end;
     end;
     if doAdd then begin
+      // A catch-up notification can arrive after the first availability check.
+      // Finish the guarded capture before allocating the registered job owner.
+      FillMinerOperations;
       New(P);
+      P^.OperationsComp := Nil;
+      LRegistered := False;
+      try
       P^.SentDateTime := now;
       P^.SentMinTimestamp := TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime;
       if (P^.SentMinTimestamp<FNodeNotifyEvents.Node.Bank.LastOperationBlock.timestamp) then begin
         P^.SentMinTimestamp := FNodeNotifyEvents.Node.Bank.LastOperationBlock.timestamp;
       end;
-      FillMinerOperations;
       P^.OperationsComp := TPCOperationsComp.Create(Nil);
       P^.OperationsComp.CopyFrom(FMinerOperations);
       P^.OperationsComp.AccountKey := FMinerAccountKey;
@@ -608,7 +631,18 @@ begin
         P := Nil;
       end else begin
         i := l.Add(P);
+        LRegistered := True;
         {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,ClassName,'Added new job '+IntToStr(i+1)+'/'+IntToStr(l.Count));{$ENDIF}
+      end;
+      except
+        // Before registration this method owns the job, including failures in
+        // digest preparation. The shared list owns it only after Add succeeds.
+        if (Not LRegistered) And Assigned(P) then begin
+          P^.OperationsComp.Free;
+          Dispose(P);
+          P := Nil;
+        end;
+        raise;
       end;
     end;
     // Clean buffer jobs
@@ -664,6 +698,7 @@ constructor TPoolMiningServer.Create;
 begin
   inherited;
   FOnMiningServerNewBlockFound := Nil;
+  FOnStatusChanged := nil;
   FIncomingsCounter := 0;
   FClientsWins := 0;
   FClientsCount := 0;
@@ -677,22 +712,34 @@ begin
   FMinerAccountKey := CT_TECDSA_Public_Nul;
   FMinerPayload := Nil;
   FPoolJobs := TPCThreadList<Pointer>.Create('TPoolMiningServer_PoolJobs');
-  FPoolThread := TPoolMiningServerThread.Create(Self);
   FMax0FeeOperationsPerBlock := CT_MAX_0_fee_operations_per_block_by_miner;
   FMaxOperationsPerBlock := CT_MAX_Operations_per_block_by_miner;
+  FPoolThread := TPoolMiningServerThread.Create(Self);
 end;
 
 destructor TPoolMiningServer.Destroy;
 begin
-  FPoolThread.Terminate;
-  FPoolThread.WaitFor;
-  FreeAndNil(FPoolThread);
-  FNodeNotifyEvents.Node := Nil;
-  FNodeNotifyEvents.OnBlocksChanged := Nil;
-  FNodeNotifyEvents.OnOperationsChanged := Nil;
+  FOnStatusChanged := nil;
+  FStopping := true;
+  // A synchronized node callback can run while WaitFor services the main
+  // thread. Detach it before the worker's wake object can be freed.
+  if Assigned(FNodeNotifyEvents) then begin
+    FNodeNotifyEvents.OnBlocksChanged := Nil;
+    FNodeNotifyEvents.OnOperationsChanged := Nil;
+  end;
+  // Accepted miners can still read jobs and templates while their callbacks
+  // drain. Stop/join that owned listener before freeing any of those fields.
+  Active := false;
+  if Assigned(FPoolThread) then begin
+    FPoolThread.Terminate;
+    FPoolThread.WakeForStop;
+    FPoolThread.WaitFor;
+    FreeAndNil(FPoolThread);
+  end;
+  if Assigned(FNodeNotifyEvents) then FNodeNotifyEvents.Node := Nil;
   FreeAndNil(FMinerOperations);
   FreeAndNil(FNodeNotifyEvents);
-  ClearPoolJobs;
+  if Assigned(FPoolJobs) then ClearPoolJobs;
   FreeAndNil(FPoolJobs);
   inherited;
 end;
@@ -801,62 +848,79 @@ Var i,j : Integer;
   LLockedMempool : TPCOperationsComp;
   op : TPCOperation;
   errors : String;
+  LWriteOwned, LUpgradeNeeded : Boolean;
 begin
-  LLockedMempool := FNodeNotifyEvents.Node.LockMempoolRead;
+  // Reserve the sole upgrader while comparing the existing miner template.
+  LLockedMempool := FNodeNotifyEvents.Node.LockMempoolUpgradeableRead;
+  LWriteOwned := False;
   Try
-    FMinerOperations.Lock;
-    Try
-      tree := TOperationsHashTree.Create;
-      try
-        if (Not (TPCOperationsComp.EqualsOperationBlock(FMinerOperations.OperationBlock,LLockedMempool.OperationBlock))) then begin
-          FMinerOperations.Clear(true);
-          if LLockedMempool.SafeBoxTransaction.FreezedSafeBox.CurrentProtocol < CT_PROTOCOL_6 then begin
-            CheckMinerRecover(LLockedMempool);
-          end;
-          if LLockedMempool.Count>0 then begin
-            // First round: Select with fee > 0
-            i := 0;
-            while (tree.OperationsCount<MaxOperationsPerBlock) And (i<LLockedMempool.OperationsHashTree.OperationsCount) do begin
-              op := LLockedMempool.OperationsHashTree.GetOperation(i);
-              if op.OperationFee>0 then begin
-                DoAdd(op,false);
+    while True do begin
+      LUpgradeNeeded := False;
+      FMinerOperations.Lock;
+      Try
+        LUpgradeNeeded := (not LWriteOwned) and
+          (not TPCOperationsComp.EqualsOperationBlock(FMinerOperations.OperationBlock,
+            LLockedMempool.OperationBlock));
+        if not LUpgradeNeeded then begin
+          tree := TOperationsHashTree.Create;
+          try
+            if (Not (TPCOperationsComp.EqualsOperationBlock(FMinerOperations.OperationBlock,LLockedMempool.OperationBlock))) then begin
+              FMinerOperations.Clear(true);
+              if LLockedMempool.SafeBoxTransaction.FreezedSafeBox.CurrentProtocol < CT_PROTOCOL_6 then begin
+                CheckMinerRecover(LLockedMempool);
               end;
-              inc(i);
-            end;
-            // Second round: Allow fee = 0
-            j := 0;
-            i := 0;
-            while (tree.OperationsCount<MaxOperationsPerBlock) And (i<LLockedMempool.OperationsHashTree.OperationsCount) And (j<Max0FeeOperationsPerBlock) do begin
-              op := LLockedMempool.OperationsHashTree.GetOperation(i);
-              if op.OperationFee=0 then begin
-                DoAdd(op,True);
-                inc(j);
+              if LLockedMempool.Count>0 then begin
+                // First round: Select with fee > 0
+                i := 0;
+                while (tree.OperationsCount<MaxOperationsPerBlock) And (i<LLockedMempool.OperationsHashTree.OperationsCount) do begin
+                  op := LLockedMempool.OperationsHashTree.GetOperation(i);
+                  if op.OperationFee>0 then begin
+                    DoAdd(op,false);
+                  end;
+                  inc(i);
+                end;
+                // Second round: Allow fee = 0
+                j := 0;
+                i := 0;
+                while (tree.OperationsCount<MaxOperationsPerBlock) And (i<LLockedMempool.OperationsHashTree.OperationsCount) And (j<Max0FeeOperationsPerBlock) do begin
+                  op := LLockedMempool.OperationsHashTree.GetOperation(i);
+                  if op.OperationFee=0 then begin
+                    DoAdd(op,True);
+                    inc(j);
+                  end;
+                  inc(i);
+                end;
+                // Add operations:
+                i := FMinerOperations.AddOperations(tree,errors);
+                if (i<>tree.OperationsCount) Or (i<>LLockedMempool.OperationsHashTree.OperationsCount) then begin
+                  TLog.NewLog(ltDebug,ClassName,Format('Cannot add all operations! Master:%d Selected:%d Added:%d - Errors: %s',
+                    [LLockedMempool.OperationsHashTree.OperationsCount,tree.OperationsCount,i,errors]));
+                end;
+              end else begin
+                FMinerOperations.CopyFrom(LLockedMempool);
               end;
-              inc(i);
+              //
+              {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('New miner operations:%d Hash:%s %s',
+                [FMinerOperations.OperationsHashTree.OperationsCount,TCrypto.ToHexaString(FMinerOperations.OperationsHashTree.HashTree),TCrypto.ToHexaString(FMinerOperations.OperationBlock.operations_hash)]));{$ENDIF}
+            end else begin
+              TLog.NewLog(ltDebug,ClassName,Format('No need to change Miner buffer. Operations:%d',[FMinerOperations.OperationsHashTree.OperationsCount]));
             end;
-            // Add operations:
-            i := FMinerOperations.AddOperations(tree,errors);
-            if (i<>tree.OperationsCount) Or (i<>LLockedMempool.OperationsHashTree.OperationsCount) then begin
-              TLog.NewLog(ltDebug,ClassName,Format('Cannot add all operations! Master:%d Selected:%d Added:%d - Errors: %s',
-                [LLockedMempool.OperationsHashTree.OperationsCount,tree.OperationsCount,i,errors]));
-            end;
-          end else begin
-            FMinerOperations.CopyFrom(LLockedMempool);
+          finally
+            tree.Free;
           end;
-          //
-          {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('New miner operations:%d Hash:%s %s',
-            [FMinerOperations.OperationsHashTree.OperationsCount,TCrypto.ToHexaString(FMinerOperations.OperationsHashTree.HashTree),TCrypto.ToHexaString(FMinerOperations.OperationBlock.operations_hash)]));{$ENDIF}
-        end else begin
-          TLog.NewLog(ltDebug,ClassName,Format('No need to change Miner buffer. Operations:%d',[FMinerOperations.OperationsHashTree.OperationsCount]));
         end;
-      finally
-        tree.Free;
+      Finally
+        FMinerOperations.Unlock;
       end;
-    Finally
-      FMinerOperations.Unlock;
+      if not LUpgradeNeeded then Break;
+      // Rebuilds can mutate shared signature caches as well as legacy recovery.
+      // Release the child lock before promotion, then recheck the template.
+      LLockedMempool := FNodeNotifyEvents.Node.LockMempoolWrite;
+      LWriteOwned := True;
     end;
   Finally
-    FNodeNotifyEvents.Node.UnlockMempoolRead;
+    if LWriteOwned then FNodeNotifyEvents.Node.UnlockMempoolWrite;
+    FNodeNotifyEvents.Node.UnlockMempoolUpgradeableRead;
   End;
 end;
 
@@ -938,6 +1002,7 @@ begin
           json.GetAsVariant('timestamp').Value := nbOperations.timestamp;
           json.GetAsVariant('nonce').Value := nbOperations.nonce;
           inc(FClientsWins);
+          NotifyStatusChanged;
           Client.SendJSONRPCResponse(json,id);
         finally
           json.Free;
@@ -1001,6 +1066,7 @@ begin
   inherited;
   inc(FClientsCount);
   Try
+    NotifyStatusChanged;
     TLog.NewLog(ltinfo,ClassName,'New Mining Pool Connection: '+Client.ClientRemoteAddr);
     bClient := TJSONRPCTcpIpClient(Client);
     inc(FIncomingsCounter);
@@ -1019,44 +1085,58 @@ begin
     end;
   Finally
     Dec(FClientsCount);
+    NotifyStatusChanged;
     TLog.NewLog(ltinfo,ClassName,'Finalizing Mining Pool Connection: '+Client.ClientRemoteAddr);
   End;
 end;
 
 procedure TPoolMiningServer.OnNodeNewBlock(Sender: TObject);
 begin
-  // Delete Jobs cache, because a new block was found prior to us
-  ClearPoolJobs;
-  CaptureNewJobAndSendToMiners;
+  // This receiver runs on the UI bridge. It must not enter a pool/node lock.
+  RequestCapture(true);
 end;
 
 procedure TPoolMiningServer.OnNodeOperationsChanged(Sender: TObject);
 begin
-  CaptureNewJobAndSendToMiners;
+  RequestCapture;
 end;
 
-procedure TPoolMiningServer.SendJobToMiner(Operations: TPCOperationsComp; Client: TJSONRPCTcpIpClient; IsResponse : Boolean; idResponse : Variant);
-var params : TPCJSONObject;
-  ts : Cardinal;
-Var P : PPoolJob;
-  i,nJobs : Integer;
-  l : TList<Pointer>;
+procedure TPoolMiningServer.RequestCapture(AClearJobs: Boolean);
 begin
-  if FClientsCount<=0 then exit;
+  if (not FStopping) and Assigned(FPoolThread) then
+    FPoolThread.RequestCapture(AClearJobs);
+end;
+
+procedure TPoolMiningServer.CaptureJobValues(Operations: TPCOperationsComp;
+  out AValues: TMinerValuesForWork; out AJobsCount, AOperationsCount: Integer);
+var P : PPoolJob;
+  l : TList<Pointer>;
+  LRegistered : Boolean;
+begin
+  AValues := CT_TMinerValuesForWork_NULL;
+  AJobsCount := 0;
+  AOperationsCount := 0;
+  l := FPoolJobs.LockList;
+  try
+  if not FNodeNotifyEvents.Node.PendingOperationsAvailable then
+    raise EPendingOperationsUnavailable.Create('Pending operations are unavailable during blockchain synchronization');
   if (Not Assigned(Operations)) then begin
     P := Nil;
-    l := FPoolJobs.LockList;
-    Try
       if l.count>0 then P := l[l.Count-1] // The last
       else begin
         //TLog.NewLog(ltInfo,ClassName,'Creating new job for miner');
+        // The guarded capture can defer while catch-up is active. Allocate
+        // the registered job only after it succeeds, as in periodic capture.
+        FillMinerOperations;
         New(P);
+        P^.OperationsComp := Nil;
+        LRegistered := False;
+        try
         P^.SentDateTime := now;
         P^.SentMinTimestamp := TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime;
         if (P^.SentMinTimestamp<FNodeNotifyEvents.Node.Bank.LastOperationBlock.timestamp) then begin
           P^.SentMinTimestamp := FNodeNotifyEvents.Node.Bank.LastOperationBlock.timestamp;
         end;
-        FillMinerOperations;
         P^.OperationsComp := TPCOperationsComp.Create(Nil);
         P^.OperationsComp.CopyFrom(FMinerOperations);
         P^.OperationsComp.AccountKey := FMinerAccountKey;
@@ -1066,38 +1146,62 @@ begin
           TLog.NewLog(ltError,ClassName,'ERROR DEV 20170228-2 '+TPCOperationsComp.OperationBlockToText(P^.OperationsComp.OperationBlock)+'<>'+TPCOperationsComp.OperationBlockToText(FNodeNotifyEvents.Node.Bank.LastOperationBlock));
           P^.OperationsComp.Free;
           Dispose(P);
+          P := Nil;
           raise Exception.Create('ERROR DEV 20170228-2');
         end;
         l.Add(P);
+        LRegistered := True;
+        except
+          // A failed initial job never enters FPoolJobs, so its allocations
+          // still belong here rather than to ClearPoolJobs.
+          if (Not LRegistered) And Assigned(P) then begin
+            P^.OperationsComp.Free;
+            Dispose(P);
+            P := Nil;
+          end;
+          raise;
+        end;
       end;
-    Finally
-      FPoolJobs.UnlockList;
-    End;
     Operations := P^.OperationsComp;
   end;
-  l := FPoolJobs.LockList;
-  Try
-    nJobs := l.Count;
-  Finally
+  AJobsCount := l.Count;
+  // ClearPoolJobs can run on the pool worker after any node notification. Copy
+  // all managed bytes and scalar fields before that owner may destroy the job.
+  AValues.block := Operations.OperationBlock.block;
+  AValues.version := Operations.OperationBlock.protocol_version;
+  AValues.part1 := Operations.PoW_Digest_Part1;
+  AValues.payload_start := Operations.OperationBlock.block_payload;
+  AValues.part3 := Operations.PoW_Digest_Part3;
+  AValues.target := Operations.OperationBlock.compact_target;
+  AValues.target_pow := TPascalCoinProtocol.TargetFromCompact(AValues.target,AValues.version);
+  AOperationsCount := Operations.Count;
+  AValues.timestamp := TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime;
+  if AValues.timestamp<FNodeNotifyEvents.Node.Bank.LastOperationBlock.timestamp then
+    AValues.timestamp := FNodeNotifyEvents.Node.Bank.LastOperationBlock.timestamp;
+  finally
     FPoolJobs.UnlockList;
-  End;
+  end;
+end;
 
+procedure TPoolMiningServer.SendJobToMiner(Operations: TPCOperationsComp; Client: TJSONRPCTcpIpClient; IsResponse : Boolean; idResponse : Variant);
+var params : TPCJSONObject;
+  LValues : TMinerValuesForWork;
+  LJobsCount, LOperationsCount : Integer;
+begin
+  if FClientsCount<=0 then exit;
+  try
+  CaptureJobValues(Operations,LValues,LJobsCount,LOperationsCount);
   params := TPCJSONObject.Create;
   Try
     if Not Active then exit;
-    params.GetAsVariant('block').Value := Operations.OperationBlock.block;
-    params.GetAsVariant('version').Value := Operations.OperationBlock.protocol_version;
-    params.GetAsVariant('part1').Value := TCrypto.ToHexaString( Operations.PoW_Digest_Part1 );
-    params.GetAsVariant('payload_start').Value := TCrypto.ToHexaString( Operations.OperationBlock.block_payload );
-    params.GetAsVariant('part3').Value := TCrypto.ToHexaString( Operations.PoW_Digest_Part3 );
-    params.GetAsVariant('target').Value := Operations.OperationBlock.compact_target;
-    params.GetAsVariant('target_pow').Value := TCrypto.ToHexaString(TPascalCoinProtocol.TargetFromCompact(Operations.OperationBlock.compact_target,Operations.OperationBlock.protocol_version));
-
-    ts := TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime;
-    if (ts<FNodeNotifyEvents.Node.Bank.LastOperationBlock.timestamp) then begin
-      ts := FNodeNotifyEvents.Node.Bank.LastOperationBlock.timestamp;
-    end;
-    params.GetAsVariant('timestamp').Value := ts;
+    params.GetAsVariant('block').Value := LValues.block;
+    params.GetAsVariant('version').Value := LValues.version;
+    params.GetAsVariant('part1').Value := TCrypto.ToHexaString(LValues.part1);
+    params.GetAsVariant('payload_start').Value := TCrypto.ToHexaString(LValues.payload_start);
+    params.GetAsVariant('part3').Value := TCrypto.ToHexaString(LValues.part3);
+    params.GetAsVariant('target').Value := LValues.target;
+    params.GetAsVariant('target_pow').Value := TCrypto.ToHexaString(LValues.target_pow);
+    params.GetAsVariant('timestamp').Value := LValues.timestamp;
 
     if IsResponse then begin
       Client.SendJSONRPCResponse(params,idResponse);
@@ -1107,18 +1211,35 @@ begin
 
     TLog.NewLog(ltdebug,ClassName,
       Format('Sending job %d to miner - Block:%d Ops:%d Target:%s PayloadStart:%s',
-      [nJobs,Operations.OperationBlock.block,Operations.Count,IntToHex(Operations.OperationBlock.compact_target,8),Operations.OperationBlock.block_payload.ToPrintable]));
+      [LJobsCount,LValues.block,LOperationsCount,IntToHex(LValues.target,8),LValues.payload_start.ToPrintable]));
   Finally
     params.Free;
   End;
+  except
+    on E: EPendingOperationsUnavailable do begin
+      // A new connection stays alive without an initial job. Final coherent
+      // node notification supplies it; explicit requests get a normal RPC
+      // busy response instead of escaping the connection owner or leaking P.
+      if IsResponse then Client.SendJSONRPCErrorResponse(idResponse,E.Message);
+    end;
+  end;
 end;
 
 procedure TPoolMiningServer.SetActive(const Value: Boolean);
+var LChanged: Boolean;
 begin
+  LChanged := Active <> Value;
   inherited;
   if (Not Value) then begin
     WaitUntilNetTcpIpClientsFinalized;
   end;
+  if LChanged then NotifyStatusChanged;
+end;
+
+procedure TPoolMiningServer.NotifyStatusChanged;
+begin
+  // Publish actual client/active/win transitions instead of asking UI to poll.
+  if Assigned(FOnStatusChanged) then FOnStatusChanged(Self);
 end;
 
 
@@ -1131,7 +1252,7 @@ begin
     TLog.NewLog(ltError,ClassName,Format('Invalid max zero fee operations per block value %d, set to %d',[Value,FMax0FeeOperationsPerBlock]));
   end else FMax0FeeOperationsPerBlock := Value;
   TLog.NewLog(ltInfo,ClassName,Format('Updated max zero fee operations per block to %d',[FMax0FeeOperationsPerBlock]));
-  CaptureNewJobAndSendToMiners;
+  RequestCapture;
 end;
 
 procedure TPoolMiningServer.SetMaxOperationsPerBlock(const Value: Integer);
@@ -1143,7 +1264,7 @@ begin
     TLog.NewLog(ltError,ClassName,Format('Invalid max operations per block value %d, set to %d',[Value,FMaxOperationsPerBlock]));
   end else FMaxOperationsPerBlock := Value;
   TLog.NewLog(ltInfo,ClassName,Format('Updated max operations per block to %d',[FMaxOperationsPerBlock]));
-  CaptureNewJobAndSendToMiners;
+  RequestCapture;
 end;
 
 procedure TPoolMiningServer.SetMinerAccountKey(const Value: TAccountKey);
@@ -1151,14 +1272,14 @@ begin
   if TAccountComp.EqualAccountKeys(FMinerAccountKey,Value) then exit;
   FMinerAccountKey := Value;
   TLog.NewLog(ltdebug,ClassName,'Assigning Miner account key to: '+TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(Value)));
-  CaptureNewJobAndSendToMiners;
+  RequestCapture;
 end;
 
 procedure TPoolMiningServer.SetMinerPayload(const Value: TRawBytes);
 begin
   FMinerPayload := Value;
   TLog.NewLog(ltdebug,ClassName,'Assigning Miner new Payload: '+TCrypto.ToHexaString(Value));
-  CaptureNewJobAndSendToMiners;
+  RequestCapture;
 end;
 
 procedure TPoolMiningServer.UpdateAccountAndPayload(
@@ -1168,7 +1289,7 @@ begin
   TLog.NewLog(ltdebug,ClassName,'Assigning Miner account key to: '+TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(AMinerAccountKey)));
   FMinerPayload := AMinerPayload;
   TLog.NewLog(ltdebug,ClassName,'Assigning Miner new Payload: '+TCrypto.ToHexaString(AMinerPayload));
-  CaptureNewJobAndSendToMiners;
+  RequestCapture;
 end;
 
 { TPoolMinerClient }
@@ -1510,34 +1631,72 @@ end;
 { TPoolMiningServerThread }
 
 procedure TPoolMiningServerThread.BCExecute;
-Var i : Integer;
+var LLastPeriodic: TTickCount; LElapsed: Int64; LWait: Cardinal;
+  LWork: LongInt;
 begin
-  i := 0;
-  Repeat
-    Sleep(100);
-    inc(i);
-    if (not terminated) And ((i mod 10)=0) then begin
-      Try
+  LLastPeriodic := TPlatform.GetTickCount;
+  while not Terminated do begin
+    LElapsed := TPlatform.GetElapsedMilliseconds(LLastPeriodic);
+    if LElapsed >= 1000 then LWait := 0 else LWait := 1000 - Cardinal(LElapsed);
+    FWake.WaitFor(LWait);
+    if Terminated then Break;
+    {$IFDEF FPC}LWork := InterlockedExchange(FPendingWork,0);
+    {$ELSE}LWork := TInterlocked.Exchange(FPendingWork,0);{$ENDIF}
+    // Traffic never postpones the old one-second timestamp check. The existing
+    // capture method continues to enforce its ten/thirty-second job policies.
+    if TPlatform.GetElapsedMilliseconds(LLastPeriodic) >= 1000 then begin
+      LLastPeriodic := TPlatform.GetTickCount;
+      LWork := LWork or 2;
+    end;
+    try
+      if (LWork and 1) <> 0 then FPoolMiningServer.ClearPoolJobs;
+      if (LWork and 2) <> 0 then
         FPoolMiningServer.CaptureNewJobAndSendToMiners;
-      Except
-        On E:Exception do begin
-          TLog.NewLog(ltError,ClassName,'Error ('+E.ClassName+') Capturing job for miners: '+E.Message );
-        end;
+    except
+      on E: EPendingOperationsUnavailable do begin
+        // Availability can change after the initial check. Final coherent
+        // block notification requests a fresh job; this is ordinary deferral.
+      end;
+      on E: Exception do begin
+        TLog.NewLog(ltError,ClassName,'Error ('+E.ClassName+') Capturing job for miners: '+E.Message);
       End;
     end;
-  Until terminated;
+  end;
+end;
+
+procedure TPoolMiningServerThread.RequestCapture(AClearJobs: Boolean);
+var LOld, LNew: LongInt;
+begin
+  repeat
+    {$IFDEF FPC}LOld := InterlockedCompareExchange(FPendingWork,0,0);
+    {$ELSE}LOld := TInterlocked.CompareExchange(FPendingWork,0,0);{$ENDIF}
+    LNew := LOld or 2;
+    if AClearJobs then LNew := LNew or 1;
+    {$IFDEF FPC}
+    if InterlockedCompareExchange(FPendingWork,LNew,LOld) = LOld then Break;
+    {$ELSE}
+    if TInterlocked.CompareExchange(FPendingWork,LNew,LOld) = LOld then Break;
+    {$ENDIF}
+  until false;
+  FWake.SetEvent;
+end;
+
+procedure TPoolMiningServerThread.WakeForStop;
+begin
+  FWake.SetEvent;
 end;
 
 constructor TPoolMiningServerThread.Create(APoolMiningServer: TPoolMiningServer);
 begin
   FPoolMiningServer := APoolMiningServer;
+  FWake := TEvent.Create(nil, false, false, '');
   inherited Create(false);
 end;
 
 destructor TPoolMiningServerThread.Destroy;
 begin
-
   inherited;
+  FWake.Free;
 end;
 
 end.

@@ -13,7 +13,9 @@ unit UWIZAddKey_ImportPubKey;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -30,16 +32,21 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message : AnsiString) : boolean; override;
+    procedure OnPrevious; override;
+    function Validate(out message : String) : boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
-  UAccounts,
+  SysUtils, UWallet,
   UPCDataTypes;
 
 { TWIZAddKey_ImportPubKey }
@@ -47,20 +54,25 @@ uses
 
 procedure TWIZAddKey_ImportPubKey.OnPresent;
 begin
-  txtPublicKey.Clear;
+  txtPublicKey.Text := Model.KeyText;
   txtPublicKey.SetFocus;
 end;
 
 procedure TWIZAddKey_ImportPubKey.OnNext;
 begin
-  Model.KeyText := txtPublicKey.Text;
+  Model.KeyText := Trim(txtPublicKey.Text);
 end;
 
-function TWIZAddKey_ImportPubKey.Validate(out message : AnsiString) : boolean;
+procedure TWIZAddKey_ImportPubKey.OnPrevious;
+begin
+  OnNext;
+end;
+
+function TWIZAddKey_ImportPubKey.Validate(out message : String) : boolean;
 var
   accountKey : TAccountKey;
 begin
-   Result := TAccountComp.AccountPublicKeyImport(txtPublicKey.Text, accountKey, message);
+   Result := TWallet.TryParsePublicKey(txtPublicKey.Text, accountKey, message);
 end;
 
 end.

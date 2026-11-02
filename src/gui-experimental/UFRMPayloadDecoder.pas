@@ -16,14 +16,17 @@ unit UFRMPayloadDecoder;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode Delphi}
+{$ENDIF}
 
 interface
 
 {$I ../config.inc}
 
 uses
-  LCLIntf, LCLType, LMessages,
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+  {$IFDEF FPC}LCLIntf, LCLType, LMessages,{$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UCommon.UI,
   UBlockChain, UCrypto, UWallet, Buttons, ComCtrls,UAppParams;
@@ -94,7 +97,11 @@ type
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 Uses
   UNode, UTime, UAccounts, UCommon, USettings, UBaseTypes,
@@ -150,9 +157,9 @@ begin
       raise Exception.Create('Invalid OPHASH');
     end;
     Case TNode.Node.FindNOperation(nBlock,nAccount,nN_Operation,opr) of
-      invalid_params : raise Exception.Create(Format('Not a valid OpHash searching at Block:%d Account:%d N_Operation:%d',[nBlock,nAccount,nN_Operation]));
-      blockchain_block_not_found : raise Exception.Create('Your blockchain file does not contain all blocks to find');
-      found : ;
+      OpHash_invalid_params : raise Exception.Create(Format('Not a valid OpHash searching at Block:%d Account:%d N_Operation:%d',[nBlock,nAccount,nN_Operation]));
+      OpHash_block_not_found : raise Exception.Create('Your blockchain file does not contain all blocks to find');
+      OpHash_found : ;
     else raise Exception.Create('ERROR DEV 20171120-6');
     end;
     If (TPCOperation.EqualOperationHashes(opr.OperationHash,r)) Or
@@ -363,7 +370,7 @@ procedure TFRMPayloadDecoder.TryToDecode;
 
   end;
 
-  Function  UsePassword(const raw : TRawBytes; var Decrypted : TRawBytes; var PasswordUsed : AnsiString) : Boolean;
+  Function  UsePassword(const raw : TRawBytes; var Decrypted : TRawBytes; var PasswordUsed : String) : Boolean;
   Var i : Integer;
   Begin
     Result := false;
@@ -382,7 +389,7 @@ procedure TFRMPayloadDecoder.TryToDecode;
 Var raw : TRawBytes;
   WalletKey : TWalletKey;
   Decrypted : TRawBytes;
-  PasswordUsed : AnsiString;
+  PasswordUsed : String;
   ok : boolean;
 begin
   ok := true;

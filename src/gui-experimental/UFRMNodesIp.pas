@@ -16,7 +16,9 @@ unit UFRMNodesIp;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$MODE Delphi}
+{$ENDIF}
 
 interface
 
@@ -53,7 +55,11 @@ implementation
 uses
   UUserInterface, USettings, UNetProtocol, UNode, UConst;
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 { TFRMNodesIp }
 
@@ -66,8 +72,8 @@ procedure TFRMNodesIp.Refresh;
 Var
   nsarr : TNodeServerAddressArray;
   i : Integer;
-  ips : AnsiString;
-  aux : AnsiString;
+  ips : String;
+  aux : String;
 begin
   memoNodesIp.Clear;
   setlength(nsarr,0);
@@ -95,7 +101,7 @@ end;
 
 procedure TFRMNodesIp.bbOkClick(Sender: TObject);
 Var nsarr : TNodeServerAddressArray;
-  ips : AnsiString;
+  ips : String;
 begin
   TNode.DecodeIpStringToNodeServerAddressArray(memoNodesIp.Lines.Text,nsarr);
   if (length(nsarr)=0) And (cbTryOnlyWithThisServers.Checked) then begin

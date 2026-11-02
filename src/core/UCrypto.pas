@@ -1009,6 +1009,7 @@ begin
 {$IFDEF Use_OpenSSL}
   i := BN_num_bytes(FBN);
   SetLength(Result,i);
+  if i=0 then Exit;
   p := @Result[Low(Result)];
   i := BN_bn2bin(FBN,p);
 {$ELSE}

@@ -17,13 +17,20 @@ unit UWIZSendPASC_Details;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
 
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, Controls, StdCtrls, ExtCtrls, Buttons, UWizard, UWIZOperation;
+  Types, Math, Controls,
+  Classes, SysUtils, Forms, Dialogs, StdCtrls, ExtCtrls, Buttons, UWizard, UWIZOperation;
 
 type
 
@@ -46,18 +53,24 @@ type
     procedure chkSendAllChange(Sender: TObject);
     procedure txtRecipientChange(Sender: TObject);
     procedure UpdateUI();
-
-
+    procedure FormResize(Sender: TObject);
+  private
+    FSpecifiedAmountText: String;
+    FPresented: Boolean;
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UNode,
@@ -79,13 +92,70 @@ uses
 
 { TWIZSendPASC_Details }
 
+type
+  TCaptionGroupBoxAccess = class(TGroupBox);
+
 procedure TWIZSendPASC_Details.txtRecipientChange(Sender: TObject);
 begin
   UpdateUI();
 end;
 
+procedure TWIZSendPASC_Details.FormResize(Sender: TObject);
+
+  procedure FitEditText(AEdit: TEdit);
+  var
+    LTextHeight, LBorderHeight: Integer;
+  begin
+    Canvas.Font.Assign(AEdit.Font);
+    LTextHeight := Canvas.TextHeight('Mg');
+    LBorderHeight := Max(4, AEdit.Height - AEdit.ClientHeight);
+    // The large entry font needs its full native line height plus edit borders.
+    AEdit.Height := Max(AEdit.Height, LTextHeight + LBorderHeight);
+  end;
+
+  procedure PositionContents(AGroup: TGroupBox);
+  var
+    LContent: TRect;
+    LPadding, LTop, LDelta, I: Integer;
+    LControl: TControl;
+  begin
+    LContent := AGroup.ClientRect;
+    TCaptionGroupBoxAccess(AGroup).AdjustClientRect(LContent);
+    Canvas.Font.Assign(AGroup.Font);
+    LPadding := Max(6, Canvas.TextHeight('0') * 2 div 3);
+    LTop := High(Integer);
+    for I := 0 to AGroup.ControlCount - 1 do
+      LTop := Min(LTop, AGroup.Controls[I].Top);
+    LDelta := LContent.Top + LPadding - LTop;
+    for I := 0 to AGroup.ControlCount - 1 do begin
+      LControl := AGroup.Controls[I];
+      LControl.Top := LControl.Top + LDelta;
+      if (LControl is TPanel) and (akBottom in LControl.Anchors) then
+        LControl.Height := Max(0, LContent.Bottom - LControl.Top - LPadding);
+    end;
+  end;
+
+begin
+  if not HandleAllocated or not Assigned(chkPayload) then Exit;
+  FitEditText(txtRecipient);
+  FitEditText(txtAmount);
+  btnSearch.Height := txtRecipient.Height;
+  // VCL reserves its caption inside ClientRect; LCL already excludes it.
+  // Use the native content inset so controls stay clear at either font scale.
+  PositionContents(gbRecipient);
+  PositionContents(gpAmount);
+  PositionContents(gpOptions);
+end;
+
 procedure TWIZSendPASC_Details.OnPresent;
 begin
+  FormResize(Self);
+  if not FPresented then
+  begin
+    txtAmount.Text := IIF(Model.SendPASC.SingleAmountToSend = 0, '', TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend));
+    FSpecifiedAmountText := txtAmount.Text;
+    FPresented := True;
+  end;
   UpdateUI();
 
   // Recipient section
@@ -117,14 +187,17 @@ begin
   // Quantity section
   if chkSendAll.Checked then
   begin
+    if txtAmount.Enabled then
+      FSpecifiedAmountText := txtAmount.Text;
     txtAmount.Text := 'ALL BALANCE';
     txtAmount.Enabled := False;
     Model.SendPASC.SendPASCMode := akaAllBalance;
   end
   else
   begin
+    if not txtAmount.Enabled then
+      txtAmount.Text := FSpecifiedAmountText;
     txtAmount.Enabled := True;
-    txtAmount.Text := IIF(Model.SendPASC.SingleAmountToSend = 0, '', TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend));
     Model.SendPASC.SendPASCMode := akaSpecifiedAmount;
   end;
 end;
@@ -169,17 +242,17 @@ begin
     UpdatePath(ptInject, LWizStepsToInject.ToArray);
 end;
 
-function TWIZSendPASC_Details.Validate(out message: ansistring): boolean;
+function GetAccountNumberWithChecksum({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AAccount: TAccount): string;
+begin
+  Result := AAccount.AccountString;
+end;
 
-  function GetAccountNumberWithChecksum(constref AAccount: TAccount): string;
-  begin
-    Result := AAccount.AccountString;
-  end;
-
+function TWIZSendPASC_Details.Validate(out message: String): boolean;
 var
+  LAccountTransform: TGlobalTransformFunc<TAccount, string>;
   LAccountNumbersWithChecksum: TArray<string>;
   LAccountNumber: cardinal;
-  LAmount: int64;
+  LAmount, LFee: int64;
   LIdx: integer;
   LAccount: TAccount;
 begin
@@ -197,7 +270,8 @@ begin
     Exit(False);
   end;
 
-  LAccountNumbersWithChecksum := TListTool<TAccount, string>.Transform(Model.Account.SelectedAccounts, GetAccountNumberWithChecksum);
+  LAccountTransform := GetAccountNumberWithChecksum;
+  LAccountNumbersWithChecksum := TListTool<TAccount, string>.Transform(Model.Account.SelectedAccounts, LAccountTransform);
 
   if TArrayTool<string>.Contains(LAccountNumbersWithChecksum, txtRecipient.Text) then
   begin
@@ -220,12 +294,22 @@ begin
       Exit(False);
     end;
 
+    if chkCustomFee.Checked then
+      LFee := Model.Fee.SingleOperationFee
+    else
+      LFee := TSettings.DefaultFee;
+    if LFee < 0 then
+    begin
+      message := 'The operation fee cannot be negative.';
+      Exit(False);
+    end;
     for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     begin
       LAccount := Model.Account.SelectedAccounts[LIdx];
-      if LAccount.balance < LAmount then
+      if (LAccount.balance < UInt64(LAmount)) or
+        (LAccount.balance - UInt64(LAmount) < UInt64(LFee)) then
       begin
-        message := Format('Account balance in %s (%s PASC) is less than specified amount (%s PASC) to send', [LAccount.AccountString, TAccountComp.FormatMoney(LAccount.balance), TAccountComp.FormatMoney(LAmount)]);
+        message := Format('Account %s needs enough balance for %s PASC and the %s PASC fee.', [LAccount.AccountString, TAccountComp.FormatMoney(LAmount), TAccountComp.FormatMoney(LFee)]);
         Exit(False);
       end;
     end;

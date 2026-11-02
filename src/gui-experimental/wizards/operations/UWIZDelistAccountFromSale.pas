@@ -17,7 +17,9 @@ unit UWIZDelistAccountFromSale;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -33,8 +35,8 @@ type
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;
     function DetermineHasPrevious: boolean; override;
-    function FinishRequested(out message: ansistring): boolean; override;
-    function CancelRequested(out message: ansistring): boolean; override;
+    function FinishRequested(out message: String): boolean; override;
+    function CancelRequested(out message: String): boolean; override;
   end;
 
 implementation
@@ -75,16 +77,17 @@ begin
   Result := inherited DetermineHasPrevious;
 end;
 
-function TWIZDelistAccountFromSaleWizard.FinishRequested(out message: ansistring): boolean;
+function TWIZDelistAccountFromSaleWizard.FinishRequested(out message: String): boolean;
 begin
   // Execute the Delist Account From Sale Action here
-  Result := TWIZOperationsHelper.ExecuteDelistAccountFromSale(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, Model.Fee.SingleOperationFee, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
-  if TWIZOperationsModel.RelockOnFinish then
-   TWallet.Keys.LockWallet;
+  Result := TWIZOperationsHelper.ExecuteDelistAccountFromSale(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, Model.Fee.SingleOperationFee, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message, Model.Signer.OperationSigningMode);
+  if Result then
+    Model.RelockWallet;
 end;
 
-function TWIZDelistAccountFromSaleWizard.CancelRequested(out message: ansistring): boolean;
+function TWIZDelistAccountFromSaleWizard.CancelRequested(out message: String): boolean;
 begin
+  Model.RelockWallet;
   Result := True;
 end;
 

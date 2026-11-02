@@ -17,8 +17,14 @@ unit UWIZOperationConfirmation;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
 
 interface
 
@@ -41,15 +47,20 @@ type
     paGrid: TPanel;
   private
     FConfirmationGrid: TVisualGrid;
+    procedure UnlockWallet(Sender: TObject);
   public
     procedure OnPresent; override;
-    procedure OnNext; override;
+    function Validate(out message: String): Boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UConst,
@@ -79,7 +90,7 @@ type
   public
     property Model: TWIZOperationsModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
-    function GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: TAccount; const ABindingName: String): variant; override;
   end;
 
 { TWIZOperationConfirmation }
@@ -88,11 +99,13 @@ procedure TWIZOperationConfirmation.OnPresent;
 var
   LData: TOperationConfirmationDataSource;
   LCaption: string;
+  LTargetCount: Integer;
 begin
 
   lblBeneficiaryAccount.Visible := False;
   lblBenAcc.Visible := False;
 
+  FreeAndNil(FConfirmationGrid);
   FConfirmationGrid := TVisualGrid.Create(Self);
   FConfirmationGrid.CanSearch := False;
   FConfirmationGrid.SortMode := smMultiColumn;
@@ -101,7 +114,10 @@ begin
   FConfirmationGrid.SelectionType := stNone;
   FConfirmationGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
   LCaption := 'Confirm Operation';
-  gpConfirmOperation.Caption := IIF(Model.Account.Count > 1, Format('%ss', [LCaption]), Format('%s', [LCaption]));
+  LTargetCount := Model.Account.Count;
+  if Model.ExecuteOperationType = omtChangeInfo then
+    LTargetCount := Length(Model.ChangeAccountInfo.TargetAccounts);
+  gpConfirmOperation.Caption := IIF(LTargetCount > 1, Format('%ss', [LCaption]), Format('%s', [LCaption]));
   with FConfirmationGrid.AddColumn('Sender') do
   begin
     StretchedToFill := True;
@@ -158,15 +174,16 @@ begin
 
   LData := TOperationConfirmationDataSource.Create(FConfirmationGrid);
   LData.Model := Model;
-  FConfirmationGrid.DataSource := LData;
+  // Synchronous fetching can measure native cells, so establish parenting first.
   paGrid.AddControlDockCenter(FConfirmationGrid);
+  FConfirmationGrid.DataSource := LData;
 
   case Model.ExecuteOperationType of
     omtEnlistAccountForSale:
     begin
       lblBeneficiaryAccount.Visible := True;
       lblBenAcc.Visible := True;
-      lblBenAcc.Caption := Model.EnlistAccountForSale.SellerAccount.AccountString;
+      lblBenAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.EnlistAccountForSale.SellerAccount.account);
     end;
   end;
 
@@ -185,16 +202,14 @@ begin
   end;
 end;
 
-procedure TWIZOperationConfirmation.OnNext;
-var
-  LLocked: boolean;
+procedure TWIZOperationConfirmation.UnlockWallet(Sender: TObject);
 begin
-  LLocked := (not TWallet.Keys.HasPassword) or (not TWallet.Keys.IsValidPassword);
-  if LLocked then
-  begin
-    TUserInterface.UnlockWallet(Self);
-    TWIZOperationsModel.RelockOnFinish := LLocked;
-  end;
+  TUserInterface.UnlockWallet(Self);
+end;
+
+function TWIZOperationConfirmation.Validate(out message: String): Boolean;
+begin
+  Result := Model.TryUnlockWallet(TWallet.Keys, UnlockWallet, message);
 end;
 
 { TOperationConfirmationDataSource }
@@ -213,7 +228,7 @@ begin
     ]);
 end;
 
-function TOperationConfirmationDataSource.GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant;
+function TOperationConfirmationDataSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: TAccount; const ABindingName: String): variant;
 var
   LAmount: string;
   LCurrentAccountKey, LDestinationAccountKey: TAccountKey;
@@ -258,7 +273,7 @@ begin
     case Model.ExecuteOperationType of
       omtSendPasc:
       begin
-        Result := Model.SendPASC.DestinationAccount.AccountString;
+        Result := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASC.DestinationAccount.account);
         Result := TCellRenderers.OperationShortHash(Result);
       end;
       omtChangeKey:
@@ -298,25 +313,25 @@ begin
       end
     end
   else if ABindingName = 'Signer' then
+    if Model.ExecuteOperationType = omtChangeInfo then
+    begin
+      if Model.ChangeAccountInfo.UseSingleFeePayer then
+        Result := TAccountComp.AccountNumberToAccountTxtNumber(Model.ChangeAccountInfo.FeePayerAccount.account)
+      else
+        Result := inherited GetItemField(AItem, 'Account');
+    end
+    else if (Model.Signer.OperationSigningMode = akaSecondary) and
+      (AItem.balance >= UInt64(Model.Fee.SingleOperationFee)) then
+      Result := inherited GetItemField(AItem, 'Account')
+    else
     case Model.ExecuteOperationType of
       omtSendPasc, omtBuyAccount:
       begin
         Result := inherited GetItemField(AItem, 'Account');
       end;
-      omtChangeInfo:
-      begin
-        if Model.Account.Count = 1 then
-        begin
-          Result := Model.Signer.SignerAccount.AccountString;
-        end
-        else
-        begin
-          Result := inherited GetItemField(AItem, 'Account');
-        end;
-      end
       else
       begin
-        Result := Model.Signer.SignerAccount.AccountString;
+        Result := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
       end;
     end
   else if ABindingName = 'Fee' then
@@ -329,9 +344,14 @@ end;
 procedure TOperationConfirmationDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
   LIdx: integer;
+  LAccounts: TArray<TAccount>;
 begin
-  for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-    AContainer.Add(Model.Account.SelectedAccounts[LIdx]);
+  LAccounts := Model.Account.SelectedAccounts;
+  if Model.ExecuteOperationType = omtChangeInfo then
+    LAccounts := Model.ChangeAccountInfo.TargetAccounts;
+  // Confirmation and its fee rows contain only the approved updates.
+  for LIdx := Low(LAccounts) to High(LAccounts) do
+    AContainer.Add(LAccounts[LIdx]);
 end;
 
 

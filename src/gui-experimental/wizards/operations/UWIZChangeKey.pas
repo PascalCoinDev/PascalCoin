@@ -1,6 +1,8 @@
 unit UWIZChangeKey;
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 { Copyright (c) 2018 Sphere 10 Software (http://www.sphere10.com/)
 
@@ -15,7 +17,8 @@ unit UWIZChangeKey;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UPCDataTypes, UCoreObjects, UWIZOperation, LCLType;
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UPCDataTypes, UCoreObjects, UWIZOperation{$IFDEF FPC}, LCLType{$ENDIF};
 
 type
 
@@ -26,8 +29,8 @@ type
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;
     function DetermineHasPrevious: boolean; override;
-    function FinishRequested(out message: ansistring): boolean; override;
-    function CancelRequested(out message: ansistring): boolean; override;
+    function FinishRequested(out message: String): boolean; override;
+    function CancelRequested(out message: String): boolean; override;
   end;
 
 implementation
@@ -64,7 +67,7 @@ begin
   Result := inherited DetermineHasPrevious;
 end;
 
-function TWIZChangeKeyWizard.FinishRequested(out message: ansistring): boolean;
+function TWIZChangeKeyWizard.FinishRequested(out message: String): boolean;
 var
   LPublicKey: TAccountKey;
 begin
@@ -78,13 +81,14 @@ begin
 
   end;
 
-  Result := TWIZOperationsHelper.ExecuteChangeKey(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
-  if TWIZOperationsModel.RelockOnFinish then
-   TWallet.Keys.LockWallet;
+  Result := TWIZOperationsHelper.ExecuteChangeKey(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message, Model.Signer.OperationSigningMode);
+  if Result then
+    Model.RelockWallet;
 end;
 
-function TWIZChangeKeyWizard.CancelRequested(out message: ansistring): boolean;
+function TWIZChangeKeyWizard.CancelRequested(out message: String): boolean;
 begin
+  Model.RelockWallet;
   Result := True;
 end;
 

@@ -7,6 +7,52 @@
 - Implementation of PIP-0044 (Induplicatable NFT) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0044.md
 - Improvements on downloading Safebox (fresh installation)
 
+## Build 5.9 - 2026-10-28
+- Import [Sphere 10 Pascal Framework](https://github.com/HermanSchoenfeld/PascalFramework) for caching, concurrency and scoped resources.
+- Add per-key and bulk-fetch caching with expiration, invalidation, eviction and synchronized access.
+- Add read/write locking with recursive writes, upgradeable reads, timeouts and automatic lock scopes.
+- Add cleanup scopes, collection helpers, typed data sources and UTF-8 file text; standardize String APIs and document public types.
+- Add Single/Auto/Manual paging with a compact mode button, accurate row counts and scroll resets.
+- Reuse complete results when resizing and report completion once per fetched page.
+- Add rounded-spoke loading cards, retain rows during updates and fix completion, cancellation, errors, parenting and empty selections.
+- Keep wizard windows stationary, retain inputs and allow validation and completion retries.
+- Keep generic refresh throttling independent and expose TThrottledEventMode at unit scope.
+- Fetch account-key index ranges in one traversal and correct unsigned account-number and price comparisons.
+- Handle empty binary values safely during serialization and cryptographic conversion.
+- Publish structured progress and synchronization events; reproduce existing display and log messages in their consumers.
+- Keep synchronization active through batch gaps and received-block processing; network-off stops new downloads while received work finishes.
+- Allow concurrent mempool reads with a self-contained core read/write lock.
+- Defer pending reconciliation during catch-up; retain valid indexes and bulk-build rejected-operation results.
+- Add pending restore progress and cancellation, bulk marker cleanup and byte-identical buffered saving.
+- Flush pending changes on shutdown and replace files atomically, preserving the previous package on I/O failure.
+- Reconnect peers and recover safebox downloads after disconnection; log completed chunks at Info.
+- Join network/download workers, drain termination callbacks during confirmed shutdown and preserve miner-job snapshots during replies.
+- Restore classic wallet key filtering during synchronization and apply pending balances after reconciliation.
+- Add cancellable account/history workers and join active filters before classic wallet shutdown.
+- Complete send, purchase, sale, key-change and payload wizards with validated operations and explicit wallet unlock ownership.
+- Add batch-change approval for skipped accounts, charge only changed accounts and offer custom fees with an optional single payer.
+- Restore advanced operations and the RAW/multioperation workbench; merge missing signatures without bypassing validation.
+- Use bounded, scrollable operation confirmation and result dialogs.
+- Reuse mining keys during startup and selection; rotate only after a mined block when configured.
+- Validate private/watch-only key import and backup restoration.
+- Load startup data and resolve account keys on cancellable workers; publish selected totals and history bindings after completed queries.
+- Refresh main-wallet selections immediately outside node synchronization; suspend grid queries throughout synchronization.
+- Add account-index paging, cached history queries, cancellable wallet totals and a bounded account cache that survives safebox replacement.
+- Limit Recent Operations to 2,016/8,640 blocks for 7/30 days; search all available history for Maximum and cancel obsolete selections.
+- Use bounded visible-row snapshots and cancellable workers for Explorer filters, history, totals and type statistics; fix My Accounts/key filters.
+- Restore account/block explorers, RPC tools, message history and language settings; add Block Explorer refresh/reset and click-only operation details.
+- Share cached committed counts/timestamps between footer and synchronization view without data/status polling; marshal key notifications to the UI.
+- Show dashes until totals first load; show Wallet Keys padlocks in every state.
+- Align footer buttons, retain full icon height and correct unsigned key hashes and PASC balances.
+- Anchor header/footer controls, preserve modeless focus and fix banner transparency and splash/synchronization flicker.
+- Keep startup height fixed with horizontal resizing; restore normal constraints/maximization afterward and join startup/grid workers before shutdown.
+- Build the experimental wallet with Delphi/VCL and Lazarus/FPC using paired form resources and conversion tools.
+- Add Win32/Win64 Debug/Release targets with separate compiler outputs; keep the Delphi executable in src beside OpenSSL without build events.
+- Embed application/tray icons and set application and wallet executable versions to 5.9.0.0.
+- Update GNU gettext and regular-expression compatibility for Delphi.
+- Document wallet features, Sphere 10 Pascal Framework and Delphi/Lazarus build and test commands.
+- Add runners for unit and isolated native regression tests covering shared components, operations, classic wallet, synchronization, loading and shutdown.
+
 ## Build 5.8 - 2024-01-17
 - Accumulative release, including:
 - Minor bugs fixed

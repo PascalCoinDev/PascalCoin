@@ -9,6 +9,7 @@ object WIZSendPASC_Details: TWIZSendPASC_Details
   ClientHeight = 379
   ClientWidth = 450
   LCLVersion = '2.0.2.0'
+  OnResize = FormResize
   object gbRecipient: TGroupBox
     Left = 8
     Height = 124

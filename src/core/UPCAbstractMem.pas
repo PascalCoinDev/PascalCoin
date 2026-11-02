@@ -199,7 +199,11 @@ const
 function _AccountCache_Comparision(const Left, Right: TAccountCache.PAVLCacheMemData): Integer;
 begin
   // Compare only by data.account number (not for content)
-  Result := Left^.data.account - Right^.data.account;
+  // Cardinal subtraction can underflow or truncate the signed comparison,
+  // including ordinary account 0 versus 5 in a checked Delphi build.
+  if Left^.data.account < Right^.data.account then Result := -1
+  else if Left^.data.account > Right^.data.account then Result := 1
+  else Result := 0;
 end;
 
 { TPCAbstractMemBytesBuffer32Safebox }

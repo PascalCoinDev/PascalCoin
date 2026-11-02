@@ -17,12 +17,19 @@ unit UWIZOperationPayload_Password;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
 
 interface
 
 uses
+  Types, Math, Controls,
   SysUtils, StdCtrls, ExtCtrls, UWizard, UWIZOperation;
 
 type
@@ -35,24 +42,64 @@ type
     lblNote: TLabel;
     lblPassword: TLabel;
     paPayload: TPanel;
+    procedure FormResize(Sender: TObject);
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UWIZOperationPayload_Content;
 
 { TWIZOperationPayload_Password }
 
+type
+  TCaptionGroupBoxAccess = class(TGroupBox);
+
+procedure TWIZOperationPayload_Password.FormResize(Sender: TObject);
+
+  procedure PositionContents(AGroup: TGroupBox);
+  var
+    LContent: TRect;
+    LPadding, LTop, LDelta, I: Integer;
+    LControl: TControl;
+  begin
+    LContent := AGroup.ClientRect;
+    TCaptionGroupBoxAccess(AGroup).AdjustClientRect(LContent);
+    Canvas.Font.Assign(AGroup.Font);
+    LPadding := Max(6, Canvas.TextHeight('0') * 2 div 3);
+    LTop := High(Integer);
+    for I := 0 to AGroup.ControlCount - 1 do
+      LTop := Min(LTop, AGroup.Controls[I].Top);
+    LDelta := LContent.Top + LPadding - LTop;
+    for I := 0 to AGroup.ControlCount - 1 do begin
+      LControl := AGroup.Controls[I];
+      LControl.Top := LControl.Top + LDelta;
+      if (LControl is TPanel) and (akBottom in LControl.Anchors) then
+        LControl.Height := Max(0, LContent.Bottom - LControl.Top - LPadding);
+    end;
+  end;
+
+begin
+  if not HandleAllocated or not Assigned(lblNote) then Exit;
+  // VCL reserves its caption inside ClientRect; LCL already excludes it.
+  // Use the native content inset so controls stay clear at either font scale.
+  PositionContents(grpPayload);
+end;
+
 procedure TWIZOperationPayload_Password.OnPresent;
 begin
+  FormResize(Self);
   edtPassword.SetFocus;
 end;
 
@@ -62,7 +109,7 @@ begin
   UpdatePath(ptInject, [TWIZOperationPayload_Content]);
 end;
 
-function TWIZOperationPayload_Password.Validate(out message: ansistring): boolean;
+function TWIZOperationPayload_Password.Validate(out message: String): boolean;
 begin
   Result := True;
   if Length(Trim(edtPassword.Text)) = 0 then

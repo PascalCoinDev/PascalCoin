@@ -13,15 +13,25 @@ unit UCTRLWallet;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
-  ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon, UCommon.UI, Generics.Collections,
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+  Classes, SysUtils, Types, Math, Messages, {$IFDEF FPC}FileUtil, LCLType, LCLIntf, LMessages,{$ENDIF} Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
+  ExtCtrls, {$IFDEF FPC}PairSplitter,{$ENDIF} Buttons, UVisualGrid, UCommon, UCommon.UI, Generics.Collections,
   ULog, UAccounts, UPCDataTypes, UDataSources, UNode, UCoreObjects, UCoreUtils, UCTRLNoAccount;
+
+const
+  CM_WalletControlKeysChanged = {$IFDEF FPC}LM_USER{$ELSE}WM_USER{$ENDIF} + 101;
 
 type
 
@@ -52,9 +62,15 @@ type
     miAccountInfo: TMenuItem;
     miSep1: TMenuItem;
     miSep2: TMenuItem;
+    {$IFDEF FPC}
     PairSplitter1: TPairSplitter;
     PairSplitterSide1: TPairSplitterSide;
     PairSplitterSide2: TPairSplitterSide;
+    {$ELSE}
+    PairSplitter1: TPanel;
+    PairSplitterSide1: TPanel;
+    PairSplitterSide2: TPanel;
+    {$ENDIF}
     paAccounts: TPanel;
     paOperations: TPanel;
     mnuAccountsPopup: TPopupMenu;
@@ -76,7 +92,8 @@ type
     procedure miDelistAccountsFromSaleClick(Sender: TObject);
   private
     FNodeNotifyEvents: TNodeNotifyEvents;
-    FBalanceUpdatedEvent : TThrottledEvent;
+    FStopping: Boolean;
+    FSynchronizing: Boolean;
     FAccountsMode: TCTRLWalletAccountsMode;
     FOperationsMode: TCTRLWalletOperationsMode;
     FOperationsHistory: TCTRLWalletOperationsHistory;
@@ -84,29 +101,40 @@ type
     FAccountsGrid: TVisualGrid;
     FOperationsGrid: TVisualGrid;
     FBalance : TBalanceSummary;
+    FHasBalanceSummary: Boolean;
     FAccountsDataSource: TMyAccountsDataSource;
     FOperationsDataSource: TAccountsOperationsDataSource;
+    function TryGetSelectedOperationHash(out AOperationHash: String): Boolean;
     procedure SetAccountsMode(AMode: TCTRLWalletAccountsMode);
     procedure SetOperationsMode(AMode: TCTRLWalletOperationsMode);
     procedure SetOperationsHistory(AHistory: TCTRLWalletOperationsHistory);
     procedure RefreshMyAccountsCombo;
-    procedure RefreshBalances;
     procedure RefreshTotals;
     procedure RefreshAccountsGrid;
     procedure RefreshOperationsGrid;
+    procedure OnSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
+    procedure OnBalanceSummaryCompleted(Sender: TObject);
     function GetSelectedAccounts : TArray<Cardinal>;
+    procedure LayoutOverviewLabels;
+    procedure CM_PrivateKeysChanged(var AMsg: TMessage); message CM_WalletControlKeysChanged;
   protected
+    // Keep source configuration, invalidation and grid wiring in this control;
+    // descendants can supply another typed backend through the same lifecycle.
+    function CreateAccountsDataSource: TMyAccountsDataSource; virtual;
+    function CreateOperationsDataSource: TAccountsOperationsDataSource; virtual;
+    property AccountsGrid: TVisualGrid read FAccountsGrid;
+    property OperationsGrid: TVisualGrid read FOperationsGrid;
+    procedure RefreshBalances;
     procedure ActivateFirstTime; override;
     procedure OnPrivateKeysChanged(Sender: TObject);
     procedure OnUserKeyActivityDetected(Sender: TObject);
-    procedure OnUserBalanceChanged(Sender: TObject);
     procedure OnNodeBlocksChanged(Sender: TObject);
     procedure OnNodeNewOperation(Sender: TObject);
-    procedure OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
+    procedure OnAccountsSelected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
     procedure OnAccountsGridFinishedUpdating(Sender: TObject);
-    procedure OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
-    procedure OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
-    procedure OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+    procedure OnOperationSelected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
+    procedure OnPrepareAccountPopupMenu(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+    procedure OnPrepareOperationsPopupMenu(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
   public
     property SelectedAccounts : TArray<Cardinal> read GetSelectedAccounts;
     property AccountsMode: TCTRLWalletAccountsMode read FAccountsMode write SetAccountsMode;
@@ -118,9 +146,17 @@ implementation
 
 uses
   UUserInterface, UCellRenderers, UBlockChain, UWallet, UCrypto,
-  UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections, UWIZOperation;
+  UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections, UWIZOperation,
+  Variants, Clipbrd;
 
+type
+  TOverviewGroupBoxAccess = class(TGroupBox);
+
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 { TCTRLWallet }
 
@@ -128,25 +164,32 @@ procedure TCTRLWallet.FormCreate(Sender: TObject);
 var
   cmbDuration: TComboBox;
 begin
+  {$IFNDEF FPC}
+  with TSplitter.Create(Self) do begin
+    Parent := PairSplitter1;
+    Left := PairSplitterSide1.Width;
+    Width := 5;
+    Align := alLeft;
+  end;
+  {$ENDIF}
   // event registrations
   FNodeNotifyEvents := TNodeNotifyEvents.Create(self);
   FNodeNotifyEvents.WatchKeys := TWallet.Keys.AccountsKeyList;
   FNodeNotifyEvents.OnKeyActivity:= OnUserKeyActivityDetected;
   FNodeNotifyEvents.OnBlocksChanged := OnNodeBlocksChanged;
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
+  FNodeNotifyEvents.OnSynchronizationChanged := OnSynchronizationChanged;
   TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
   TWallet.Keys.AccountsKeyList.ClearAccountKeyChanges;   // XXXXX CLEAR BUFFER on start
-  FBalanceUpdatedEvent := TThrottledEvent.Create(Self);
-  FBalanceUpdatedEvent.Mode := temNotifyOnEventBurstStartAndFinished;
-  FBalanceUpdatedEvent.Interval := TTimeSpan.FromSeconds(10);
-  FBalanceUpdatedEvent.Add(OnUserBalanceChanged);
 
   // fields
-  FAccountsDataSource := TMyAccountsDataSource.Create(Self);
+  FAccountsDataSource := CreateAccountsDataSource;
+  FAccountsDataSource.OnBalanceSummaryCompleted := OnBalanceSummaryCompleted;
+  FAccountsDataSource.SnapshotCacheEnabled := true;
   FAccountsDataSource.IncludePending := true;
-  FAccountsDataSource.BalancePointer := @FBalance;
-  FOperationsDataSource := TAccountsOperationsDataSource.Create(Self);
-  FOperationsDataSource.Accounts := TCoreTool.GetUserAccountNumbers;
+  FOperationsDataSource := CreateOperationsDataSource;
+  FOperationsDataSource.SnapshotCacheEnabled := true;
+  FOperationsDataSource.UseWalletAccounts := true;
   FOperationsDataSource.BlockDepth:=TTimeSpan.FromDays(7).TotalBlockCount;
   FOperationsHistory := woh7Days;
   FOperationsMode:= womAllAccounts;
@@ -287,9 +330,14 @@ begin
   // key combo
   RefreshMyAccountsCombo;
 
+  // Native controls need their parent hierarchy before creating window handles.
+  paAccounts.AddControlDockCenter(FAccountsGrid);
+  paOperations.AddControlDockCenter(FOperationsGrid);
+
   // duration combo
   cmbDuration := TComboBox.Create(FOperationsGrid);
-  cmbDuration.ReadOnly := True;
+  cmbDuration.Style := csDropDownList;
+  FOperationsGrid.WidgetControl := cmbDuration;
   cmbDuration.Items.BeginUpdate;
   try
     cmbDuration.AddItem('7 Days', TObject(woh7Days));
@@ -300,23 +348,44 @@ begin
     cmbDuration.ItemIndex := 0;
   end;
   cmbDuration.OnChange := cmbDurationChange;
-  FOperationsGrid.WidgetControl := cmbDuration;
-
-  // NOTE: datasources are assigned to grid in FormResize
-
-  // Add grid to panels
-  paAccounts.AddControlDockCenter(FAccountsGrid);
-  paOperations.AddControlDockCenter(FOperationsGrid);
+  // Node synchronization suspends both grids until local data is ready.
+  // Outside that lifecycle, selections and updates need no quiet-time delay.
+  FAccountsGrid.RefreshThrottle.Mode := temNone;
+  FOperationsGrid.RefreshThrottle.Mode := temNone;
+  OnSynchronizationChanged(Self, TUserInterface.SynchronizationStatus);
+  // VCL does not publish the group box's resize event for form resources.
+  TOverviewGroupBoxAccess(GroupBox1).OnResize := FormResize;
+  // Assign each source once after the controls are configured and parented.
+  FormResize(Self);
 end;
 
 procedure TCTRLWallet.FormDestroy(Sender: TObject);
+var
+  i: Integer;
+  disposed: TDisposables;
 begin
-  TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
+  FStopping := True;
+  if Assigned(FAccountsDataSource) then
+    FAccountsDataSource.OnBalanceSummaryCompleted := nil;
+  if Assigned(TWallet.Keys) then
+    TWallet.Keys.OnChanged.Remove(OnPrivateKeysChanged);
+  if Assigned(FNodeNotifyEvents) then begin
+    FNodeNotifyEvents.OnKeyActivity := nil;
+    FNodeNotifyEvents.OnBlocksChanged := nil;
+    FNodeNotifyEvents.OnOperationsChanged := nil;
+    FNodeNotifyEvents.OnSynchronizationChanged := nil;
+  end;
+  if Assigned(cbAccounts) then begin
+    for i := 0 to cbAccounts.Items.Count - 1 do
+      disposed.AddObject(cbAccounts.Items.Objects[i]);
+    cbAccounts.Items.Clear;
+  end;
 end;
 
 procedure TCTRLWallet.FormResize(Sender: TObject);
-var x : integer;
 begin
+  if not Assigned(FAccountsGrid) or not Assigned(FOperationsGrid) then Exit;
+  LayoutOverviewLabels;
   // Grid data-sources are set here on "first form resize" in order to avoid
   // excessive datasource fetching during initialising sequence. Note, grid
   // refreshes on size changed, blockchain activity and when assigned to grid
@@ -327,6 +396,39 @@ begin
     FOperationsGrid.DataSource := FOperationsDataSource;
 end;
 
+procedure TCTRLWallet.LayoutOverviewLabels;
+var
+  LContent: Types.TRect;
+  LFirstHeight, LSecondHeight, LGap, LTop: Integer;
+begin
+  if not HandleAllocated or not Assigned(GroupBox1) then Exit;
+  // VCL reserves its caption inside ClientRect; LCL already excludes it.
+  // Let the native group box define its content, then center both label pairs.
+  LContent := GroupBox1.ClientRect;
+  TOverviewGroupBoxAccess(GroupBox1).AdjustClientRect(LContent);
+  LFirstHeight := Max(Label1.Height, lblTotalPASC.Height);
+  LSecondHeight := Max(Label2.Height, lblTotalPASA.Height);
+  LGap := Min(MulDiv(17, PixelsPerInch, 96),
+    Max(0, LContent.Bottom - LContent.Top - LFirstHeight - LSecondHeight));
+  LTop := LContent.Top + Max(0,
+    (LContent.Bottom - LContent.Top - LFirstHeight - LGap - LSecondHeight) div 2);
+  Label1.Top := LTop;
+  lblTotalPASC.Top := LTop;
+  Inc(LTop, LFirstHeight + LGap);
+  Label2.Top := LTop;
+  lblTotalPASA.Top := LTop;
+end;
+
+function TCTRLWallet.CreateAccountsDataSource: TMyAccountsDataSource;
+begin
+  Result := TMyAccountsDataSource.Create(Self);
+end;
+
+function TCTRLWallet.CreateOperationsDataSource: TAccountsOperationsDataSource;
+begin
+  Result := TAccountsOperationsDataSource.Create(Self);
+end;
+
 procedure TCTRLWallet.ActivateFirstTime;
 begin
   // add first time-init here
@@ -334,15 +436,35 @@ end;
 
 procedure TCTRLWallet.RefreshBalances;
 begin
+  if FStopping or TUserInterface.Stopping then Exit;
+  // Invalidation is atomic; only the grids' admitted deliveries start queries.
+  // Never defer this input behind visibility or an existing page worker.
+  FAccountsDataSource.InvalidateWalletData;
+  // The persisted key index does not emit every legacy key-activity event.
+  // Resolve current membership once on this worker refresh as well, so newly
+  // received or transferred accounts cannot remain absent from cached history.
+  FOperationsDataSource.InvalidateWalletAccounts;
   FAccountsGrid.RefreshGrid;
   FOperationsGrid.RefreshGrid;
-  // Note: RefreshTotals is called after FAccountsGrid finishes updating (since it uses it's internal data)
+  // Page completion requests the independent aggregate; its owned worker
+  // reports completion without polling or delaying the page.
 end;
 
 procedure TCTRLWallet.RefreshTotals;
 begin
-  lblTotalPASC.Caption := TAccountComp.FormatMoney(FBalance.TotalPASC);
-  lblTotalPASA.Caption := Format('%d', [FBalance.TotalPASA]);
+  // Synchronization owns the pause; completed pages and summary events can
+  // update the overview immediately once that lifecycle has finished.
+  if FSynchronizing then Exit;
+  if FAccountsDataSource.TryGetBalanceSummary(FBalance) then begin
+    FHasBalanceSummary := True;
+    lblTotalPASC.Caption := TAccountComp.FormatMoney(FBalance.TotalPASC);
+    lblTotalPASA.Caption := Format('%d', [FBalance.TotalPASA]);
+  end else if not FHasBalanceSummary then begin
+    // Unknown is not a zero balance. Retain a completed total on later
+    // refreshes; only the first successful summary replaces these placeholders.
+    lblTotalPASC.Caption := '-';
+    lblTotalPASA.Caption := '-';
+  end;
 end;
 
 procedure TCTRLWallet.RefreshMyAccountsCombo;
@@ -351,7 +473,8 @@ var
   selectFirst, selectLast: boolean;
   last_key: TAccountKey;
   key: TWalletKey;
-  str: ansistring;
+  str: String;
+  disposed: TDisposables;
 begin
   // determine current selection
   if cbAccounts.ItemIndex >= 1 then begin
@@ -374,7 +497,7 @@ begin
   try
     // free existing items
     for i := 0 to cbAccounts.Items.Count - 1 do
-      cbAccounts.Items.Objects[i].Free;
+      disposed.AddObject(cbAccounts.Items.Objects[i]);
     cbAccounts.Items.Clear;
     // add new items
     for i := 0 to TWallet.Keys.Count - 1 do begin
@@ -402,6 +525,8 @@ begin
   else if selectLast then
     cbAccounts.ItemIndex := cbAccounts.Items.Count - 1
   else begin
+    // The previously selected key may have been deleted from the wallet.
+    cbAccounts.ItemIndex := 0;
     for i := 1 to cbAccounts.Items.Count - 2 do begin
       if TAccountKeyEqualityComparer.AreEqual(TBox<TAccountKey>( cbAccounts.Items.Objects[i]).Value, last_key) then begin
         cbAccounts.ItemIndex := i;
@@ -413,18 +538,30 @@ end;
 
 procedure TCTRLWallet.RefreshAccountsGrid;
 var
-  index: integer;
+  index, keyIndex: integer;
   sel: TBox<TAccountKey>;
 begin
   if Self.AccountsMode <> wamMyAccounts then exit; // showing getpasa
   if cbAccounts.ItemIndex = cbAccounts.Items.Count - 1 then exit; // not a key
   index := cbAccounts.ItemIndex;
+  if (index < 0) or (index >= cbAccounts.Items.Count) then begin
+    index := 0;
+    cbAccounts.ItemIndex := index;
+  end;
+  if index > 0 then begin
+    sel := TBox<TAccountKey>(cbAccounts.Items.Objects[index]);
+    keyIndex := TWallet.Keys.IndexOfAccountKey(sel.Value);
+    if keyIndex < 0 then begin
+      index := 0;
+      cbAccounts.ItemIndex := index;
+    end;
+  end;
   if index = 0 then begin
     gpMyAccounts.Caption := 'My Accounts';
-    FAccountsDataSource.FilterKeys := TWallet.Keys.AccountsKeyList.ToArray;
+    FAccountsDataSource.FilterKeys := TArray<TAccountKey>(TWallet.Keys.AccountsKeyList.ToArray);
   end else begin
     sel := TBox<TAccountKey>(cbAccounts.Items.Objects[cbAccounts.ItemIndex]);
-    gpMyAccounts.Caption := Format('%s Accounts', [TWallet.Keys[TWallet.Keys.IndexOfAccountKey(sel.Value)].Name]);
+    gpMyAccounts.Caption := Format('%s Accounts', [TWallet.Keys[keyIndex].Name]);
     FAccountsDataSource.FilterKeys := TArray<TAccountKey>.Create(sel.Value);
   end;
   FAccountsGrid.RefreshGrid;
@@ -432,14 +569,18 @@ end;
 
 procedure TCTRLWallet.RefreshOperationsGrid;
 begin
+  // The same provider is reconfigured below. Cooperatively retire its old
+  // query so obsolete history cannot delay or replace this selection's page.
+  FOperationsGrid.CancelActiveFetch;
   case FOperationsMode of
     womAllAccounts: begin
       FOperationsGrid.Caption.Text := '';
-      FOperationsDataSource.Accounts := TCoreTool.GetUserAccountNumbers;
+      FOperationsDataSource.UseWalletAccounts := true;
     end;
     womSelectedAccounts:
     begin
       FOperationsGrid.Caption.Text := 'Selected Accounts';
+      FOperationsDataSource.UseWalletAccounts := false;
       FOperationsDataSource.Accounts := SelectedAccounts;
     end else
       raise ENotSupportedException.Create(Format('AMode %d not supported', [integer(FOperationsMode)]));
@@ -447,15 +588,17 @@ begin
   FOperationsGrid.RefreshGrid;
 end;
 
-function TCTRLWallet.GetSelectedAccounts : TArray<Cardinal>;
-
-  function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
-  begin
-    Result := ARow.__KEY;
-  end;
-
+function GetAccNoWithoutChecksum({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ARow: variant): cardinal;
 begin
-  Result := TListTool<Variant, Cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
+  Result := ARow.__KEY;
+end;
+
+function TCTRLWallet.GetSelectedAccounts : TArray<Cardinal>;
+var
+  LAccountTransform: TGlobalTransformFunc<Variant, Cardinal>;
+begin
+  LAccountTransform := GetAccNoWithoutChecksum;
+  Result := TListTool<Variant, Cardinal>.Transform(FAccountsGrid.SelectedRows, LAccountTransform);
 end;
 
 procedure TCTRLWallet.SetAccountsMode(AMode: TCTRLWalletAccountsMode);
@@ -471,7 +614,8 @@ begin
       begin
         // reset account combo
         cbAccounts.OnChange := nil; // disable event
-        cbAccounts.ItemIndex :=0;
+        if (cbAccounts.ItemIndex < 0) or (cbAccounts.ItemIndex >= cbAccounts.Items.Count - 1) then
+          cbAccounts.ItemIndex := 0;
         cbAccounts.OnChange := cbAccountsChange; // re-enable event
         // ensure on accounts panel
         if FAccountsGrid.Parent <> paAccounts then begin
@@ -498,10 +642,6 @@ begin
   FUILock.Acquire;
   try
     FOperationsMode := AMode;
-    case AMode of
-     womSelectedAccounts: FOperationsDataSource.Accounts := SelectedAccounts;
-     womAllAccounts: FOperationsDataSource.Accounts := TCoreTool.GetUserAccountNumbers;
-    end;
     RefreshOperationsGrid;
   finally
     FUILock.Release;
@@ -510,51 +650,99 @@ end;
 
 procedure TCTRLWallet.SetOperationsHistory(AHistory: TCTRLWalletOperationsHistory);
 begin
+  // Changing the history window supersedes an in-flight traversal as well.
+  FOperationsGrid.CancelActiveFetch;
   FOperationsHistory := AHistory;
   case FOperationsHistory of
     woh7Days: FOperationsDataSource.BlockDepth := TTimeSpan.FromDays(7).TotalBlockCount;
     woh30Days: FOperationsDataSource.BlockDepth := TTimeSpan.FromDays(30).TotalBlockCount;
-    wohFullHistory: FOperationsDataSource.BlockDepth := TTimeSpan.FromDays(10 * 365).TotalBlockCount;
+    // Maximum means the whole local chain, without an arbitrary age limit.
+    wohFullHistory: FOperationsDataSource.BlockDepth := High(Cardinal);
   end;
   FOperationsGrid.RefreshGrid;
 end;
 
 procedure TCTRLWallet.OnPrivateKeysChanged(Sender: TObject);
 begin
+  if FStopping or TUserInterface.Stopping then Exit;
+  if TThread.CurrentThread.ThreadID <> MainThreadID then begin
+    // RPC key imports notify on their worker. Posting keeps that producer
+    // independent and binds delivery to this control's native lifetime.
+    if HandleAllocated then PostMessage(Handle, CM_WalletControlKeysChanged, 0, 0);
+    Exit;
+  end;
+  FAccountsDataSource.InvalidateWalletData;
+  FOperationsDataSource.InvalidateWalletAccounts;
   RefreshMyAccountsCombo;
+  RefreshAccountsGrid;
+  RefreshOperationsGrid;
+end;
+
+procedure TCTRLWallet.CM_PrivateKeysChanged(var AMsg: TMessage);
+begin
+  OnPrivateKeysChanged(nil);
 end;
 
 procedure TCTRLWallet.OnUserKeyActivityDetected(Sender: TObject);
 begin
-  // This handler is called every time a block is downloaded. If we refreshed GUI here it would
-  // result in severe back-end blocking and slow-down, as the GUI refreshed on every block during
-  // a syncronization. As a result, we throttle the GUI refresh via FBalanceUpdatedEvent which
-  // waits until 5 seconds of idle before calling OnUserBalanceChanged which then updates GUI.
-  FBalanceUpdatedEvent.Notify;
+  RefreshBalances;
 end;
 
-procedure TCTRLWallet.OnUserBalanceChanged(Sender: TObject);
+procedure TCTRLWallet.OnSynchronizationChanged(Sender: TObject;
+  const AStatus: TNodeSynchronizationStatus);
+var LWasSynchronizing: Boolean;
 begin
-  // Invocation of this event hander is throttled by FBalanceUpdatedEvent.
-  RefreshBalances;
+  if FStopping or TUserInterface.Stopping then Exit;
+  LWasSynchronizing := FSynchronizing;
+  FSynchronizing := AStatus.State = nssSynchronizing;
+  if not Assigned(FAccountsGrid) or not Assigned(FOperationsGrid) then Exit;
+  if FSynchronizing then begin
+    FAccountsGrid.RefreshSuspended := True;
+    FOperationsGrid.RefreshSuspended := True;
+    if not LWasSynchronizing then begin
+      FAccountsDataSource.InvalidateWalletData;
+      FAccountsDataSource.CancelBalanceSummary;
+      FOperationsDataSource.InvalidateWalletAccounts;
+    end;
+    if not FAccountsGrid.LoadingVisible then
+      FAccountsGrid.ShowLoading('Please Wait', 'Synchronizing');
+    if not FOperationsGrid.LoadingVisible then
+      FOperationsGrid.ShowLoading('Please Wait', 'Synchronizing');
+  end else if LWasSynchronizing then begin
+    // Resume one latest request after the node finishes its local work.
+    // No quiet timer may delay the page or keep its loading card visible.
+    FAccountsGrid.HideLoading;
+    FOperationsGrid.HideLoading;
+    FAccountsGrid.RefreshSuspended := False;
+    FOperationsGrid.RefreshSuspended := False;
+  end;
+end;
+
+procedure TCTRLWallet.OnBalanceSummaryCompleted(Sender: TObject);
+begin
+  if FStopping or TUserInterface.Stopping then Exit;
+  // A newer input may have invalidated this worker while it was finishing.
+  // RefreshTotals retains the last summary until the current one is ready.
+  RefreshTotals;
 end;
 
 procedure TCTRLWallet.OnNodeBlocksChanged(Sender: TObject);
 begin
-  // TODO: play block sound chime
+  RefreshBalances;
 end;
 
 procedure TCTRLWallet.OnNodeNewOperation(Sender: TObject);
 begin
-  // TODO: play operation sound tick
+  RefreshBalances;
 end;
 
 procedure TCTRLWallet.OnAccountsGridFinishedUpdating(Sender: TObject);
 begin
-  RefreshTotals; // totals are updated by datasource, via a pointer
+  if FStopping or TUserInterface.Stopping then Exit;
+  RefreshTotals;
 end;
 
-procedure TCTRLWallet.OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
+procedure TCTRLWallet.OnAccountsSelected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
 begin
   if ASelection.Page >= 0 then
     if FOperationsMode <> womSelectedAccounts then
@@ -565,11 +753,11 @@ begin
     OperationsMode := womAllAccounts;
 end;
 
-procedure TCTRLWallet.OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
+procedure TCTRLWallet.OnOperationSelected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
 var
   row: longint;
   v: variant;
-  ophash: ansistring;
+  ophash: String;
 begin
   if ASelection.Page < 0 then exit;
   row := ASelection.Row;
@@ -612,7 +800,7 @@ begin
   end;
 end;
 
-procedure TCTRLWallet.OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+procedure TCTRLWallet.OnPrepareAccountPopupMenu(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
 var
   accNo: cardinal;
   account: TAccount;
@@ -671,28 +859,52 @@ begin
   TUserInterface.ShowBuyAccountDialog(SelectedAccounts);
 end;
 
-procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+var
+  operationHash: String;
 begin
-  if (ASelection.RowCount <> 1) or ((ASelection.RowCount = 1) and (FOperationsGrid.SelectedRows[0].__KEY <> variant(nil))) then begin
+  if (ASelection.RowCount = 1) and TryGetSelectedOperationHash(operationHash) then begin
     miSep2.Visible := True;
     miOperationInfo.Visible := True;
+    miCopyOphash.Visible := True;
     APopupMenu := mnuOperationsPopup;
   end else begin
     miSep2.Visible := False;
     miOperationInfo.Visible := False;
+    miCopyOphash.Visible := False;
     APopupMenu := nil; // is empty, so dont show
   end;
 end;
 
-procedure TCTRLWallet.miCopyOphashClick(Sender: TObject);
+function TCTRLWallet.TryGetSelectedOperationHash(out AOperationHash: String): Boolean;
+var
+  rows: TArray<Variant>;
+  value: Variant;
 begin
-  raise ENotImplemented.Create('Not Implemented');
+  Result := False;
+  AOperationHash := '';
+  rows := FOperationsGrid.SelectedRows;
+  if Length(rows) <> 1 then exit;
+  value := rows[0].__KEY;
+  if VarIsNull(value) or VarIsEmpty(value) then exit;
+  AOperationHash := VarToStr(value);
+  Result := TPCOperation.IsValidOperationHash(AOperationHash);
+end;
+
+procedure TCTRLWallet.miCopyOphashClick(Sender: TObject);
+var
+  operationHash: String;
+begin
+  if TryGetSelectedOperationHash(operationHash) then
+    Clipboard.AsText := operationHash;
 end;
 
 procedure TCTRLWallet.miOperationInfoClick(Sender: TObject);
+var
+  operationHash: String;
 begin
-  if FOperationsGrid.Selection.RowCount = 0 then exit;
-  TUserInterface.ShowOperationInfoDialog(Self, FOperationsGrid.SelectedRows[0].__KEY);
+  if TryGetSelectedOperationHash(operationHash) then
+    TUserInterface.ShowOperationInfoDialog(Self, operationHash);
 end;
 
 end.

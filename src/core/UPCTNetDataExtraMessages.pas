@@ -251,13 +251,28 @@ begin
 end;
 
 procedure TPCTNetDataExtraMessages.OnTNetDataProcessReservedAreaMessage(ANetData : TNetData; ASenderConnection : TNetConnection; const AHeaderData : TNetHeaderData; AReceivedData : TStream; AResponseData : TStream);
+var LUnavailable: Word;
 begin
   TLog.NewLog(ltdebug,ClassName,Format('Received extra message from %s Operation:%d',[ASenderConnection.ClientRemoteAddr,AHeaderData.operation]));
+  try
   case AHeaderData.operation of
-    CT_NetProtocol_Extra_NetOp_GIVE_ME_AN_ACCOUNT : DoGiveMeAnAccount(ANetData,ASenderConnection,AHeaderData,AReceivedData,AResponseData);
+    CT_NetProtocol_Extra_NetOp_GIVE_ME_AN_ACCOUNT : begin
+      if not FNode.PendingOperationsAvailable then
+        raise EPendingOperationsUnavailable.Create('Pending operations are unavailable during blockchain synchronization');
+      DoGiveMeAnAccount(ANetData,ASenderConnection,AHeaderData,AReceivedData,AResponseData);
+    end;
     {$IFDEF TESTNET}
     CT_NetProtocol_Extra_NetOp_GIVE_ME_MONEY : DoGiveMeMoney(ANetData,ASenderConnection,AHeaderData,AReceivedData,AResponseData);
     {$ENDIF}
+  end;
+  except
+    on E: EPendingOperationsUnavailable do begin
+      // Temporary catch-up is an ordinary refused request, using the existing
+      // zero-word reply instead of disconnecting a peer or reading old deltas.
+      AResponseData.Size := 0;
+      LUnavailable := 0;
+      AResponseData.Write(LUnavailable,SizeOf(LUnavailable));
+    end;
   end;
 end;
 

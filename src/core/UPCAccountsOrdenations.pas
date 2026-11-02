@@ -198,20 +198,23 @@ end;
 function TAccountsOrderedBySalePrice.DoCompareData(const ALeftData,
   ARightData: TAbstractMemPosition): Integer;
 var LLeftAccount, LRightAccount : TAccount;
-  LopResult : Int64;
+  LLeftPrice, LRightPrice : UInt64;
 begin
   if (ALeftData = ARightData) then Exit(0);
 
   FCallReturnAccount(ARightData,LRightAccount);
+  LRightPrice := LRightAccount.accountInfo.price;
   if ((FSearching_AccountNumber>=0) And (ALeftData=FSearching_AccountNumber)) then begin
-    LopResult := FSearching_AccountInfo.price - LRightAccount.accountInfo.price;
+    LLeftPrice := FSearching_AccountInfo.price;
   end else begin
     FCallReturnAccount(ALeftData,LLeftAccount);
-    LopResult := LLeftAccount.accountInfo.price - LRightAccount.accountInfo.price;
+    LLeftPrice := LLeftAccount.accountInfo.price;
   end;
-  if LopResult<0 then Result := -1
-  else if LopResult>0 then Result := 1
-  else Result := ALeftData - ARightData;
+  // Prices span UInt64: subtraction can overflow or reverse their ordering.
+  if LLeftPrice<LRightPrice then Result := -1
+  else if LLeftPrice>LRightPrice then Result := 1
+  else if ALeftData<ARightData then Result := -1
+  else Result := 1;
 end;
 
 function TAccountsOrderedBySalePrice.NodeDataToString(

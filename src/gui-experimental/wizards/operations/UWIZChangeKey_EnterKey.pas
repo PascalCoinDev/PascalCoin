@@ -17,8 +17,14 @@ unit UWIZChangeKey_EnterKey;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
 
 interface
 
@@ -39,13 +45,17 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UAccounts,
@@ -65,7 +75,6 @@ begin
     chkChooseFee.Checked := True;
     chkChooseFee.Enabled := False;
   end;
-  mmoNewPrivateKey.Clear;
   mmoNewPrivateKey.SetFocus;
 end;
 
@@ -89,7 +98,7 @@ begin
 
 end;
 
-function TWIZChangeKey_EnterKey.Validate(out message: ansistring): boolean;
+function TWIZChangeKey_EnterKey.Validate(out message: String): boolean;
 var
   LTempAccountKey: TAccountKey;
   LIdx: integer;

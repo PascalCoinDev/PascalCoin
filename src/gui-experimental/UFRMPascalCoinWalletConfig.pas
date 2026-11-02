@@ -16,14 +16,17 @@ unit UFRMPascalCoinWalletConfig;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
 uses
-  LCLIntf, LCLType, LMessages,
+  {$IFNDEF FPC}Winapi.Windows, Winapi.ShellAPI,{$ENDIF}
+  {$IFDEF FPC}LCLIntf, LCLType, LMessages,{$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ComCtrls, UCommon.UI;
+  Dialogs, StdCtrls, Buttons, ComCtrls, UCommon.UI, UWalletLanguages;
 
 const
     CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -66,6 +69,9 @@ type
     ebJSONRPCAllowedIPs: TEdit;
     Label6: TLabel;
     Label7: TLabel;
+    lblInterfaceLanguage: TLabel;
+    lblLanguageRestart: TLabel;
+    cbInterfaceLanguage: TComboBox;
     procedure cbDownloadNewCheckpointClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure bbOkClick(Sender: TObject);
@@ -74,7 +80,11 @@ type
     procedure bbOpenDataFolderClick(Sender: TObject);
     procedure cbJSONRPCPortEnabledClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure cbInterfaceLanguageChange(Sender: TObject);
   private
+    FLanguages: TArray<TWalletLanguage>;
+    FNewUILanguage: String;
+    FLanguageChanged, FRefreshingLanguage: Boolean;
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
     procedure OnWalletChanged(Sender: TObject);
     procedure RefreshUI;
@@ -86,7 +96,11 @@ implementation
 
 uses UConst, USettings, UAccounts, ULog, UCrypto, UFolderHelper, UWallet, UUserInterface, UCommon, UNode;
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 procedure TFRMPascalCoinWalletConfig.bbOkClick(Sender: TObject);
 Var df : Int64;
@@ -96,12 +110,14 @@ begin
   if udInternetServerPort.Position = udJSONRPCMinerServerPort.Position then raise Exception.Create('Server port and JSON-RPC Server miner port are equal!');
 
   if TAccountComp.TxtToMoney(ebDefaultFee.Text,df) then begin
-    TSettings.DefaultFee := df;
+    if (df < 0) or (df > CT_MaxTransactionFee) then
+      raise Exception.Create('The default fee is outside the protocol range');
+    if (df = 0) and (not CT_AllowPropagate0feeOperations) then
+      raise Exception.Create('The default fee must be at least ' + TAccountComp.FormatMoney(CT_MOLINA));
   end else begin
     ebDefaultFee.Text := TAccountComp.FormatMoney(TSettings.DefaultFee);
     raise Exception.Create('Invalid Fee value');
   end;
-  TSettings.InternetServerPort := udInternetServerPort.Position;
   if rbGenerateANewPrivateKeyEachBlock.Checked then mpk := mpk_NewEachTime
   else if rbUseARandomKey.Checked then mpk := mpk_Random
   else if rbMineAllwaysWithThisKey.Checked then begin
@@ -110,25 +126,31 @@ begin
     i := PtrInt(cbPrivateKeyToMine.Items.Objects[cbPrivateKeyToMine.ItemIndex]);
     if (i<0) Or (i>=TWallet.Keys.Count) then raise Exception.Create('Invalid private key');
     if NOT TWallet.Keys.Key[i].HasPrivateKey then raise Exception.Create('Cannot use key "' + TWallet.Keys.Key[i].Name + '" for mining since it is watch-only');
-    TSettings.MinerSelectedPrivateKey := TAccountComp.AccountKey2RawString(TWallet.Keys.Key[i].AccountKey);
   end else mpk := mpk_Random;
 
-    if cbDownloadNewCheckpoint.Checked then begin
+  // Validate all inputs before mutating settings, whose parameter setters persist.
+  TSettings.DefaultFee := df;
+  TSettings.InternetServerPort := udInternetServerPort.Position;
+  if mpk = mpk_Selected then
+    TSettings.MinerSelectedPublicKey := TAccountComp.AccountKey2RawString(TWallet.Keys.Key[i].AccountKey);
+  if cbDownloadNewCheckpoint.Checked then begin
     i := StrToIntDef(ebMinFutureBlocksToDownloadNewSafebox.Text,0);
     TSettings.MinFutureBlocksToDownloadNewSafebox := i;
     TSettings.AllowDownloadNewCheckpointIfOlderThan := i > 200;
   end else TSettings.AllowDownloadNewCheckpointIfOlderThan := False;
 
   TSettings.MinerPrivateKeyType := mpk;
-  TSettings.MinerServerRpcActive := cbJSONRPCMinerServerActive.Checked;
-  TSettings.MinerServerRpcPort := udJSONRPCMinerServerPort.Position;
+  TSettings.JsonRpcMinerServerActive := cbJSONRPCMinerServerActive.Checked;
+  TSettings.JsonRpcMinerServerPort := udJSONRPCMinerServerPort.Position;
   TSettings.SaveLogFiles := cbSaveLogFiles.Checked;
   TSettings.ShowLogs := cbShowLogs.Checked;
   TSettings.SaveDebugLogs := cbSaveDebugLogs.Checked;
   TSettings.MinerName := ebMinerName.Text;
   TSettings.ShowModalMessages := cbShowModalMessages.Checked;
-  TSettings.RpcPortEnabled := cbJSONRPCPortEnabled.Checked;
-  TSettings.RpcAllowedIPs := ebJSONRPCAllowedIPs.Text;
+  TSettings.JsonRpcPortEnabled := cbJSONRPCPortEnabled.Checked;
+  TSettings.JsonRpcAllowedIPs := ebJSONRPCAllowedIPs.Text;
+  if FLanguageChanged then
+    TWalletLanguages.WritePreference(FNewUILanguage);
   TSettings.Save;
   ModalResult := MrOk;
 end;
@@ -141,7 +163,11 @@ begin
   // 1: TNode.GetPascalCoinDataFolder
   // 2. TFolderHelper.GetDataFolder(CT_PascalCoin_Data_Folder
   // I will try TNode first if this does not work use solution 2.
+  {$IFDEF FPC}
   OpenDocument(PChar(TNode.GetPascalCoinDataFolder));
+  {$ELSE}
+  ShellExecute(Handle, 'open', PChar(TNode.GetPascalCoinDataFolder), nil, nil, SW_SHOWNORMAL);
+  {$ENDIF}
 end;
 
 procedure TFRMPascalCoinWalletConfig.bbUpdatePasswordClick(Sender: TObject);
@@ -160,6 +186,8 @@ begin
 end;
 
 procedure TFRMPascalCoinWalletConfig.FormCreate(Sender: TObject);
+var
+  i: Integer;
 begin
   lblDefaultInternetServerPort.Caption := Format('(Default %d)',[CT_NetServer_Port]);
   udInternetServerPort.Position := CT_NetServer_Port;
@@ -169,6 +197,29 @@ begin
   lblDefaultJSONRPCMinerServerPort.Caption := Format('(Default %d)',[CT_JSONRPCMinerServer_Port]);
   RefreshUI;
   TWallet.Keys.OnChanged.Add(OnWalletChanged);
+  FNewUILanguage := TWalletLanguages.ReadPreference;
+  FLanguages := TWalletLanguages.Available;
+  FRefreshingLanguage := true;
+  try
+    cbInterfaceLanguage.Items.Clear;
+    cbInterfaceLanguage.ItemIndex := -1;
+    for i := 0 to High(FLanguages) do begin
+      cbInterfaceLanguage.Items.Add(FLanguages[i].DisplayName);
+      if SameText(FLanguages[i].Code, FNewUILanguage) then
+        cbInterfaceLanguage.ItemIndex := i;
+    end;
+    cbInterfaceLanguage.Enabled := Length(FLanguages) > 1;
+  finally
+    FRefreshingLanguage := false;
+  end;
+end;
+
+procedure TFRMPascalCoinWalletConfig.cbInterfaceLanguageChange(Sender: TObject);
+begin
+  if FRefreshingLanguage or (cbInterfaceLanguage.ItemIndex < 0) then exit;
+  FNewUILanguage := FLanguages[cbInterfaceLanguage.ItemIndex].Code;
+  FLanguageChanged := not SameText(FNewUILanguage, TWalletLanguages.ReadPreference);
+  lblLanguageRestart.Visible := FLanguageChanged;
 end;
 
 procedure TFRMPascalCoinWalletConfig.cbDownloadNewCheckpointClick(
@@ -199,7 +250,7 @@ begin
   Try
     udInternetServerPort.Position := TSettings.InternetServerPort;
     ebDefaultFee.Text := TAccountComp.FormatMoney(TSettings.DefaultFee);
-    cbJSONRPCMinerServerActive.Checked := TSettings.MinerServerRpcActive;
+    cbJSONRPCMinerServerActive.Checked := TSettings.JsonRpcMinerServerActive;
     case TSettings.MinerPrivateKeyType of
       mpk_NewEachTime : rbGenerateANewPrivateKeyEachBlock.Checked := true;
       mpk_Random : rbUseARandomKey.Checked := true;
@@ -212,9 +263,9 @@ begin
     cbSaveDebugLogs.Checked := TSettings.SaveDebugLogs;
     ebMinerName.Text := TSettings.MinerName;
     cbShowModalMessages.Checked := TSettings.ShowModalMessages;
-    udJSONRPCMinerServerPort.Position := TSettings.MinerServerRpcPort;
-    cbJSONRPCPortEnabled.Checked := TSettings.RpcPortEnabled;
-    ebJSONRPCAllowedIPs.Text := TSettings.RpcAllowedIPs;
+    udJSONRPCMinerServerPort.Position := TSettings.JsonRpcMinerServerPort;
+    cbJSONRPCPortEnabled.Checked := TSettings.JsonRpcPortEnabled;
+    ebJSONRPCAllowedIPs.Text := TSettings.JsonRpcAllowedIPs;
     cbDownloadNewCheckpoint.Checked := TSettings.AllowDownloadNewCheckpointIfOlderThan;
     ebMinFutureBlocksToDownloadNewSafebox.Text := IntToStr(TSettings.MinFutureBlocksToDownloadNewSafebox);
   Except
@@ -249,7 +300,7 @@ begin
     end;
   end;
   cbPrivateKeyToMine.Sorted := true;
-  raw := TSettings.MinerSelectedPrivateKey;
+  raw := TSettings.MinerSelectedPublicKey;
   iselected := TWallet.Keys.IndexOfAccountKey(TAccountComp.RawString2Accountkey(raw));
   if iselected >= 0 then begin
     iselected :=  cbPrivateKeyToMine.Items.IndexOfObject(TObject(iselected));

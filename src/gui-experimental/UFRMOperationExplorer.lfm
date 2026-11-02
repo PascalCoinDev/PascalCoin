@@ -24,7 +24,8 @@ object FRMOperationExplorer: TFRMOperationExplorer
     TitleFont.Color = clWindowText
     TitleFont.Height = -11
     TitleFont.Name = 'Tahoma'
-    OnClick = dgOperationsExplorerClick
+    OnMouseDown = dgOperationsExplorerMouseDown
+    OnMouseUp = dgOperationsExplorerMouseUp
   end
   object Panel1: TPanel
     Left = 0

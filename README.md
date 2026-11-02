@@ -47,6 +47,16 @@ In case you have questions or just want to get in touch with like-minded Pascal 
 
 ## Develop with Pascal
 
+The [experimental Delphi and Lazarus wallet](src/gui-experimental/README.md) has
+build, isolated startup and regression-test instructions for both interfaces.
+Its tests cover signed
+operation preparation, core validation, wizard state, cache behavior and native
+wallet startup/shutdown.
+
+The wallet uses [Sphere 10 Pascal Framework](https://github.com/HermanSchoenfeld/PascalFramework)
+for caching, concurrency, scoped resources, paged grids and wizards.
+See [Build 5.9](CHANGELOG.md#build-59---2026-10-28) for the full change list.
+
 | Language      | Project Name | Type    | Version support | Link |
 | ------------- | ------------ | ------- | --------------- | ---- |
 | JavaScript    | SBX          | Library | 5               | [SBX](https://github.com/techworker/sbx) |
