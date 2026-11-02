@@ -22,7 +22,8 @@ uses Windows, Messages, Classes, SysUtils, Types, Math, Variants, Generics.Colle
   UFRMAccountExplorer, UFRMPendingOperations, UFRMBlockExplorer, UFRMOperationExplorer,
   UFRMOperationsExplorer, UFRMRPCCalls, UFRMLogs, UFRMNodes, UFRMMessages, UFRMPayloadDecoder,
   UBlockChain, UFileStorage, UCrypto, UConst, UCoreObjects, UCoreUtils, UWIZOperation,
-  UWIZChangeKey, UWIZOperationSelected, UWIZOperationConfirmation;
+  UWIZChangeKey, UWIZOperationSelected, UWIZOperationConfirmation,
+  UWalletOperationInfoLayoutChecks;
 
 type
   TGroupBoxAccess = class(TGroupBox);
@@ -614,6 +615,7 @@ begin
   CheckConnections;
   LoadGenesis;
   CheckOperationInput;
+  CheckWalletOperationInfoLayout(FLogPath);
   CheckConnections;
   CheckErrors;
   Log('PASS actual Operations Explorer click-only details checks');
