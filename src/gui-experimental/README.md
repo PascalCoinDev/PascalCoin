@@ -170,8 +170,7 @@ Consumers migrating from the old callback replace its message/count parameters
 with one record:
 
 ```pascal
-procedure TMyProgressView.OnProgress(Sender: TObject;
-  const AProgress: TProgressInfo);
+procedure TMyProgressView.OnProgress(Sender: TObject; const AProgress: TProgressInfo);
 begin
   ProgressLabel.Caption := FormatProgressInfo(AProgress);
 end;

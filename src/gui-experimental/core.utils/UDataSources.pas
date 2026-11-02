@@ -135,21 +135,16 @@ type
     procedure BalanceTaskCompleted(Sender: TObject);
     function FetchPrefix(const AKey: String): TAccountNumbers;
     function EstimatePrefix(const AValues: TAccountNumbers): SizeInt;
-    function CachedPrefix(const AKey: TAccountKey; ACount: Integer;
-      const AContext: TAccountReadContext): TAccountNumbers;
-    function CollectMembership(const AKeys: TArray<TAccountKey>;
-      const AContext: TAccountReadContext; ARequiredPrefix: Integer;
-      out ATotalCount: Integer): TArray<Cardinal>;
+    function CachedPrefix(const AKey: TAccountKey; ACount: Integer; const AContext: TAccountReadContext): TAccountNumbers;
+    function CollectMembership(const AKeys: TArray<TAccountKey>; const AContext: TAccountReadContext; ARequiredPrefix: Integer; out ATotalCount: Integer): TArray<Cardinal>;
     procedure CalculateBalance(ATask: TWalletStartupTask; AGeneration: Int64; AIncludePending: Boolean);
   protected
     procedure BeginReadSnapshot(AIncludePending: Boolean; out AContext: TAccountReadContext); virtual;
-    function BeginBalanceSnapshot(ATask: TWalletStartupTask; AGeneration: Int64;
-      AIncludePending: Boolean; out AContext: TAccountReadContext): Boolean; virtual;
+    function BeginBalanceSnapshot(ATask: TWalletStartupTask; AGeneration: Int64; AIncludePending: Boolean; out AContext: TAccountReadContext): Boolean; virtual;
     procedure EndReadSnapshot(const AContext: TAccountReadContext); virtual;
     function WalletKeys(const AContext: TAccountReadContext): TArray<TAccountKey>; virtual;
     function KeyAccountCount(const AKey: TAccountKey; const AContext: TAccountReadContext): Integer; virtual;
-    function ReadKeyPrefix(const AKey: TAccountKey; ACount: Integer;
-      const AContext: TAccountReadContext): TArray<Cardinal>; virtual;
+    function ReadKeyPrefix(const AKey: TAccountKey; ACount: Integer; const AContext: TAccountReadContext): TArray<Cardinal>; virtual;
     function OwnershipChanges(const AContext: TAccountReadContext): TArray<TAccountOwnershipChange>; virtual;
     function ReadPageAccount(AAccountNumber: Cardinal; const AContext: TAccountReadContext): TAccount; virtual;
     function ReadBalanceAccount(AAccountNumber: Cardinal; const AContext: TAccountReadContext): TAccount; virtual;
@@ -302,8 +297,7 @@ begin
   end;
 end;
 
-constructor TWalletBalanceTask.Create(ASource: TMyAccountsDataSource;
-  AGeneration: Int64; AIncludePending: Boolean);
+constructor TWalletBalanceTask.Create(ASource: TMyAccountsDataSource; AGeneration: Int64; AIncludePending: Boolean);
 begin
   inherited Create;
   FSource := ASource;
@@ -553,8 +547,7 @@ begin
   if Assigned(FOnBalanceSummaryCompleted) then FOnBalanceSummaryCompleted(Self);
 end;
 
-procedure TMyAccountsDataSource.BeginReadSnapshot(AIncludePending: Boolean;
-  out AContext: TAccountReadContext);
+procedure TMyAccountsDataSource.BeginReadSnapshot(AIncludePending: Boolean; out AContext: TAccountReadContext);
 begin
   AContext := Default(TAccountReadContext);
   AContext.Node := TNode.Node;
@@ -599,16 +592,14 @@ begin
   Result := TArray<TAccountKey>(AContext.KeyIndex.ToArray);
 end;
 
-function TMyAccountsDataSource.KeyAccountCount(const AKey: TAccountKey;
-  const AContext: TAccountReadContext): Integer;
+function TMyAccountsDataSource.KeyAccountCount(const AKey: TAccountKey; const AContext: TAccountReadContext): Integer;
 var LNumbers: TAccountsNumbersList;
 begin
   LNumbers := AContext.KeyIndex.GetAccountsUsingThisKey(AKey);
   if Assigned(LNumbers) then Result := LNumbers.Count else Result := 0;
 end;
 
-function TMyAccountsDataSource.ReadKeyPrefix(const AKey: TAccountKey;
-  ACount: Integer; const AContext: TAccountReadContext): TArray<Cardinal>;
+function TMyAccountsDataSource.ReadKeyPrefix(const AKey: TAccountKey; ACount: Integer; const AContext: TAccountReadContext): TArray<Cardinal>;
 var LNumbers: TAccountsNumbersList; LList: TList<Cardinal>; LScope: TDisposables;
 begin
   Result := nil;
@@ -619,8 +610,7 @@ begin
   Result := LList.ToArray;
 end;
 
-function TMyAccountsDataSource.ReadPageAccount(AAccountNumber: Cardinal;
-  const AContext: TAccountReadContext): TAccount;
+function TMyAccountsDataSource.ReadPageAccount(AAccountNumber: Cardinal; const AContext: TAccountReadContext): TAccount;
 begin
   if Assigned(AContext.Mempool) then
     Result := AContext.Mempool.SafeBoxTransaction.Account(AAccountNumber)
@@ -628,8 +618,7 @@ begin
     Result := AContext.SafeBox.Account(AAccountNumber);
 end;
 
-function TMyAccountsDataSource.ReadBalanceAccount(AAccountNumber: Cardinal;
-  const AContext: TAccountReadContext): TAccount;
+function TMyAccountsDataSource.ReadBalanceAccount(AAccountNumber: Cardinal; const AContext: TAccountReadContext): TAccount;
 begin
   if Assigned(AContext.Mempool) then
     Result := AContext.Mempool.SafeBoxTransaction.Account(AAccountNumber)
@@ -647,8 +636,7 @@ begin
   Result := ReadKeyPrefix(FPrefixKey, FPrefixCount, FPrefixContext);
 end;
 
-function TMyAccountsDataSource.CachedPrefix(const AKey: TAccountKey;
-  ACount: Integer; const AContext: TAccountReadContext): TAccountNumbers;
+function TMyAccountsDataSource.CachedPrefix(const AKey: TAccountKey; ACount: Integer; const AContext: TAccountReadContext): TAccountNumbers;
 var LKey: String; LTarget: Integer;
 begin
   if not Assigned(FPrefixCache) then
@@ -738,9 +726,7 @@ begin
   FOwnershipStateID := AContext.StateID;
 end;
 
-function TMyAccountsDataSource.CollectMembership(const AKeys: TArray<TAccountKey>;
-  const AContext: TAccountReadContext; ARequiredPrefix: Integer;
-  out ATotalCount: Integer): TArray<Cardinal>;
+function TMyAccountsDataSource.CollectMembership(const AKeys: TArray<TAccountKey>; const AContext: TAccountReadContext; ARequiredPrefix: Integer; out ATotalCount: Integer): TArray<Cardinal>;
 var
   LKeys: TArray<TAccountKey>;
   LKeySet: TAccountKeySet;
@@ -806,8 +792,7 @@ begin
     SetLength(Result, ARequiredPrefix);
 end;
 
-function TMyAccountsDataSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-  var ADataTable: TDataTable): TPageFetchResult;
+function TMyAccountsDataSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
 var
   LFilter: TColumnFilter;
   LContext: TAccountReadContext;
@@ -938,8 +923,7 @@ begin
   if Result and Assigned(FPBalanceSummary) then FPBalanceSummary^ := ASummary;
 end;
 
-function TMyAccountsDataSource.BeginBalanceSnapshot(ATask: TWalletStartupTask;
-  AGeneration: Int64; AIncludePending: Boolean; out AContext: TAccountReadContext): Boolean;
+function TMyAccountsDataSource.BeginBalanceSnapshot(ATask: TWalletStartupTask; AGeneration: Int64; AIncludePending: Boolean; out AContext: TAccountReadContext): Boolean;
 var LNode: TNode; LMempool: TPCOperationsComp;
 begin
   Result := False;
@@ -961,8 +945,7 @@ begin
   end;
 end;
 
-procedure TMyAccountsDataSource.CalculateBalance(ATask: TWalletStartupTask;
-  AGeneration: Int64; AIncludePending: Boolean);
+procedure TMyAccountsDataSource.CalculateBalance(ATask: TWalletStartupTask; AGeneration: Int64; AIncludePending: Boolean);
 const CChunkSize = 128;
 var
   LContext: TAccountReadContext;

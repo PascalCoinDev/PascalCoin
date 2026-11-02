@@ -180,8 +180,7 @@ type
     Succeeded: Boolean;
     Revision: Int64;
     ErrorMessage: String;
-    constructor Create(ANode: TNode; ANotify: TThreadNotify;
-      AOnCompleted: TNotifyEvent; AReadSnapshot: TSyncNodeSnapshotReader; ARevision: Int64);
+    constructor Create(ANode: TNode; ANotify: TThreadNotify; AOnCompleted: TNotifyEvent; AReadSnapshot: TSyncNodeSnapshotReader; ARevision: Int64);
     function WasCanceled: Boolean;
     procedure Cancel;
   end;
@@ -248,8 +247,7 @@ begin
   ASnapshot.ChainStatus := '';
 end;
 
-constructor TSyncNodeSnapshotThread.Create(ANode: TNode; ANotify: TThreadNotify;
-  AOnCompleted: TNotifyEvent; AReadSnapshot: TSyncNodeSnapshotReader; ARevision: Int64);
+constructor TSyncNodeSnapshotThread.Create(ANode: TNode; ANotify: TThreadNotify; AOnCompleted: TNotifyEvent; AReadSnapshot: TSyncNodeSnapshotReader; ARevision: Int64);
 begin
   inherited Create(True);
   FreeOnTerminate := False;
@@ -289,8 +287,7 @@ begin
   Terminate;
 end;
 
-procedure TCTRLSyncronization.ReadSecondarySnapshot(ANode: TNode;
-  out ASnapshot: TSyncNodeSnapshot);
+procedure TCTRLSyncronization.ReadSecondarySnapshot(ANode: TNode; out ASnapshot: TSyncNodeSnapshot);
 begin
   ReadNodeSnapshot(ANode, ASnapshot);
 end;

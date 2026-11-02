@@ -289,8 +289,7 @@ var
     Put(AEdit, X, Y, AWidth, LHeight);
   end;
 
-  procedure PutWrappedLabel(ALabel: TLabel; X, Y, AWidth,
-    AMinimumLines: Integer);
+  procedure PutWrappedLabel(ALabel: TLabel; X, Y, AWidth, AMinimumLines: Integer);
   var
     LText: TRect;
   begin
@@ -1294,9 +1293,7 @@ begin
   End;
 end;
 
-function TFRMOperation.UpdateOpChangeInfo(const TargetAccount: TAccount; var SignerAccount : TAccount;
-   var changeName : Boolean; var newName: TRawBytes; var changeType : Boolean; var newType: Word;
-   var AChangeData : Boolean; var ANewData : TRawBytes; var errors: String): Boolean;
+function TFRMOperation.UpdateOpChangeInfo(const TargetAccount: TAccount; var SignerAccount : TAccount; var changeName : Boolean; var newName: TRawBytes; var changeType : Boolean; var newType: Word; var AChangeData : Boolean; var ANewData : TRawBytes; var errors: String): Boolean;
 var auxC : Cardinal;
   i : Integer;
   errCode : Integer;
@@ -1623,10 +1620,7 @@ begin
   ebChangeName.Enabled:= lblChangeName.Enabled;
 end;
 
-function TFRMOperation.UpdateOpListAccount(const TargetAccount: TAccount;
-  var SalePrice: Int64; var SellerAccount, SignerAccount: TAccount;
-  var NewOwnerPublicKey: TAccountKey; var LockedUntilBlock: Cardinal;
-  var HashLock : T32Bytes; var errors: String): Boolean;
+function TFRMOperation.UpdateOpListAccount(const TargetAccount: TAccount; var SalePrice: Int64; var SellerAccount, SignerAccount: TAccount; var NewOwnerPublicKey: TAccountKey; var LockedUntilBlock: Cardinal; var HashLock : T32Bytes; var errors: String): Boolean;
 var auxC : Cardinal; LBytes : TBytes;
 begin
   Result := False;

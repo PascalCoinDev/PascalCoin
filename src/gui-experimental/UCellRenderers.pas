@@ -69,8 +69,7 @@ const
   CT_PASCBALANCE_0CONF_COL = clBlue;
 
 
-procedure DrawRendererText(ACanvas: TCanvas; ARect: TRect;
-  const AText: String; AAlignment: TAlignment);
+procedure DrawRendererText(ACanvas: TCanvas; ARect: TRect; const AText: String; AAlignment: TAlignment);
 {$IFNDEF FPC}
 var LFlags: Cardinal; LText: String;
 {$ENDIF}

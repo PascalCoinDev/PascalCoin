@@ -223,10 +223,8 @@ type
     procedure OnBlocksChanged(Sender: TObject);
     procedure OnPrivateKeysChanged(Sender: TObject);
     procedure OnAccountsSelectedGridUpdated(Sender: TObject);
-    function ReadAccount(Sender: TObject; AAccountNumber: Integer;
-      out AAccount: TAccount; out ABlockCount, AAccountCount: Integer): Boolean;
-    function ReadSummary(Sender: TObject; out AAccountCount: Integer;
-      out ABalance: Int64): Boolean;
+    function ReadAccount(Sender: TObject; AAccountNumber: Integer; out AAccount: TAccount; out ABlockCount, AAccountCount: Integer): Boolean;
+    function ReadSummary(Sender: TObject; out AAccountCount: Integer; out ABalance: Int64): Boolean;
     procedure OnSnapshotUpdated(Sender: TObject);
     procedure OnBackendReady(Sender: TObject);
     procedure TryRefreshBackend;
@@ -361,15 +359,13 @@ begin
   Result := TExplorerAccountSnapshots.Create(Self, TUserInterface.Node);
 end;
 
-function TFRMAccountExplorer.ReadAccount(Sender: TObject; AAccountNumber: Integer;
-  out AAccount: TAccount; out ABlockCount, AAccountCount: Integer): Boolean;
+function TFRMAccountExplorer.ReadAccount(Sender: TObject; AAccountNumber: Integer; out AAccount: TAccount; out ABlockCount, AAccountCount: Integer): Boolean;
 begin
   Result := FAccountSnapshots.TryGetAccount(AAccountNumber, AAccount,
     ABlockCount, AAccountCount);
 end;
 
-function TFRMAccountExplorer.ReadSummary(Sender: TObject; out AAccountCount: Integer;
-  out ABalance: Int64): Boolean;
+function TFRMAccountExplorer.ReadSummary(Sender: TObject; out AAccountCount: Integer; out ABalance: Int64): Boolean;
 begin
   Result := FAccountSnapshots.TryGetSummary(AAccountCount, ABalance);
 end;

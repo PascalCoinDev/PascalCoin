@@ -98,10 +98,7 @@ type
       protected
         procedure ExecuteLoad; override;
       public
-        constructor Create(ANode: TNode; ANetData: TNetData;
-          AActive: Boolean; APort: Word; ARequestVersion: Cardinal;
-          const AMinerName: String; AApplyMinerPayload: Boolean;
-          const AMining: TMiningSettings; AApplyMining, AApplyMiningKey: Boolean); reintroduce;
+        constructor Create(ANode: TNode; ANetData: TNetData; AActive: Boolean; APort: Word; ARequestVersion: Cardinal; const AMinerName: String; AApplyMinerPayload: Boolean; const AMining: TMiningSettings; AApplyMining, AApplyMiningKey: Boolean); reintroduce;
         procedure Supersede;
       end;
 
@@ -337,10 +334,7 @@ end;
 
 { TUserInterface.TNetworkSettingsTask }
 
-constructor TUserInterface.TNetworkSettingsTask.Create(ANode: TNode;
-  ANetData: TNetData; AActive: Boolean; APort: Word; ARequestVersion: Cardinal;
-  const AMinerName: String; AApplyMinerPayload: Boolean;
-  const AMining: TMiningSettings; AApplyMining, AApplyMiningKey: Boolean);
+constructor TUserInterface.TNetworkSettingsTask.Create(ANode: TNode; ANetData: TNetData; AActive: Boolean; APort: Word; ARequestVersion: Cardinal; const AMinerName: String; AApplyMinerPayload: Boolean; const AMining: TMiningSettings; AApplyMining, AApplyMiningKey: Boolean);
 begin
   inherited Create;
   FNode := ANode;
@@ -1046,8 +1040,7 @@ begin
   end;
 end;
 
-class procedure TUserInterface.OnSynchronizationChanged(Sender: TObject;
-  const AStatus: TNodeSynchronizationStatus);
+class procedure TUserInterface.OnSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
 begin
   if FStopping then Exit;
   if (AStatus.State = nssSynchronizing) and
@@ -1262,8 +1255,7 @@ begin
   wiz.Start(model);
 end;
 
-class procedure TUserInterface.ShowChangeAccountInfoDialog(
-  const AAccounts: array of Cardinal);
+class procedure TUserInterface.ShowChangeAccountInfoDialog( const AAccounts: array of Cardinal);
 var
   Scoped: TDisposables;
   wiz: TWIZChangeAccountInfoWizard;
@@ -1276,8 +1268,7 @@ begin
   wiz.Start(model);
 end;
 
-class procedure TUserInterface.ShowBuyAccountDialog(
-  const AAccounts: array of Cardinal);
+class procedure TUserInterface.ShowBuyAccountDialog( const AAccounts: array of Cardinal);
 var
   Scoped: TDisposables;
   wiz: TWIZBuyAccountWizard;

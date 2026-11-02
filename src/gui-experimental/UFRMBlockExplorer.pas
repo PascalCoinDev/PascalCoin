@@ -57,8 +57,7 @@ type
     miResetBlockFilters: TMenuItem;
     Panel2: TPanel;
     procedure ebBlockChainBlockStartExit(Sender: TObject);
-    procedure ebBlockChainBlockStartKeyPress(Sender: TObject;
-      var Key: Char);
+    procedure ebBlockChainBlockStartKeyPress(Sender: TObject; var Key: Char);
     procedure miRefreshClick(Sender: TObject);
     procedure miResetBlockFiltersClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -103,8 +102,7 @@ begin
   End;
 end;
 
-procedure TFRMBlockExplorer.ebBlockChainBlockStartKeyPress(Sender: TObject;
-  var Key: Char);
+procedure TFRMBlockExplorer.ebBlockChainBlockStartKeyPress(Sender: TObject; var Key: Char);
 begin
   if key=#13 then  ebBlockChainBlockStartExit(Nil);
 end;

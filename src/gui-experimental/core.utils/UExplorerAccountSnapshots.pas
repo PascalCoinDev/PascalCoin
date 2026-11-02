@@ -45,8 +45,7 @@ type
     Balance: Int64;
     Succeeded: Boolean;
     ErrorMessage: String;
-    constructor Create(ASource: TExplorerAccountSnapshots;
-      AGeneration: UInt64; const AAccounts: TArray<Cardinal>);
+    constructor Create(ASource: TExplorerAccountSnapshots; AGeneration: UInt64; const AAccounts: TArray<Cardinal>);
   end;
 
   TExplorerAccountSnapshots = class(TComponent)
@@ -72,16 +71,13 @@ type
     function AccountSize(const AValue: TExplorerCachedAccount): SizeInt;
   protected
     { Runs exclusively on the owned worker. Overrides must not touch controls. }
-    function ReadSnapshot(const AAccounts: TArray<Cardinal>;
-      out ARows: TArray<TAccount>; out AAccountCount, ABlockCount: Integer;
-      out ABalance: Int64): Boolean; virtual;
+    function ReadSnapshot(const AAccounts: TArray<Cardinal>; out ARows: TArray<TAccount>; out AAccountCount, ABlockCount: Integer; out ABalance: Int64): Boolean; virtual;
   public
     constructor Create(AOwner: TComponent; ANode: TNode); reintroduce;
     destructor Destroy; override;
     procedure Invalidate;
     procedure Stop;
-    function TryGetAccount(AAccountNumber: Integer; out AAccount: TAccount;
-      out ABlockCount, AAccountCount: Integer): Boolean;
+    function TryGetAccount(AAccountNumber: Integer; out AAccount: TAccount; out ABlockCount, AAccountCount: Integer): Boolean;
     function TryGetSummary(out AAccountCount: Integer; out ABalance: Int64): Boolean;
     property Updating: Boolean read IsUpdating;
     property ErrorMessage: String read FErrorMessage;
@@ -94,8 +90,7 @@ implementation
 
 uses UAccounts, UBlockChain;
 
-constructor TExplorerAccountSnapshotThread.Create(ASource: TExplorerAccountSnapshots;
-  AGeneration: UInt64; const AAccounts: TArray<Cardinal>);
+constructor TExplorerAccountSnapshotThread.Create(ASource: TExplorerAccountSnapshots; AGeneration: UInt64; const AAccounts: TArray<Cardinal>);
 begin
   inherited Create(True);
   FreeOnTerminate := False;
@@ -188,8 +183,7 @@ begin
   if FPending.Count < 128 then FPending.Add(AAccount);
 end;
 
-function TExplorerAccountSnapshots.TryGetAccount(AAccountNumber: Integer;
-  out AAccount: TAccount; out ABlockCount, AAccountCount: Integer): Boolean;
+function TExplorerAccountSnapshots.TryGetAccount(AAccountNumber: Integer; out AAccount: TAccount; out ABlockCount, AAccountCount: Integer): Boolean;
 var LValue: TExplorerCachedAccount;
 begin
   ABlockCount := FBlockCount;
@@ -205,17 +199,14 @@ begin
   QueueAccount(Cardinal(AAccountNumber));
 end;
 
-function TExplorerAccountSnapshots.TryGetSummary(out AAccountCount: Integer;
-  out ABalance: Int64): Boolean;
+function TExplorerAccountSnapshots.TryGetSummary(out AAccountCount: Integer; out ABalance: Int64): Boolean;
 begin
   AAccountCount := FAccountCount;
   ABalance := FBalance;
   Result := FHasSummary;
 end;
 
-function TExplorerAccountSnapshots.ReadSnapshot(const AAccounts: TArray<Cardinal>;
-  out ARows: TArray<TAccount>; out AAccountCount, ABlockCount: Integer;
-  out ABalance: Int64): Boolean;
+function TExplorerAccountSnapshots.ReadSnapshot(const AAccounts: TArray<Cardinal>; out ARows: TArray<TAccount>; out AAccountCount, ABlockCount: Integer; out ABalance: Int64): Boolean;
 var I, LCount: Integer; LMempool: TPCOperationsComp;
 begin
   Result := False;

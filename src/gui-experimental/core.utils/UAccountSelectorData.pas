@@ -82,22 +82,16 @@ type
     function CurrentSnapshot(out AGeneration: UInt64): TQuerySnapshot;
     procedure PublishSnapshot(ASnapshot: TQuerySnapshot; AGeneration: UInt64);
     function EstimateSnapshot(const AValue: TQuerySnapshot): SizeInt;
-    function AcceptAccount(const AAccount: TAccount;
-      const AFilter: TAccountSelectorFilter): Boolean;
-    procedure ReadConfiguration(out AFilter: TAccountSelectorFilter;
-      out AGeneration: UInt64; out ASafeBox: TPCSafeBox);
-    procedure ReadContiguous(const AChain: TAccountSelectorChain;
-      AStart, ACount: Integer; out ARows: TArray<TAccount>);
+    function AcceptAccount(const AAccount: TAccount; const AFilter: TAccountSelectorFilter): Boolean;
+    procedure ReadConfiguration(out AFilter: TAccountSelectorFilter; out AGeneration: UInt64; out ASafeBox: TPCSafeBox);
+    procedure ReadContiguous(const AChain: TAccountSelectorChain; AStart, ACount: Integer; out ARows: TArray<TAccount>);
     procedure CheckChain(const AChain: TAccountSelectorChain);
   protected
     // Test backends replace storage only; filtering, paging and workers stay real.
     function ReadChain(ASafeBox: TPCSafeBox): TAccountSelectorChain; virtual;
-    procedure ReadKeyNumbers(const AChain: TAccountSelectorChain;
-      const AKey: TAccountKey; const ANumbers: TList<Cardinal>); virtual;
-    procedure ReadAccounts(const AChain: TAccountSelectorChain;
-      const ANumbers: TArray<Cardinal>; out ARows: TArray<TAccount>); virtual;
-    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-      var ADataTable: TDataTable): TPageFetchResult; override;
+    procedure ReadKeyNumbers(const AChain: TAccountSelectorChain; const AKey: TAccountKey; const ANumbers: TList<Cardinal>); virtual;
+    procedure ReadAccounts(const AChain: TAccountSelectorChain; const ANumbers: TArray<Cardinal>; out ARows: TArray<TAccount>); virtual;
+    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -154,8 +148,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TAccountSelectorDataSource.Configure(ASafeBox: TPCSafeBox;
-  const AFilter: TAccountSelectorFilter);
+procedure TAccountSelectorDataSource.Configure(ASafeBox: TPCSafeBox; const AFilter: TAccountSelectorFilter);
 begin
   // Configuration never waits for the cache or a provider's storage/query lock.
   FConfigLock.Acquire;
@@ -175,8 +168,7 @@ begin
   InvalidateSnapshot;
 end;
 
-procedure TAccountSelectorDataSource.ReadConfiguration(out AFilter: TAccountSelectorFilter;
-  out AGeneration: UInt64; out ASafeBox: TPCSafeBox);
+procedure TAccountSelectorDataSource.ReadConfiguration(out AFilter: TAccountSelectorFilter; out AGeneration: UInt64; out ASafeBox: TPCSafeBox);
 begin
   FConfigLock.Acquire;
   try
@@ -213,8 +205,7 @@ begin
     raise EAccountSelectorSnapshotChanged.Create('The confirmed account snapshot changed');
 end;
 
-procedure TAccountSelectorDataSource.ReadKeyNumbers(const AChain: TAccountSelectorChain;
-  const AKey: TAccountKey; const ANumbers: TList<Cardinal>);
+procedure TAccountSelectorDataSource.ReadKeyNumbers(const AChain: TAccountSelectorChain; const AKey: TAccountKey; const ANumbers: TList<Cardinal>);
 var LList: TAccountsNumbersList;
 begin
   CheckAccountSelectorCancelled;
@@ -234,8 +225,7 @@ begin
   end;
 end;
 
-procedure TAccountSelectorDataSource.ReadAccounts(const AChain: TAccountSelectorChain;
-  const ANumbers: TArray<Cardinal>; out ARows: TArray<TAccount>);
+procedure TAccountSelectorDataSource.ReadAccounts(const AChain: TAccountSelectorChain; const ANumbers: TArray<Cardinal>; out ARows: TArray<TAccount>);
 var I: Integer;
 begin
   CheckAccountSelectorCancelled;
@@ -253,8 +243,7 @@ begin
   end;
 end;
 
-procedure TAccountSelectorDataSource.ReadContiguous(const AChain: TAccountSelectorChain;
-  AStart, ACount: Integer; out ARows: TArray<TAccount>);
+procedure TAccountSelectorDataSource.ReadContiguous(const AChain: TAccountSelectorChain; AStart, ACount: Integer; out ARows: TArray<TAccount>);
 var LNumbers: TArray<Cardinal>; I: Integer;
 begin
   SetLength(LNumbers,ACount);
@@ -262,8 +251,7 @@ begin
   ReadAccounts(AChain,LNumbers,ARows);
 end;
 
-function TAccountSelectorDataSource.AcceptAccount(const AAccount: TAccount;
-  const AFilter: TAccountSelectorFilter): Boolean;
+function TAccountSelectorDataSource.AcceptAccount(const AAccount: TAccount; const AFilter: TAccountSelectorFilter): Boolean;
 begin
   Result := False;
   if AFilter.MyAccounts then begin
@@ -381,8 +369,7 @@ begin
   end;
 end;
 
-function TAccountSelectorDataSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-  var ADataTable: TDataTable): TPageFetchResult;
+function TAccountSelectorDataSource.FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
 var LGeneration: UInt64; LSnapshot: TQuerySnapshot; LRows: TArray<TAccount>;
   LNumbers: TArray<Cardinal>; LStart,LTake,LRead,I,LAttempt: Integer;
   LRow: Variant; LComplete: Boolean;

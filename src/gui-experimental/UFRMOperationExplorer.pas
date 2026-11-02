@@ -54,10 +54,8 @@ type
     miFindOperationByOpHash: TMenuItem;
     miTools: TMenuItem;
     Panel1: TPanel;
-    procedure dgOperationsExplorerMouseDown(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
-    procedure dgOperationsExplorerMouseUp(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
+    procedure dgOperationsExplorerMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure dgOperationsExplorerMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure ebFilterOperationsAccountExit(Sender: TObject);
     procedure ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);
     procedure FormCreate(Sender: TObject);
@@ -137,8 +135,7 @@ begin
   End;
 end;
 
-function TFRMOperationExplorer.TryGetOperationCell(X, Y: Integer;
-  out ACell: TPoint): Boolean;
+function TFRMOperationExplorer.TryGetOperationCell(X, Y: Integer; out ACell: TPoint): Boolean;
 begin
   Result := False;
   if (X < 0) or (Y < 0) or (X >= dgOperationsExplorer.ClientWidth) or
@@ -152,8 +149,7 @@ begin
     (ACell.Y <= FOperationsExplorerGrid.OperationsResume.Count);
 end;
 
-procedure TFRMOperationExplorer.dgOperationsExplorerMouseDown(Sender: TObject;
-  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+procedure TFRMOperationExplorer.dgOperationsExplorerMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   FOperationClickPending := False;
   if Button <> mbLeft then
@@ -165,8 +161,7 @@ begin
   FOperationClickPending := True;
 end;
 
-procedure TFRMOperationExplorer.dgOperationsExplorerMouseUp(Sender: TObject;
-  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+procedure TFRMOperationExplorer.dgOperationsExplorerMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   LWasPending: Boolean;
   LCell: TPoint;

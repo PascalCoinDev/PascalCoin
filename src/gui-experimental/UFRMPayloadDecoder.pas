@@ -251,8 +251,7 @@ begin
   TryToDecode;
 end;
 
-procedure TFRMPayloadDecoder.memoDecodedKeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
+procedure TFRMPayloadDecoder.memoDecodedKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
   if key=VK_ESCAPE then Close;
 

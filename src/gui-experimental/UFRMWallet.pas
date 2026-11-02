@@ -190,8 +190,7 @@ type
     procedure miAboutPascalCoinClick(Sender: TObject);
     procedure miNewOperationClick(Sender: TObject);
     procedure miPrivatekeysClick(Sender: TObject);
-    procedure dgAccountsColumnMoved(Sender: TObject; FromIndex,
-      ToIndex: Integer);
+    procedure dgAccountsColumnMoved(Sender: TObject; FromIndex, ToIndex: Integer);
     procedure dgAccountsFixedCellClick(Sender: TObject; ACol, ARow: Integer);
     procedure PageControlChange(Sender: TObject);
     procedure ebFilterOperationsAccountExit(Sender: TObject);
@@ -222,8 +221,7 @@ type
     procedure MiFindaccountClick(Sender: TObject);
     procedure bbAccountsRefreshClick(Sender: TObject);
     procedure ebFilterAccountByBalanceMinExit(Sender: TObject);
-    procedure ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
-      var Key: Char);
+    procedure ebFilterAccountByBalanceMinKeyPress(Sender: TObject; var Key: Char);
     procedure cbFilterAccountsClick(Sender: TObject);
     procedure MiFindOperationbyOpHashClick(Sender: TObject);
     procedure MiAccountInformationClick(Sender: TObject);
@@ -635,8 +633,7 @@ begin
   SaveAppParams;
 end;
 
-procedure TFRMWallet.dgAccountsFixedCellClick(Sender: TObject; ACol,
-  ARow: Integer);
+procedure TFRMWallet.dgAccountsFixedCellClick(Sender: TObject; ACol, ARow: Integer);
 begin
   SaveAppParams;
 end;
@@ -696,8 +693,7 @@ begin
   End;
 end;
 
-procedure TFRMWallet.ebBlockChainBlockStartKeyPress(Sender: TObject;
-  var Key: Char);
+procedure TFRMWallet.ebBlockChainBlockStartKeyPress(Sender: TObject; var Key: Char);
 begin
   if key=#13 then  ebBlockChainBlockStartExit(Nil);
 end;
@@ -707,8 +703,7 @@ begin
   DoUpdateAccountsFilter;
 end;
 
-procedure TFRMWallet.ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
-  var Key: Char);
+procedure TFRMWallet.ebFilterAccountByBalanceMinKeyPress(Sender: TObject; var Key: Char);
 begin
   if key=#13 then DoUpdateAccountsFilter;
 end;
@@ -729,8 +724,7 @@ begin
   End;
 end;
 
-procedure TFRMWallet.ebFilterOperationsAccountKeyPress(Sender: TObject;
-  var Key: Char);
+procedure TFRMWallet.ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);
 begin
   if key=#13 then  ebFilterOperationsAccountExit(Nil);
 end;

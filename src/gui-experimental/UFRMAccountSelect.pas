@@ -113,8 +113,7 @@ type
     procedure SearchFiltered;
     procedure UpdateControls;
     procedure OnAccountsGridUpdated(Sender: TObject);
-    procedure OnGridSelection(Sender: TObject;
-      {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
+    procedure OnGridSelection(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
     procedure OnStatsCompleted(Sender: TObject);
     function GetStatsRunning: Boolean;
   protected
@@ -447,8 +446,7 @@ begin
   bbSelect.Enabled := FAllowSelect and (GetSelected >= 0) and not StatsRunning;
 end;
 
-procedure TFRMAccountSelect.OnGridSelection(Sender: TObject;
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
+procedure TFRMAccountSelect.OnGridSelection(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
 begin
   bbSelect.Enabled := FAllowSelect and (GetSelected >= 0) and not StatsRunning;
 end;

@@ -232,8 +232,7 @@ begin
   lblLanguageRestart.Visible := FLanguageChanged;
 end;
 
-procedure TFRMPascalCoinWalletConfig.cbDownloadNewCheckpointClick(
-  Sender: TObject);
+procedure TFRMPascalCoinWalletConfig.cbDownloadNewCheckpointClick( Sender: TObject);
 begin
   RefreshUI_WalletAspect;
 end;

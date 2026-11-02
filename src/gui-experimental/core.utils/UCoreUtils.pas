@@ -104,9 +104,7 @@ type
     class function AreAccountBalancesGreaterThan(const ACandidates: array of TAccount; AAmount: int64; var AFaultyAccount: TAccount): boolean; static;
     // The caller retains the pending-state lock and owns both inputs. Build the
     // account histories with one operation-tree traversal, then apply paging.
-    class function GetPendingOperationsAffectingAccounts(AOperations: TOperationsHashTree;
-      ASnapshot: TPCSafeBoxTransaction; ABlock: Cardinal;
-      const AAccountNumbers: array of Cardinal; ASkipCount, ATakeCount: Integer): TArray<TOperationResume>; static;
+    class function GetPendingOperationsAffectingAccounts(AOperations: TOperationsHashTree; ASnapshot: TPCSafeBoxTransaction; ABlock: Cardinal; const AAccountNumbers: array of Cardinal; ASkipCount, ATakeCount: Integer): TArray<TOperationResume>; static;
   end;
 
   { TNodeHelper }
@@ -136,8 +134,7 @@ type
   TOperationResumeHelper = record helper for TOperationResume
     function GetPrintableOPHASH : String;
     function GetInfoText(const ABank : TPCBank) : String; overload;
-    function GetInfoText(ABlocksCount : Cardinal; const ANode: TNode = nil;
-      const AWalletKeys: TWalletKeys = nil) : String; overload;
+    function GetInfoText(ABlocksCount : Cardinal; const ANode: TNode = nil; const AWalletKeys: TWalletKeys = nil) : String; overload;
   end;
 
   { TTimeSpanHelper }
@@ -183,8 +180,7 @@ type
   public
     // Batch type changes leave matching accounts untouched. A single-account
     // request retains its account so the caller can still change its name.
-    class function GetChangeAccountInfoTargets(const AAccounts: TArray<TAccount>;
-      ANewType: Word): TArray<TAccount>; static;
+    class function GetChangeAccountInfoTargets(const AAccounts: TArray<TAccount>; ANewType: Word): TArray<TAccount>; static;
     // On success the caller owns AOperations. On failure it is nil. The entire
     // batch is prepared and signed before confirmation or node submission.
     class function PrepareOperations(const ARequest: TWalletOperationRequest; AProtocol: Word; ABlocksCount: Cardinal; AWalletKeys: TWalletKeys; out AOperations: TOperationsHashTree; var AErrorMessage: string): Boolean; static;
@@ -500,9 +496,7 @@ begin
     end;
 end;
 
-class function TCoreTool.GetPendingOperationsAffectingAccounts(AOperations: TOperationsHashTree;
-  ASnapshot: TPCSafeBoxTransaction; ABlock: Cardinal;
-  const AAccountNumbers: array of Cardinal; ASkipCount, ATakeCount: Integer): TArray<TOperationResume>;
+class function TCoreTool.GetPendingOperationsAffectingAccounts(AOperations: TOperationsHashTree; ASnapshot: TPCSafeBoxTransaction; ABlock: Cardinal; const AAccountNumbers: array of Cardinal; ASkipCount, ATakeCount: Integer): TArray<TOperationResume>;
 type
   TOperationIndexes = TList<Cardinal>;
 var
@@ -984,8 +978,7 @@ begin
   Result := GetInfoText(ABank.BlocksCount);
 end;
 
-function TOperationResumeHelper.GetInfoText(ABlocksCount: Cardinal;
-  const ANode: TNode; const AWalletKeys: TWalletKeys): String;
+function TOperationResumeHelper.GetInfoText(ABlocksCount: Cardinal; const ANode: TNode; const AWalletKeys: TWalletKeys): String;
 var
   builder: TStrings;
   GC: TDisposables;
@@ -1255,8 +1248,7 @@ begin
     Result := False;
 end;
 
-class function TWIZOperationsHelper.GetChangeAccountInfoTargets(
-  const AAccounts: TArray<TAccount>; ANewType: Word): TArray<TAccount>;
+class function TWIZOperationsHelper.GetChangeAccountInfoTargets( const AAccounts: TArray<TAccount>; ANewType: Word): TArray<TAccount>;
 var
   I, LCount: Integer;
 begin

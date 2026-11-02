@@ -93,8 +93,7 @@ begin
   FEvents.OnModalBegin := OnActivateOrModal;
 end;
 
-procedure TWalletFormTranslator.TranslateComponent(AComponent: TComponent;
-  ARetranslate: Boolean);
+procedure TWalletFormTranslator.TranslateComponent(AComponent: TComponent; ARetranslate: Boolean);
 begin
   if (csLoading in AComponent.ComponentState) or
     (csDestroying in AComponent.ComponentState) then Exit;

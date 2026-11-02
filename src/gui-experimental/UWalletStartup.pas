@@ -36,14 +36,12 @@ type
     ShowHelp : Boolean;
   end;
 
-function TryParseWalletStartupOptions(const AArguments : array of String;
-  out AOptions : TWalletStartupOptions; out AError : String) : Boolean;
+function TryParseWalletStartupOptions(const AArguments : array of String; out AOptions : TWalletStartupOptions; out AError : String) : Boolean;
 function WalletStartupHelp : String;
 
 implementation
 
-function TryParseWalletStartupOptions(const AArguments : array of String;
-  out AOptions : TWalletStartupOptions; out AError : String) : Boolean;
+function TryParseWalletStartupOptions(const AArguments : array of String; out AOptions : TWalletStartupOptions; out AError : String) : Boolean;
 const
   CT_DataDirectoryPrefix = '--data-dir=';
 var

@@ -77,8 +77,7 @@ type
 
       { TOperationExecuteResultHandler }
 
-      TOperationExecuteResultHandler =
-      procedure(const ASourceAccount: TAccount; AOpType: TExecuteOperationType; const AOpText: String; Result: boolean; const Message: String) of object;
+      TOperationExecuteResultHandler = procedure(const ASourceAccount: TAccount; AOpType: TExecuteOperationType; const AOpText: String; Result: boolean; const Message: String) of object;
 
 
       { TAccountModel }

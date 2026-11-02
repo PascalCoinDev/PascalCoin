@@ -702,8 +702,7 @@ begin
   RefreshBalances;
 end;
 
-procedure TCTRLWallet.OnSynchronizationChanged(Sender: TObject;
-  const AStatus: TNodeSynchronizationStatus);
+procedure TCTRLWallet.OnSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
 var LWasSynchronizing: Boolean;
 begin
   if FStopping or TUserInterface.Stopping then Exit;

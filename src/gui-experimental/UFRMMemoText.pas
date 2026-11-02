@@ -36,8 +36,7 @@ type
     FbbOk : TBitBtn;
     FMessageLayout, FArrangingMessage: Boolean;
     procedure EnsureOkButton;
-    procedure InitMessage(AParent: TForm; const ATitle, APrompt,
-      ADetails: String; AConfirm: Boolean);
+    procedure InitMessage(AParent: TForm; const ATitle, APrompt, ADetails: String; AConfirm: Boolean);
     procedure SetAllowInput(const Value: Boolean);
     procedure SetDataText(const Value: String);
     function GetDataText: String;
@@ -51,8 +50,7 @@ type
 
 
 function InputMemoQuery(const ATitle : String; AAllowMultiline : Boolean; var AText : String) : Boolean;
-function ConfirmMemoQuery(AParent: TForm; const ATitle, APrompt,
-  ADetails: String): Boolean;
+function ConfirmMemoQuery(AParent: TForm; const ATitle, APrompt, ADetails: String): Boolean;
 procedure ShowResultMemo(AParent: TForm; const ATitle, APrompt, ADetails: String);
 
 implementation
@@ -85,8 +83,7 @@ begin
 
 end;
 
-function ConfirmMemoQuery(AParent: TForm; const ATitle, APrompt,
-  ADetails: String): Boolean;
+function ConfirmMemoQuery(AParent: TForm; const ATitle, APrompt, ADetails: String): Boolean;
 var
   LDisposables: TDisposables;
   LForm: TFRMMemoText;
@@ -108,8 +105,7 @@ begin
   LForm.ShowModal;
 end;
 
-procedure TFRMMemoText.InitMessage(AParent: TForm; const ATitle, APrompt,
-  ADetails: String; AConfirm: Boolean);
+procedure TFRMMemoText.InitMessage(AParent: TForm; const ATitle, APrompt, ADetails: String; AConfirm: Boolean);
 var
   LMonitor: TMonitor;
   LWork, LWindow: TRect;
