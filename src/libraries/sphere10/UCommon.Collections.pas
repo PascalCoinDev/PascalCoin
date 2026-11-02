@@ -1,6 +1,6 @@
 unit UCommon.Collections;
 
-{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
+{ Copyright (c) 2017 - 2018 Herman Schoenfeld <https://www.sphere10.com>
 
   Common tools and extensions for Generics.Collections and collections in general usable
   across all tiers.
@@ -14,6 +14,28 @@ unit UCommon.Collections;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{ Public types in this unit
+
+  Type                         | Purpose
+  -----------------------------+-------------------------------------------------------------------------
+  IPredicate<T>                | Tests whether a value satisfies a condition.
+  ITransformer<T1, T2>         | Converts a value from one generic type to another.
+  TComparerTool<T>             | Creates and combines comparison functions and comparer objects.
+  TGlobalComparerFunc<T>       | Defines a global comparison callback.
+  TGlobalPredicateFunc<T>      | Defines a global value-testing callback.
+  TGlobalTransformFunc<T1, T2> | Defines a global value-conversion callback.
+  TListTool<T1, T2>            | Transforms list or array values into another element type.
+  TListTool<T>                 | Copies, slices, filters and removes list contents.
+  TNestedComparerFunc<T>       | Defines a captured comparison callback.
+  TNestedPredicateFunc<T>      | Defines a captured value-testing callback.
+  TNestedTransformFunc<T1, T2> | Defines a captured value-conversion callback.
+  TObjectComparerFunc<T>       | Defines an object-method comparison callback.
+  TObjectPredicateFunc<T>      | Defines an object-method value-testing callback.
+  TObjectTransformFunc<T1, T2> | Defines an object-method value-conversion callback.
+  TPredicateTool<T>            | Creates and combines reusable value predicates.
+  TSortedHashSetTool<T>        | Removes and returns one value from a Free Pascal sorted hash set.
+}
+
 {$IFDEF FPC}
   {$mode delphi}
   {$modeswitch nestedprocvars}
@@ -22,7 +44,12 @@ unit UCommon.Collections;
 interface
 
 uses
-  Classes, SysUtils, Generics.Collections, Generics.Defaults,UMemory, UCommon;
+  {$IFDEF FPC}
+  Classes, SysUtils, Generics.Collections, Generics.Defaults,
+  {$ELSE}
+  System.Classes, System.SysUtils, System.Generics.Collections, System.Generics.Defaults,
+  {$ENDIF}
+  UMemory, UCommon;
 
 type
 
@@ -30,11 +57,15 @@ type
 
   // Note: this tries to follow pattern from Generics.Collections for supporting nested/object/global delegates.
 
+  {$IFDEF FPC}
   TNestedComparerFunc<T> = function (constref Left, Right: T): Integer is nested;
+  {$ELSE}
+  TNestedComparerFunc<T> = reference to function (const Left, Right: T): Integer;
+  {$ENDIF}
 
-  TObjectComparerFunc<T> = function (constref Left, Right: T): Integer of object;
+  TObjectComparerFunc<T> = function ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer of object;
 
-  TGlobalComparerFunc<T> = function (constref Left, Right: T): Integer;
+  TGlobalComparerFunc<T> = function ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
 
   { TComparerTool }
 
@@ -54,27 +85,35 @@ type
       class function Inverted(const AComparer : IComparer<T>) : IComparer<T>;
     private
       // These should be nested but FPC doesn't support nested functions in generics
-      class function AlwaysEqualHandler(constref Left, Right: T) : Integer;
+      class function AlwaysEqualHandler({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T) : Integer;
   end;
 
   { Predicate API }
 
   // Note: the pattern for nested/object/global delegates is custom
 
+  {$IFDEF FPC}
   TNestedPredicateFunc<T> = function (constref AVal : T) : boolean is nested;
+  {$ELSE}
+  TNestedPredicateFunc<T> = reference to function (const AVal : T) : boolean;
+  {$ENDIF}
 
-  TObjectPredicateFunc<T> = function (constref AVal : T) : boolean of object;
+  TObjectPredicateFunc<T> = function ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AVal : T) : boolean of object;
 
-  TGlobalPredicateFunc<T> = function (constref AVal : T) : boolean;
+  TGlobalPredicateFunc<T> = function ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AVal : T) : boolean;
 
+  {$IFDEF FPC}
   TNestedTransformFunc<T1, T2> = function (constref AItem : T1) : T2 is nested;
+  {$ELSE}
+  TNestedTransformFunc<T1, T2> = reference to function (const AItem : T1) : T2;
+  {$ENDIF}
 
-  TObjectTransformFunc<T1, T2> = function (constref AItem : T1) : T2 of object;
+  TObjectTransformFunc<T1, T2> = function ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem : T1) : T2 of object;
 
-  TGlobalTransformFunc<T1, T2> = function (constref AItem : T1) : T2;
+  TGlobalTransformFunc<T1, T2> = function ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem : T1) : T2;
 
   IPredicate<T> = interface
-    function Evaluate (constref AValue: T) : boolean;
+    function Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
   end;
 
   ITransformer<T1, T2> = interface
@@ -101,8 +140,8 @@ type
       class function NegatePredicate(const APredicate : IPredicate<T>) : IPredicate<T>;
     private
       // These should be nested but FPC doesn't support nested functions in generics
-      class function TrueHandler(constref AItem: T) : boolean;
-      class function FalseHandler(constref AItem: T) : boolean;
+      class function TrueHandler({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: T) : boolean;
+      class function FalseHandler({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: T) : boolean;
   end;
 
   { TListTool }
@@ -133,9 +172,11 @@ type
 
   { TSortedHashSetTool }
 
+  {$IFDEF FPC}
   TSortedHashSetTool<T> = class
     class function Pop(ASet : TSortedHashSet<T>) : T;
   end;
+  {$ENDIF}
 
 
   { ================================================================================================== }
@@ -149,7 +190,7 @@ type
      FFunc: TNestedComparerFunc<T>;
    public
      constructor Create(const AComparerFunc: TNestedComparerFunc<T>); overload;
-     function Compare(constref Left, Right: T): Integer;
+     function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
   end;
 
   { TObjectComparer }
@@ -159,7 +200,7 @@ type
      FFunc: TObjectComparerFunc<T>;
    public
      constructor Create(const AComparerFunc: TObjectComparerFunc<T>); overload;
-     function Compare(constref Left, Right: T): Integer;
+     function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
   end;
 
   { TGlobalComparer }
@@ -169,7 +210,7 @@ type
      FFunc: TGlobalComparerFunc<T>;
    public
      constructor Create(const AComparerFunc: TGlobalComparerFunc<T>); overload;
-     function Compare(constref Left, Right: T): Integer;
+     function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
   end;
 
   { TManyComparer }
@@ -181,7 +222,7 @@ type
        FComparers : TArray<IComparer_T>;
      public
        constructor Create(const comparers: TArray<IComparer_T>); overload;
-       function Compare(constref Left, Right: T): Integer;
+       function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
    end;
 
   { TInvertedComparer }
@@ -191,7 +232,7 @@ type
     FComparer : IComparer<T>;
   public
     constructor Create(const AComparer : IComparer<T>); overload;
-    function Compare(constref Left, Right: T): Integer;
+    function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
   end;
 
   { TNestedPredicate }
@@ -201,7 +242,7 @@ type
      FFunc : TNestedPredicateFunc<T>;
    public
      constructor Create(const AFunc: TNestedPredicateFunc<T>); overload;
-     function Evaluate (constref AValue: T) : boolean;
+     function Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
   end;
 
   { TObjectPredicate }
@@ -211,7 +252,7 @@ type
      FFunc : TObjectPredicateFunc<T>;
    public
      constructor Create(const AFunc: TObjectPredicateFunc<T>); overload;
-     function Evaluate (constref AValue: T) : boolean;
+     function Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
   end;
 
   { TGlobalPredicate }
@@ -221,7 +262,7 @@ type
      FFunc : TGlobalPredicateFunc<T>;
    public
      constructor Create(const AFunc: TGlobalPredicateFunc<T>); overload;
-     function Evaluate (constref AValue: T) : boolean;
+     function Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
   end;
 
   { TNotPredicate }
@@ -231,7 +272,7 @@ type
       FPredicate : IPredicate<T>;
     public
       constructor Create(const APredicate : IPredicate<T>); overload;
-      function Evaluate (constref AValue: T) : boolean;
+      function Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
   end;
 
   { TAndManyPredicate }
@@ -244,7 +285,7 @@ type
      FPredicates : TArray<__IPredicate_T>;
    public
      constructor Create(const APredicates: TArray<__IPredicate_T>); overload;
-     function Evaluate (constref AValue: T) : boolean;
+     function Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
   end;
 
   { TOrManyPredicate }
@@ -257,7 +298,7 @@ type
      FPredicates : TArray<__IPredicate_T>;
    public
      constructor Create(const APredicates: TArray<__IPredicate_T>); overload;
-     function Evaluate (constref AValue: T) : boolean;
+     function Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
   end;
 
   { TNestedTransformer }
@@ -370,7 +411,7 @@ begin
   Result :=  TComparerTool<T>.FromFunc( AlwaysEqualHandler );
 end;
 
-class function TComparerTool<T>.AlwaysEqualHandler(constref Left, Right: T) : Integer;
+class function TComparerTool<T>.AlwaysEqualHandler({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T) : Integer;
 begin
   Result := 0;
 end;
@@ -387,7 +428,7 @@ begin
   FFunc := AComparerFunc;
 end;
 
-function TNestedComparer<T>.Compare(constref Left, Right: T): Integer;
+function TNestedComparer<T>.Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
 begin
   Result := FFunc(Left, Right);
 end;
@@ -399,7 +440,7 @@ begin
   FFunc := AComparerFunc;
 end;
 
-function TObjectComparer<T>.Compare(constref Left, Right: T): Integer;
+function TObjectComparer<T>.Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
 begin
   Result := FFunc(Left, Right);
 end;
@@ -411,7 +452,7 @@ begin
   FFunc := AComparerFunc;
 end;
 
-function TGlobalComparer<T>.Compare(constref Left, Right: T): Integer;
+function TGlobalComparer<T>.Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
 begin
   Result := FFunc(Left, Right);
 end;
@@ -423,7 +464,7 @@ begin
   FComparers := comparers;
 end;
 
-function TManyComparer<T>.Compare(constref Left, Right: T): Integer;
+function TManyComparer<T>.Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
 var
   i : Integer;
 begin
@@ -442,7 +483,7 @@ begin
   FComparer := AComparer;
 end;
 
-function TInvertedComparer<T>.Compare(constref Left, Right: T): Integer;
+function TInvertedComparer<T>.Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Left, Right: T): Integer;
 begin
   Result := FComparer.Compare(Left, Right) * -1;
 end;
@@ -568,15 +609,15 @@ begin
 end;
 
 // Shold be nested funcion but generics can't have in FPC!
-class function TPredicateTool<T>.TrueHandler(constref AItem: T) : boolean;
+class function TPredicateTool<T>.TrueHandler({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: T) : boolean;
 begin
   Result := true;
 end;
 
 // Shold be nested funcion but generics can't have in FPC!
-class function TPredicateTool<T>.FalseHandler(constref AItem: T) : boolean;
+class function TPredicateTool<T>.FalseHandler({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: T) : boolean;
 begin
-  Result := true;
+  Result := false;
 end;
 
 { TNestedPredicate }
@@ -586,7 +627,7 @@ begin
   FFunc := AFunc;
 end;
 
-function TNestedPredicate<T>.Evaluate (constref AValue: T) : boolean;
+function TNestedPredicate<T>.Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
 begin
   Result := FFunc(AValue);
 end;
@@ -598,7 +639,7 @@ begin
   FFunc := AFunc;
 end;
 
-function TObjectPredicate<T>.Evaluate (constref AValue: T) : boolean;
+function TObjectPredicate<T>.Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
 begin
   Result := FFunc(AValue);
 end;
@@ -610,7 +651,7 @@ begin
   FFunc := AFunc;
 end;
 
-function TGlobalPredicate<T>.Evaluate (constref AValue: T) : boolean;
+function TGlobalPredicate<T>.Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
 begin
   Result := FFunc(AValue);
 end;
@@ -622,7 +663,7 @@ begin
   FPredicate := APredicate;
 end;
 
-function TNotPredicate<T>.Evaluate (constref AValue: T) : boolean;
+function TNotPredicate<T>.Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
 begin
   Result := NOT FPredicate.Evaluate(AValue);
 end;
@@ -637,7 +678,7 @@ begin
   FPredicates := APredicates;
 end;
 
-function TAndManyPredicate<T>.Evaluate (constref AValue: T) : boolean;
+function TAndManyPredicate<T>.Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
 var
   i : integer;
 begin
@@ -659,7 +700,7 @@ begin
   FPredicates := APredicates;
 end;
 
-function TOrManyPredicate<T>.Evaluate (constref AValue: T) : boolean;
+function TOrManyPredicate<T>.Evaluate ({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: T) : boolean;
 var
   i : integer;
 begin
@@ -673,7 +714,7 @@ end;
 
 { Transformers }
 
-constructor TNestedTransformer<T1, T2>.Create(const AFunc: TNestedTransformFunc<T1, T2>); overload;
+constructor TNestedTransformer<T1, T2>.Create(const AFunc: TNestedTransformFunc<T1, T2>); {$IFDEF FPC}overload;{$ENDIF}
 begin
   FFunc := AFunc;
 end;
@@ -683,7 +724,7 @@ begin
   Result := FFunc(AItem);
 end;
 
-constructor TObjectTransformer<T1, T2>.Create(const AFunc: TObjectTransformFunc<T1, T2>); overload;
+constructor TObjectTransformer<T1, T2>.Create(const AFunc: TObjectTransformFunc<T1, T2>); {$IFDEF FPC}overload;{$ENDIF}
 begin
   FFunc := AFunc;
 end;
@@ -693,7 +734,7 @@ begin
   Result := FFunc(AItem);
 end;
 
-constructor TGlobalTransformer<T1, T2>.Create(const AFunc: TGlobalTransformFunc<T1, T2>); overload;
+constructor TGlobalTransformer<T1, T2>.Create(const AFunc: TGlobalTransformFunc<T1, T2>); {$IFDEF FPC}overload;{$ENDIF}
 begin
   FFunc := AFunc;
 end;
@@ -707,42 +748,49 @@ end;
 
 class function TListTool<T>.Copy(const AList: TList<T>; const AIndex, ACount : SizeInt) : TList<T>;
 var
-  i : Integer;
+  i : SizeInt;
 begin
+  // Count is a length, not an inclusive final index. Subtraction avoids an
+  // overflowing AIndex + ACount when rejecting an invalid requested range.
+  if (AIndex < 0) or (ACount < 0) or (AIndex > AList.Count) then
+    raise EArgumentOutOfRangeException.Create('Invalid list copy index/count');
+  if ACount > AList.Count - AIndex then
+    raise EArgumentOutOfRangeException.Create('List copy range exceeds the source');
   Result := TList<T>.Create;
-
-  for i := 0 to ACount do
+  try
+    for i := 0 to ACount - 1 do
       Result.Add(AList[AIndex + i]);
-
+  except
+    Result.Free;
+    raise;
+  end;
 end;
 
 class function TListTool<T>.Range(const AList: TList<T>; const AIndex, ACount : SizeInt) : SizeInt;
 var
-  from, to_, listCount : SizeInt;
+  from, keepCount, listCount : SizeInt;
 begin
-
   listCount := AList.Count;
-
-  from := ClipValue(AIndex, 0, listCount - 1);
-  to_ := ClipValue(AIndex + ACount, 0, listCount - 1);
-
-  if to_ <= from then begin
-    Result := 0;
-    exit;
-  end;
-
+  // Retain at most Count items from the clamped starting index. DeleteRange
+  // takes a remaining length; passing the whole list size after an index fails.
+  from := AIndex;
+  if from < 0 then from := 0
+  else if from > listCount then from := listCount;
+  keepCount := ACount;
+  if keepCount < 0 then keepCount := 0
+  else if keepCount > listCount - from then keepCount := listCount - from;
   if from > 0 then
     AList.DeleteRange(0, from);
-
-  if to_ < (listCount - 1) then
-    AList.DeleteRange(to_ - from, AList.Count);
-
+  if keepCount < AList.Count then
+    AList.DeleteRange(keepCount, AList.Count - keepCount);
+  // Preserve the existing signed size-delta return contract.
   Result := AList.Count - listCount;
 end;
 
 class function TListTool<T>.Skip(const AList: TList<T>; const ACount : SizeInt) : SizeInt;
 begin
-  Result := Range(AList, 0 + ACount, AList.Count - ACount);
+  // Range clamps to the available suffix, without subtracting extreme counts.
+  Result := Range(AList, ACount, AList.Count);
 end;
 
 class function TListTool<T>.Take(const AList: TList<T>; const ACount : SizeInt) : SizeInt;
@@ -779,8 +827,10 @@ begin
 end;
 
 class function TListTool<T>.FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TDisposePolicy) : SizeInt;
+var LRejected : IPredicate<T>;
 begin
-  Result := RemoveBy(AList, TPredicateTool<T>.NegatePredicate ( APredicate ) );
+  LRejected := TPredicateTool<T>.NegatePredicate(APredicate);
+  Result := RemoveBy(AList, LRejected, ADisposePolicy);
 end;
 
 class procedure TListTool<T>.DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TDisposePolicy);
@@ -793,7 +843,12 @@ begin
     idpNil: AList[index] := default(T);
     idpFreeAndNil: begin
       item := AList[index];
+      {$IFDEF FPC}
       FreeAndNil(item);
+      {$ELSE}
+      TObject(PPointer(@item)^).Free;
+      item := Default(T);
+      {$ENDIF}
       AList[index] := default(T);
     end
     else raise ENotSupportedException(Format('TItemDisposePolicy: [%d]', [Ord(ADisposePolicy)]));
@@ -801,18 +856,25 @@ begin
 end;
 
 class function TListTool<T1, T2>.Transform(const AArray : TArray<T1>; const ATransform : TNestedTransformFunc<T1, T2>) : TArray<T2>;
+var LTransformer: ITransformer<T1, T2>;
 begin
-  Result := Transform(AArray, TNestedTransformer<T1, T2>.Create(ATransform));
+  LTransformer := TNestedTransformer<T1, T2>.Create(ATransform);
+  Result := Transform(AArray, LTransformer);
 end;
 
 class function TListTool<T1, T2>.Transform(const AArray : TArray<T1>; const ATransform : TObjectTransformFunc<T1, T2>) : TArray<T2>;
+var LTransformer: ITransformer<T1, T2>;
 begin
-  Result := Transform(AArray, TObjectTransformer<T1, T2>.Create(ATransform));
+  LTransformer := TObjectTransformer<T1, T2>.Create(ATransform);
+  Result := Transform(AArray, LTransformer);
 end;
 
 class function TListTool<T1, T2>.Transform(const AArray : TArray<T1>; const ATransform : TGlobalTransformFunc<T1, T2>) : TArray<T2>;
+var LTransformer: ITransformer<T1, T2>;
 begin
-  Result := Transform(AArray, TGlobalTransformer<T1, T2>.Create(ATransform));
+  // Keep an explicit interface owner until the forwarding call finishes.
+  LTransformer := TGlobalTransformer<T1, T2>.Create(ATransform);
+  Result := Transform(AArray, LTransformer);
 end;
 
 class function TListTool<T1, T2>.Transform(const AArray : TArray<T1>; const ATransformer : ITransformer<T1, T2>) : TArray<T2>;
@@ -825,18 +887,24 @@ begin
 end;
 
 class function TListTool<T1, T2>.Transform(const AList : TList<T1>; const ATransform : TNestedTransformFunc<T1, T2>) : TArray<T2>;
+var LTransformer: ITransformer<T1, T2>;
 begin
-  Result := Transform(AList, TNestedTransformer<T1, T2>.Create(ATransform));
+  LTransformer := TNestedTransformer<T1, T2>.Create(ATransform);
+  Result := Transform(AList, LTransformer);
 end;
 
 class function TListTool<T1, T2>.Transform(const AList : TList<T1>; const ATransform : TObjectTransformFunc<T1, T2>) : TArray<T2>;
+var LTransformer: ITransformer<T1, T2>;
 begin
-  Result := Transform(AList, TObjectTransformer<T1, T2>.Create(ATransform));
+  LTransformer := TObjectTransformer<T1, T2>.Create(ATransform);
+  Result := Transform(AList, LTransformer);
 end;
 
 class function TListTool<T1, T2>.Transform(const AList : TList<T1>; const ATransform : TGlobalTransformFunc<T1, T2>) : TArray<T2>;
+var LTransformer: ITransformer<T1, T2>;
 begin
-  Result := Transform(AList, TGlobalTransformer<T1, T2>.Create(ATransform));
+  LTransformer := TGlobalTransformer<T1, T2>.Create(ATransform);
+  Result := Transform(AList, LTransformer);
 end;
 
 class function TListTool<T1, T2>.Transform(const AList : TList<T1>; const ATransformer : ITransformer<T1, T2>) : TArray<T2>;
@@ -848,6 +916,7 @@ begin
     Result[i] := ATransformer.Transform(AList[i]);
 end;
 
+{$IFDEF FPC}
 { TSortedHashSetTool }
 
 class function TSortedHashSetTool<T>.Pop(ASet : TSortedHashSet<T>): T;
@@ -861,6 +930,7 @@ begin
   end;
   ASet.Remove(Result);
 end;
+{$ENDIF}
 
 end.
 

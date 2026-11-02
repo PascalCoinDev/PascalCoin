@@ -1,4 +1,4 @@
-{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
+{ Copyright (c) 2017 - 2018 Herman Schoenfeld <https://www.sphere10.com>
 
   Common tools.
 
@@ -10,6 +10,34 @@
   - Ugochukwu Mmaduekwe: Add "TLogicalCPUCount" Class
 
   THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{ Public types in this unit
+
+  Type                   | Purpose
+  -----------------------+-------------------------------------------------------------------------
+  DWord                  | Aliases a 32-bit unsigned integer for Delphi compatibility.
+  PtrInt                 | Aliases a pointer-sized signed integer for Delphi compatibility.
+  QWord                  | Aliases a 64-bit unsigned integer for Delphi compatibility.
+  SizeInt                | Aliases a native-sized signed integer for Delphi compatibility.
+  TArrayTool<T>          | Searches, copies and edits generic arrays.
+  TBox<T>                | Holds a generic value in an object with reference identity.
+  TCPUTool               | Reports the number of logical processors.
+  TDateTimeHelper        | Adds date boundaries, arithmetic, comparisons and formatting.
+  TFileTool              | Appends UTF-8 text lines to files.
+  TLogMessage            | Stores diagnostic text with its severity and timestamp.
+  TLogSeverity           | Classifies diagnostic messages by severity.
+  TMemoryStreamHelper    | Copies memory-stream contents into a byte array.
+  TNotifyManyEvent       | Retains multicast handlers and their main-thread delivery choices.
+  TNotifyManyEventHelper | Adds, removes and invokes multicast handlers.
+  TNullable<T>           | Stores an optional generic value with an explicit empty state.
+  TResult                | Collects diagnostics and an optional result value with success status.
+  TScope                 | Runs a retained cleanup method when the final owning scope ends.
+  TStatistics            | Maintains running totals, extrema, means and variance estimates.
+  TStreamHelper          | Adds UTF-8 string writing and byte reads to streams.
+  TThreadNotify          | Queues notifications for delivery on a selected thread.
+  TTimeSpan              | Represents durations with arithmetic and millisecond conversions.
+  TVariantTool           | Compares, converts and matches text and numeric Variant values.
 }
 
 unit UCommon;
@@ -28,7 +56,7 @@ uses
   {$ELSE}{$IFDEF LINUX} {$linklib c} ctypes, {$ENDIF LINUX}
   {$IFDEF WINDOWS} Windows, {$ENDIF WINDOWS}
   {$IF DEFINED(DARWIN) OR DEFINED(FREEBSD)} ctypes, sysctl, {$ENDIF}
-  {$ENDIF} Variants, math, typinfo, UMemory, syncobjs;
+  {$ENDIF} Variants, math, typinfo, syncobjs;
 
 { CONSTANTS }
 
@@ -88,9 +116,44 @@ function GetSetValue(const aSet:PTypeInfo; Name: String): Integer;
 
 type
 
+  { A managed cleanup owner. Copies share one deferred method; the last copy
+    invokes it. Keep a local variable for routine-scoped ownership. Cleanup
+    runs on the thread releasing the final reference, so thread-affine owners
+    must not escape their acquiring thread. }
+  TScope = record
+    private type
+      TGuard = class(TInterfacedObject)
+        private
+          FCleanup: TThreadMethod;
+        public
+          constructor Create(const ACleanup: TThreadMethod);
+          destructor Destroy; override;
+      end;
+    private
+      FGuardian: IInterface;
+      function GetIsEmpty: Boolean;
+    public
+      // Registers a deferred method without invoking it. Its borrowed target
+      // must stay alive until cleanup; Target.Free can arrange its release.
+      class function Create(const ACleanup: TThreadMethod): TScope; static;
+      {$IFDEF FPC}
+      class operator Copy(constref ASource: TScope; var ADestination: TScope);
+      {$ELSE}
+      class operator Assign(var ADestination: TScope; const [ref] ASource: TScope);
+      {$ENDIF}
+      class operator Finalize(var AScope: TScope);
+      // Drops only this copy's ownership; other copies keep cleanup alive.
+      procedure Reset;
+      property IsEmpty: Boolean read GetIsEmpty;
+  end;
+
   {$IFNDEF FPC}
   // Delphi compatibility
   SizeInt = NativeInt;
+  PtrInt = NativeInt;
+  QWord = UInt64;
+  DWord = Cardinal;
+  TTimeSpan = System.TimeSpan.TTimeSpan;
   {$ENDIF}
 
   { TNullable }
@@ -360,6 +423,7 @@ type
     FLock : TCriticalSection;
     FPendingNotifications : TList<TPendingNotifyManyEvent>;
     procedure InvokePendingOnTargetThread;
+    procedure InvokeQueued(Sender : TObject);
   public
     constructor Create(ATargetThread : TThread);
     destructor Destroy; override;
@@ -476,6 +540,8 @@ type
     property Maximum : Double read FMax;
     procedure Reset;
     function Mean : Double; inline;
+    // Population variance needs one value; sample variance needs two.
+    // Undefined variances return NaN, without changing the accumulated data.
     function PopulationVariance : Double; inline;
     function PopulationStandardDeviation : Double; inline;
     function PopulationVariationCoefficient : Double; inline;
@@ -502,6 +568,76 @@ resourcestring
 implementation
 
 uses dateutils, StrUtils;
+
+{ TScope }
+
+constructor TScope.TGuard.Create(const ACleanup: TThreadMethod);
+begin
+  inherited Create;
+  FCleanup := ACleanup;
+end;
+
+destructor TScope.TGuard.Destroy;
+var CleanupMethod: TThreadMethod;
+begin
+  CleanupMethod := FCleanup;
+  FCleanup := nil;
+  try
+    try
+      if Assigned(CleanupMethod) then CleanupMethod;
+    finally
+      inherited;
+    end;
+  except
+    // The outer destructor skips its instance release when Cleanup raises.
+    // The private guardian must still be freed before its exception propagates.
+    FreeInstance;
+    raise;
+  end;
+end;
+
+class function TScope.Create(const ACleanup: TThreadMethod): TScope;
+begin
+  if not Assigned(ACleanup) then
+    raise EArgumentNilException.Create('ACleanup');
+  Result.FGuardian := TGuard.Create(ACleanup);
+end;
+
+function TScope.GetIsEmpty: Boolean;
+begin
+  Result := not Assigned(FGuardian);
+end;
+
+{$IFDEF FPC}
+class operator TScope.Copy(constref ASource: TScope; var ADestination: TScope);
+{$ELSE}
+class operator TScope.Assign(var ADestination: TScope; const [ref] ASource: TScope);
+{$ENDIF}
+var Guardian: IInterface;
+begin
+  if @ASource = @ADestination then Exit;
+  // Pin the source before releasing the destination. If cleanup raises, the
+  // destination stays empty and the original source retains its ownership.
+  Guardian := ASource.FGuardian;
+  ADestination.Reset;
+  ADestination.FGuardian := Guardian;
+end;
+
+class operator TScope.Finalize(var AScope: TScope);
+begin
+  // Detach before the RTL finalizes managed fields, including overwrite paths.
+  AScope.Reset;
+end;
+
+procedure TScope.Reset;
+var Guardian: Pointer;
+begin
+  // Detach this reference before invoking user cleanup, which may raise. A raw
+  // local prevents a second compiler-managed release during exception unwind.
+  Guardian := Pointer(FGuardian);
+  Pointer(FGuardian) := nil;
+  if Assigned(Guardian) then IInterface(Guardian)._Release;
+end;
 
 const
   IntlDateTimeFormat : TFormatSettings = (
@@ -1017,7 +1153,8 @@ end;
 
 function TTimeSpan.GetTotalMilliseconds: Double;
 begin
-  Result := Double(FMillis);
+  // Assignment performs a numeric conversion in both Delphi and FPC Delphi mode.
+  Result := FMillis;
 end;
 
 class function TTimeSpan.Normalize(const ADateTime : TDateTime) : Int64; static;
@@ -1223,7 +1360,10 @@ end;
 
 class function TLogMessage.From(const AText : String; ASeverity : TLogSeverity; ATimeStamp : TDateTime) : TLogMessage;
 begin
-  Result := From(AText, lsError);
+  // Explicit metadata belongs to the caller; do not replace it with defaults.
+  Result.FTimeStamp := ATimeStamp;
+  Result.FSeverity := ASeverity;
+  Result.FText := AText;
 end;
 
 class function TLogMessage.From(const AText : String; ASeverity : TLogSeverity = lsError) : TLogMessage;
@@ -1683,7 +1823,33 @@ begin
 end;
 
 destructor TThreadNotify.Destroy;
+var
+  LHandler : TNotifyEvent;
+  LMethod : TMethod;
+  LPending : TPendingNotifyManyEvent;
+  i : Integer;
 begin
+  // Producers must be joined and disposal must run on the target thread.
+  if (not Assigned(GMainThreadNotify)) or (Self=GMainThreadNotify) then
+    TThread.RemoveQueuedEvents(nil, InvokePendingOnTargetThread)
+  else begin
+    // FPC's RTL compares only method code. Remove this receiver's adapter from
+    // the existing dispatcher using both code and data, preserving other work.
+    LHandler := InvokeQueued;
+    LMethod := TMethod(LHandler);
+    GMainThreadNotify.FLock.Acquire;
+    try
+      for i := GMainThreadNotify.FPendingNotifications.Count-1 downto 0 do begin
+        LPending := GMainThreadNotify.FPendingNotifications[i];
+        if Length(LPending.Handlers)=1 then
+          if (TMethod(LPending.Handlers[0]).Code=LMethod.Code) and
+            (TMethod(LPending.Handlers[0]).Data=LMethod.Data) then
+            GMainThreadNotify.FPendingNotifications.Delete(i);
+      end;
+    finally
+      GMainThreadNotify.FLock.Release;
+    end;
+  end;
   FTargetThread := nil;
   FLock.Acquire;
   try
@@ -1694,8 +1860,14 @@ begin
   end;
 end;
 
+procedure TThreadNotify.InvokeQueued(Sender : TObject);
+begin
+  InvokePendingOnTargetThread;
+end;
+
 procedure TThreadNotify.InvokePendingOnTargetThread;
 var
+  i, LCount : Integer;
   LPendings : TArray<TPendingNotifyManyEvent>;
   LPending : TPendingNotifyManyEvent;
   LNotify : TNotifyEvent;
@@ -1704,17 +1876,43 @@ begin
     exit;
 
   if TThread.CurrentThread.ThreadID = FTargetThread.ThreadID then begin
-    FLock.Acquire;
-    try
-      LPendings := FPendingNotifications.ToArray;
-      FPendingNotifications.Clear;
-    finally
-      FLock.Release;
+    if Self=GMainThreadNotify then begin
+      FLock.Acquire;
+      try
+        LCount := FPendingNotifications.Count;
+      finally
+        FLock.Release;
+      end;
+      // Take one record at a time: an earlier callback may dispose a receiver
+      // whose adapter is still pending. New producer work gets its own turn.
+      for i := 1 to LCount do begin
+        FLock.Acquire;
+        try
+          if FPendingNotifications.Count=0 then Break;
+          LPending := FPendingNotifications[0];
+          FPendingNotifications.Delete(0);
+        finally
+          FLock.Release;
+        end;
+        for LNotify in LPending.Handlers do
+          LNotify(LPending.Sender);
+      end;
+    end else begin
+      FLock.Acquire;
+      try
+        LPendings := FPendingNotifications.ToArray;
+        FPendingNotifications.Clear;
+      finally
+        FLock.Release;
+      end;
+      for LPending in LPendings do
+        for LNotify in LPending.Handlers do
+          LNotify(LPending.Sender);
     end;
-    for LPending in LPendings do
-      for LNotify in LPending.Handlers do
-        LNotify(LPending.Sender);
-  end else TThread.Queue(FTargetThread, InvokePendingOnTargetThread);
+  end else if Self=GMainThreadNotify then
+    TThread.Queue(FTargetThread, InvokePendingOnTargetThread)
+  else
+    GMainThreadNotify.Invoke(Self, InvokeQueued);
 end;
 
 procedure TThreadNotify.Invoke(Sender: TObject; Handler : TNotifyEvent);
@@ -1943,7 +2141,8 @@ begin
   result[3] := item3;
 end;
 
-class function TArrayTool<T>.Create(const item0 : T; const item1 : T; const item2 : T; const item3 : T; const item4 : T) : TArray<T>;begin
+class function TArrayTool<T>.Create(const item0 : T; const item1 : T; const item2 : T; const item3 : T; const item4 : T) : TArray<T>;
+begin
   SetLength(result,5);
   result[0] := item0;
   result[1] := item1;
@@ -1998,7 +2197,9 @@ begin
   case VarType(AValue) of
     varsmallint, varinteger, varsingle,
     vardouble, varcurrency, varboolean, {$IFDEF FPC}vardecimal,{$ENDIF}
-    varshortint, varbyte, varword, varlongword, varint64 {$IFDEF FPC},varqword {$ENDIF} : Result := true;
+    // The unsigned 64-bit Variant tag has a different name in each compiler.
+    varshortint, varbyte, varword, varlongword, varint64,
+    {$IFDEF FPC}varqword{$ELSE}varUInt64{$ENDIF} : Result := true;
     else Result := false;
   end;
 end;
@@ -2008,7 +2209,7 @@ begin
 {$IFDEF FPC}
   Result := TCompare.Variant(@ALeft, @ARight);
 {$ELSE}
-  Result := Integer(VarCompareValue(ALeft, ARight));
+  Result := TComparer<Variant>.Default.Compare(ALeft, ARight);
 {$ENDIF}
 end;
 
@@ -2144,12 +2345,26 @@ begin
   Result := (lowercmp = 1) AND (uppercmp = -1);
 end;
 
+// Encode only at the file boundary. Lazarus String values contain UTF-8;
+// Delphi String values are UTF-16. GetBytes emits neither a BOM nor a prefix.
+procedure WriteUTF8Text(AStream: TStream; const AText: String);
+var LBytes: TBytes;
+begin
+  {$IFDEF FPC}
+  LBytes := TEncoding.UTF8.GetBytes(UTF8Decode(AText));
+  {$ELSE}
+  LBytes := TEncoding.UTF8.GetBytes(AText);
+  {$ENDIF}
+  if Length(LBytes) > 0 then
+    AStream.WriteBuffer(LBytes[0], Length(LBytes));
+end;
+
 { TStreamHelper }
 
 {$IFNDEF FPC}
 procedure TStreamHelper.WriteString(const AString : String);
 begin
-   Self.WriteBuffer(Pointer(AString)^, Length(AString));
+  WriteUTF8Text(Self, AString);
 end;
 {$ENDIF}
 
@@ -2187,7 +2402,7 @@ begin
     fstream.Seek(0, soFromEnd);
   end;
   try
-    fstream.{$IFDEF FPC}WriteAnsiString{$ELSE}WriteString{$ENDIF}(AText+#13#10);
+    WriteUTF8Text(fstream, AText + #13#10);
   finally
     fstream.Free;
   end;
@@ -2273,11 +2488,12 @@ begin
 end;
 
 function TStatistics.PopulationVariance : Double;
-var LSum : Double;
+var LSum, LCount : Double;
 begin
   LSum := Sum;
-  if SampleCount > 2 then
-    Result := ((SampleCount * SquaredSum) - (LSum * LSum)) / (SampleCount * SampleCount)
+  LCount := SampleCount;
+  if SampleCount > 0 then
+    Result := ((LCount * SquaredSum) - (LSum * LSum)) / (LCount * LCount)
   else
     Result := Nan;
 end;
@@ -2331,11 +2547,14 @@ begin
 end;
 
 function TStatistics.SampleVariance : Double;
-var LSum : Double;
+var LSum, LCount : Double;
 begin
   LSum := Sum;
-  if SampleCount > 2 then
-    Result := ((SampleCount * SquaredSum) - (LSum * LSum)) / ((SampleCount - 1) * (SampleCount - 1))
+  LCount := SampleCount;
+  // Bessel's correction divides the population numerator by n*(n-1).
+  // Keep the count real so large populations do not multiply integer counts.
+  if SampleCount >= 2 then
+    Result := ((LCount * SquaredSum) - (LSum * LSum)) / (LCount * (LCount - 1))
   else
     Result := Nan;
 end;

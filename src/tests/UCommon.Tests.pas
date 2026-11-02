@@ -30,6 +30,13 @@ type
       procedure Hex2Bytes_4;
   end;
 
+  TLogMessageTests = class(TTestCase)
+    published
+      procedure ExplicitMetadataPreservesEverySeverity;
+      procedure ExplicitInfoMessageKeepsResultSuccessful;
+      procedure DefaultTimestampPreservesRequestedSeverity;
+  end;
+
   TResultTests = class(TTestCase)
     published
       procedure Success;
@@ -43,6 +50,8 @@ type
 
   TVariantToolTests = class(TTestCase)
     published
+      procedure IsNumeric64BitIntegers;
+      procedure IsNumericRejectsNonNumericValues;
       procedure NumericEQ;
       procedure NumericLT;
       procedure TVariantCompare_1;
@@ -57,17 +66,78 @@ type
       procedure TestStringListReleaseOnly;
   end;
 
+  TFileToolTests = class(TTestCase)
+    private
+      procedure CheckAppends(const ATexts: array of String; const AExpected: array of Byte);
+    published
+      procedure EmptyAppendWritesOnlyCRLF;
+      procedure ASCIIAppendHasNoBOMOrLengthPrefix;
+      procedure UnicodeAppendIncludesSupplementaryCharacter;
+      procedure RepeatedAppendsPreserveExactUTF8Lines;
+  end;
   TStatsTests = class(TTestCase)
     published
       procedure TestBasic;
       procedure Test100kData;
+      procedure VarianceOfThreeKnownValues;
+      procedure VarianceSmallSampleDomains;
+      procedure VarianceWithLargeCountDoesNotOverflow;
   end;
 
 implementation
 
 uses
-    Variants, Generics.Defaults, Generics.Collections, UCommon, UMemory,
+    Variants, Math, Generics.Defaults, Generics.Collections, UCommon, UMemory,
     UCommon.Collections;
+
+{ TLogMessageTests }
+
+procedure TLogMessageTests.ExplicitMetadataPreservesEverySeverity;
+var
+  LSeverity: TLogSeverity;
+  LTimeStamp: TDateTime;
+  LMessage: TLogMessage;
+begin
+  LTimeStamp := EncodeDate(2001, 2, 3) + EncodeTime(4, 5, 6, 7);
+  for LSeverity := Low(TLogSeverity) to High(TLogSeverity) do begin
+    LMessage := TLogMessage.From('Retained text', LSeverity, LTimeStamp);
+    AssertEquals('Retained text', LMessage.Text);
+    AssertEquals(Ord(LSeverity), Ord(LMessage.Severity));
+    AssertTrue('The explicit timestamp must not be replaced with the current time',
+      LMessage.TimeStamp = LTimeStamp);
+  end;
+end;
+
+procedure TLogMessageTests.ExplicitInfoMessageKeepsResultSuccessful;
+var
+  LResult: TResult;
+  LTimeStamp: TDateTime;
+begin
+  LTimeStamp := EncodeDate(2001, 2, 3);
+  LResult := TResult.Success;
+  LResult.Add(TLogMessage.From('Imported three rows', lsInfo, LTimeStamp));
+  AssertTrue('An informational message is not a failure', LResult.IsSuccess);
+  AssertEquals(1, Length(LResult.Messages));
+  AssertEquals(Ord(lsInfo), Ord(LResult.Messages[0].Severity));
+  AssertTrue(LResult.Messages[0].TimeStamp = LTimeStamp);
+end;
+
+procedure TLogMessageTests.DefaultTimestampPreservesRequestedSeverity;
+var
+  LSeverity: TLogSeverity;
+  LBefore, LAfter: TDateTime;
+  LMessage: TLogMessage;
+begin
+  for LSeverity := Low(TLogSeverity) to High(TLogSeverity) do begin
+    LBefore := TDateTime.NowUtc;
+    LMessage := TLogMessage.From('Current message', LSeverity);
+    LAfter := TDateTime.NowUtc;
+    AssertEquals(Ord(LSeverity), Ord(LMessage.Severity));
+    AssertTrue((LMessage.TimeStamp >= LBefore) and (LMessage.TimeStamp <= LAfter));
+  end;
+  LMessage := TLogMessage.From('Default severity');
+  AssertEquals(Ord(lsError), Ord(LMessage.Severity));
+end;
 
 { TSortedHashTests }
 
@@ -325,6 +395,35 @@ end;
 
 { TVariantToolTests }
 
+procedure TVariantToolTests.IsNumeric64BitIntegers;
+var
+  LValue: Variant;
+  LUnsigned: UInt64;
+begin
+  LValue := Low(Int64);
+  AssertEquals(varInt64, VarType(LValue));
+  AssertTrue(TVariantTool.IsNumeric(LValue));
+  LValue := High(Int64);
+  AssertTrue(TVariantTool.IsNumeric(LValue));
+
+  // Recognize the type without narrowing a value which cannot fit in Int64.
+  LUnsigned := UInt64(High(Int64)) + 1;
+  LValue := LUnsigned;
+  AssertEquals({$IFDEF FPC}varQWord{$ELSE}varUInt64{$ENDIF}, VarType(LValue));
+  AssertTrue(TVariantTool.IsNumeric(LValue));
+  LValue := High(UInt64);
+  AssertTrue(TVariantTool.IsNumeric(LValue));
+  AssertTrue(UInt64(LValue) = High(UInt64));
+end;
+
+procedure TVariantToolTests.IsNumericRejectsNonNumericValues;
+begin
+  AssertFalse(TVariantTool.IsNumeric(Null));
+  AssertFalse(TVariantTool.IsNumeric(Unassigned));
+  AssertFalse(TVariantTool.IsNumeric('16537985'));
+  AssertFalse(TVariantTool.IsNumeric(VarArrayOf([1, 2])));
+end;
+
 procedure TVariantToolTests.NumericEQ;
 var
   lbyte : byte;
@@ -507,6 +606,76 @@ begin
   strList.Free;
 end;
 
+{ TFileToolTests }
+
+function FileExampleUnicodeText: String;
+var LText: UnicodeString;
+  {$IFDEF FPC}LUTF8: UTF8String;{$ENDIF}
+begin
+  LText := #$0041#$03A9#$6F22#$D83D#$DE80;
+  {$IFDEF FPC}
+  // Emulate Lazarus UTF-8 String bytes even in a console using Windows ANSI.
+  // An ordinary assignment would transcode the fixture before AppendText runs.
+  LUTF8 := UTF8Encode(LText);
+  SetLength(Result, Length(LUTF8));
+  Move(LUTF8[1], Result[1], Length(LUTF8));
+  {$ELSE}
+  Result := LText;
+  {$ENDIF}
+end;
+
+procedure TFileToolTests.CheckAppends(const ATexts: array of String;
+  const AExpected: array of Byte);
+var
+  LGuid: TGUID;
+  LFileName: String;
+  LFile: TFileStream;
+  LActual: TBytes;
+  I: Integer;
+begin
+  CreateGUID(LGuid);
+  LFileName := IncludeTrailingPathDelimiter(GetEnvironmentVariable('TEMP')) +
+    'Sphere10UTF8-' + GUIDToString(LGuid) + '.tmp';
+  try
+    for I := 0 to High(ATexts) do TFileTool.AppendText(LFileName, ATexts[I]);
+    LFile := TFileStream.Create(LFileName, fmOpenRead or fmShareDenyWrite);
+    try
+      AssertEquals('Exact byte length, without a BOM or length prefix',
+        Int64(Length(AExpected)), LFile.Size);
+      SetLength(LActual, Length(AExpected));
+      if Length(LActual) > 0 then LFile.ReadBuffer(LActual[0], Length(LActual));
+    finally
+      LFile.Free;
+    end;
+    for I := 0 to High(AExpected) do
+      AssertEquals('UTF-8 byte ' + IntToStr(I), Integer(AExpected[I]), Integer(LActual[I]));
+  finally
+    if FileExists(LFileName) then DeleteFile(LFileName);
+  end;
+end;
+
+procedure TFileToolTests.EmptyAppendWritesOnlyCRLF;
+begin
+  CheckAppends([''], [$0D, $0A]);
+end;
+
+procedure TFileToolTests.ASCIIAppendHasNoBOMOrLengthPrefix;
+begin
+  CheckAppends(['ABC'], [$41, $42, $43, $0D, $0A]);
+end;
+
+procedure TFileToolTests.UnicodeAppendIncludesSupplementaryCharacter;
+begin
+  CheckAppends([FileExampleUnicodeText],
+    [$41, $CE, $A9, $E6, $BC, $A2, $F0, $9F, $9A, $80, $0D, $0A]);
+end;
+
+procedure TFileToolTests.RepeatedAppendsPreserveExactUTF8Lines;
+begin
+  CheckAppends([FileExampleUnicodeText, '', 'END'],
+    [$41, $CE, $A9, $E6, $BC, $A2, $F0, $9F, $9A, $80, $0D, $0A,
+     $0D, $0A, $45, $4E, $44, $0D, $0A]);
+end;
 { TStatsTests }
 
 procedure TStatsTests.TestBasic;
@@ -526,9 +695,8 @@ begin
   AssertEquals(4, LStats.Mean);
   AssertEquals(6, LStats.PopulationVariance);
   AssertEquals(RoundEx(2.4495, 4), RoundEx(LStats.PopulationStandardDeviation, 4));
-  // note: inaccurate estimate, since using running algo
-  AssertEquals(RoundEx(9.3750, 4), LStats.SampleVariance);
-  AssertEquals(RoundEx(3.0619, 4), RoundEx(LStats.SampleStandardDeviation, 4));
+  AssertEquals(7.5, LStats.SampleVariance);
+  AssertEquals(2.7386, RoundEx(LStats.SampleStandardDeviation, 4));
 end;
 
 
@@ -544,11 +712,47 @@ begin
   AssertEquals(100000, LStats.Maximum);
 end;
 
+procedure TStatsTests.VarianceOfThreeKnownValues;
+var LStats: TStatistics;
+begin
+  LStats.Reset;
+  LStats.AddDatum(1);
+  LStats.AddDatum(2);
+  LStats.AddDatum(3);
+  AssertEquals(2.0 / 3.0, LStats.PopulationVariance, EPSILON);
+  AssertEquals(1.0, LStats.SampleVariance, EPSILON);
+end;
+
+procedure TStatsTests.VarianceSmallSampleDomains;
+var LStats: TStatistics;
+begin
+  LStats.Reset;
+  AssertTrue('Empty population variance is undefined', IsNaN(LStats.PopulationVariance));
+  AssertTrue('Empty sample variance is undefined', IsNaN(LStats.SampleVariance));
+  LStats.AddDatum(1);
+  AssertEquals(0.0, LStats.PopulationVariance);
+  AssertTrue('One value cannot estimate sample variance', IsNaN(LStats.SampleVariance));
+  LStats.AddDatum(3);
+  AssertEquals(1.0, LStats.PopulationVariance);
+  AssertEquals(2.0, LStats.SampleVariance);
+end;
+
+procedure TStatsTests.VarianceWithLargeCountDoesNotOverflow;
+var LStats: TStatistics;
+begin
+  LStats.Reset;
+  LStats.AddDatum(1, 100000);
+  AssertEquals(0.0, LStats.PopulationVariance);
+  AssertEquals(0.0, LStats.SampleVariance);
+end;
+
 initialization
   RegisterTest(TSortedHashTests);
   RegisterTest(THexStringTests);
+  RegisterTest(TLogMessageTests);
   RegisterTest(TResultTests);
   RegisterTest(TVariantToolTests);
+  RegisterTest(TFileToolTests);
   RegisterTest(TStatsTests);
 end.
 

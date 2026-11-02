@@ -1,6 +1,6 @@
 unit UMemory;
 
-{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
+{ Copyright (c) 2017 - 2018 Herman Schoenfeld <https://www.sphere10.com>
 
   Memory management routines.
 
@@ -12,6 +12,14 @@ unit UMemory;
   - Dmitriy Pomerantsev <pda2@yandex.ru>: scope management inspired by https://github.com/pda0/AutoScope/blob/master/AutoScope.pas
 
   THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{ Public types in this unit
+
+  Type           | Purpose
+  ---------------+-------------------------------------------------------------------------
+  TDisposables   | Releases registered objects and memory in reverse order at scope exit.
+  TDisposePolicy | Selects how an owned object, pointer or memory block is released.
 }
 
 
@@ -48,9 +56,11 @@ type
           destructor Destroy; override;
       end;
     private
-      FGuardian: IInterface;
+      {$IFDEF FPC}FGuardian: IInterface;{$ENDIF}
       FPointers: array of TDisposablePointer;
       FLastIndex: Integer;
+      // Delphi finalizes managed fields in reverse declaration order.
+      {$IFNDEF FPC}FGuardian: IInterface;{$ENDIF}
       {$IFNDEF DELPHI_SYDNEY_PLUS}
       class procedure Initialize(var ADisposables: TDisposables); static;
       class procedure Finalize(var ADisposables: TDisposables); static;
@@ -183,7 +193,7 @@ end;
 
 procedure TDisposables.RegisterPointer(Ptr: Pointer; ADisposePolicy: TDisposePolicy);
 begin
-  if FLastIndex > High(FPointers) then
+  if FLastIndex >= High(FPointers) then
     SetLength(FPointers, Length(FPointers) * 2);
 
   Inc(FLastIndex);
@@ -204,16 +214,20 @@ end;
 
 function TDisposables.AddObject(const AnObject: TObject): TObject;
 begin
+  {$IFNDEF DELPHI_SYDNEY_PLUS}
     if not Assigned(FGuardian) then
       FGuardian := TGuard.Create(@Self);
+  {$ENDIF}
   RegisterPointer(Pointer(AnObject), idpFree);
   Result := AnObject;
 end;
 
 procedure TDisposables.RemoveObject(const AnObject: TObject);
 begin
+  {$IFNDEF DELPHI_SYDNEY_PLUS}
     if not Assigned(FGuardian) then
       FGuardian := TGuard.Create(@Self);
+  {$ENDIF}
   UnregisterPointer(Pointer(AnObject));
 end;
 
@@ -225,16 +239,20 @@ end;
 
 procedure TDisposables.FreeMem(var P: Pointer);
 begin
+  {$IFNDEF DELPHI_SYDNEY_PLUS}
   if not Assigned(FGuardian) then
     FGuardian := TGuard.Create(@Self);
+  {$ENDIF}
   UnregisterPointer(P);
   System.FreeMem(P);
 end;
 
 procedure TDisposables.AddMem(const P: Pointer);
 begin
+  {$IFNDEF DELPHI_SYDNEY_PLUS}
   if not Assigned(FGuardian) then
     FGuardian := TGuard.Create(@Self);
+  {$ENDIF}
   RegisterPointer(P, idpFreeMem);
 end;
 
@@ -242,8 +260,10 @@ procedure TDisposables.ReallocMem(var P: Pointer; Size:Integer);
 var
   i: Integer;
 begin
+  {$IFNDEF DELPHI_SYDNEY_PLUS}
   if not Assigned(FGuardian) then
     FGuardian := TGuard.Create(@Self);
+  {$ENDIF}
 
   for i := FLastIndex downto 0 do
     if (FPointers[i].DisposePolicy = idpFreeMem) and (FPointers[i].Ptr = P) then
@@ -256,8 +276,10 @@ end;
 
 procedure TDisposables.RemoveMem(const P: Pointer);
 begin
+  {$IFNDEF DELPHI_SYDNEY_PLUS}
   if not Assigned(FGuardian) then
     FGuardian := TGuard.Create(@Self);
+  {$ENDIF}
   UnregisterPointer(P);
 end;
 
