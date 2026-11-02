@@ -42,6 +42,15 @@ The thirteen native demo groups passed, along with all nine pending-protocol
 groups and both independent Python vectors. Startup passed four controlled
 modes and both normal-executable modes against the optimized 5.9 Release wallet.
 
+The subsequent storage regressions add 27 failure/recovery cases and extend node
+lifecycle coverage to 17 cases. Both focused groups pass in actual Delphi and
+FPC; 19 progress/error formatter tests also pass in FPC. The storage fixtures
+cover partial writes, publication failures, legacy checkpoint fallback and
+retrying a failed unstable-marker write. They use generated data, not an existing
+wallet. Run them independently with
+[`Run-CheckpointStorageChecks.ps1`](native/storage-recovery/Run-CheckpointStorageChecks.ps1),
+or through the registered unit suite above.
+
 The native Windows checks require the real Win32 widgetset. Linux and macOS
 build both wallets and run the portable lock suite below. Delphi-only probes
 and the opt-in large-chain fixture have separate inputs and commands.
@@ -162,11 +171,12 @@ The separate VCL suspension group also passes actual Delphi Win64 checked builds
 private-desktop runs against both library copies, with natural exit zero; this
 does not claim a new run of the other six native groups.
 
-The actual main wallet now uses immediate refresh admission (`temNone`) for both
-accounts and operations. Node synchronization alone suspends queries and owns
+The actual main wallet uses immediate refresh admission (`temNone`) for accounts.
+Operations use the existing trailing throttle with a 250 ms quiet period; every
+new refresh request restarts that wait. Node synchronization suspends queries and owns
 **Please Wait / Synchronizing**. While a page worker is busy, newer requests
 coalesce into one latest query; accepted data clears ordinary loading without a
-quiet-period wait. The [grid refresh test and interactive demo](native/grid-refresh/README.md)
+minimum display hold. The [grid refresh test and interactive demo](native/grid-refresh/README.md)
 retain the real main form, typed sources, caches, paging and selection callbacks
 while replacing stored records. Their Delphi and Lazarus projects exercise this
 product policy separately from the generic throttle component.

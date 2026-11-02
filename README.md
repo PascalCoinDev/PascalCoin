@@ -6,6 +6,16 @@
 
 <p align="center"><img width="480" src="resources/logo.svg" alt="PascalCoin" /></p>
 
+Copyright © 2016–2026 PascalCoin developers, based on original Albert Molina source code.
+
+Please use at your own risk.
+
+# PascalCoin - A One of a Kind Cryptocurrency
+
+**PascalCoin is an instant, zero-fee, infinitely scalable, decentralized cryptocurrency with advanced privacy and smart contract capabilities. It is the world's first blockchain independent of historical operations.**
+
+**PascalCoin possesses unlimited potential.**
+
 PascalCoin is a peer-to-peer cryptocurrency written in Object Pascal. Its
 **SafeBox** records the current state of every account, allowing nodes to verify
 the ledger without retaining the complete history of operations. **PASC** is the

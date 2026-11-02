@@ -8,10 +8,13 @@ all Windows, Linux and Intel macOS release archives and can be kept side by side
 - Add bulk-fetch caching, read/write locks, cleanup scopes and Single/Auto/Manual grid paging.
 - Complete operation wizards, advanced operations and RAW/multioperation signing, including batch-change approval and optional fee payers.
 - Run account/history queries, filters, totals and type statistics on cancellable workers.
-- Update synchronization and status from node events; refresh account selections immediately outside synchronization.
+- Update synchronization and status from node events; refresh account pages immediately and combine operations queries after 250 ms of silence.
 - Fix peer reconnection, safebox recovery, pending restore/saving and cooperative shutdown.
+- Save validated checkpoints atomically, recover readable snapshots and preserve incomplete-write markers on storage failure.
+- Pause the node after persistence errors until restart, display the first cause in both wallets and retire background index workers safely.
 - Reuse mining keys and improve native layout, icons, loading feedback and operation dialogs.
 - Keep paging controls visible in Release builds, reflow large operation fields and open details through explicit actions.
+- Align banner status and Details controls across native scaling, and release key-selector objects safely at shutdown.
 - Build and package both wallets on Windows, Linux and macOS; run the Windows wallet regressions and portable core/framework lock tests in CI.
 - Add Delphi/FPC screenshots and credit Herman Schoenfeld for the experimental GUI while preserving Albert Molina's original attribution.
 - Align application and executable versions at 5.9.

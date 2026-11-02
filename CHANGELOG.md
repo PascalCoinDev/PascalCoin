@@ -26,6 +26,9 @@
 - Defer pending reconciliation during catch-up; retain valid indexes and bulk-build rejected-operation results.
 - Add pending restore progress and cancellation, bulk marker cleanup and byte-identical buffered saving.
 - Flush pending changes on shutdown and replace files atomically, preserving the previous package on I/O failure.
+- Publish validated safebox checkpoints atomically and recover readable snapshots after failed writes.
+- Keep incomplete file writes unstable and pause synchronization and operation admission after storage failure until restart.
+- Report the first storage failure in both wallets; drain background index workers safely without certifying a failed index.
 - Reconnect peers and recover safebox downloads after disconnection; log completed chunks at Info.
 - Join network/download workers, drain termination callbacks during confirmed shutdown and preserve miner-job snapshots during replies.
 - Restore classic wallet key filtering during synchronization and apply pending balances after reconciliation.
@@ -37,7 +40,7 @@
 - Reuse mining keys during startup and selection; rotate only after a mined block when configured.
 - Validate private/watch-only key import and backup restoration.
 - Load startup data and resolve account keys on cancellable workers; publish selected totals and history bindings after completed queries.
-- Refresh main-wallet selections immediately outside node synchronization; suspend grid queries throughout synchronization.
+- Refresh account pages immediately and coalesce operations queries after 250 ms of silence; suspend both grids throughout node synchronization.
 - Add account-index paging, cached history queries, cancellable wallet totals and a bounded account cache that survives safebox replacement.
 - Limit Recent Operations to 2,016/8,640 blocks for 7/30 days; search all available history for Maximum and cancel obsolete selections.
 - Use bounded visible-row snapshots and cancellable workers for Explorer filters, history, totals and type statistics; fix My Accounts/key filters.
@@ -46,6 +49,7 @@
 - Show dashes until totals first load; show Wallet Keys padlocks in every state.
 - Align footer buttons, retain full icon height and correct unsigned key hashes and PASC balances.
 - Anchor header/footer controls, preserve modeless focus and fix banner transparency and splash/synchronization flicker.
+- Reflow banner status after native version-label sizing, center Details controls and release key-selector objects independently of native window teardown.
 - Keep startup height fixed with horizontal resizing; restore normal constraints/maximization afterward and join startup/grid workers before shutdown.
 - Build the experimental wallet with Delphi/VCL and Lazarus/FPC using paired form resources and conversion tools.
 - Add Win32/Win64 Debug/Release targets with separate compiler outputs; keep the Delphi executable in src beside OpenSSL without build events.
@@ -55,6 +59,7 @@
 - Add Delphi and FPC screenshots and credit Herman Schoenfeld for the experimental GUI, preserving Albert Molina's original attribution.
 - Add runners for unit and isolated native regression tests covering shared components, operations, classic wallet, synchronization, loading and shutdown.
 - Register all common utility fixtures and run the full Windows wallet regression driver in CI.
+- Cover failed checkpoint and index writes, snapshot recovery, cooperative shutdown, quiet-period refreshes and synchronization cards through real block batches.
 - Build and package both wallet applications in Windows, Linux and macOS CI; run core and framework lock tests on every platform.
 - Build the experimental release with optimization and support pointer-shaped macOS thread IDs.
 - Include language catalogs, miner resources, license notices and checksums in release packages.
