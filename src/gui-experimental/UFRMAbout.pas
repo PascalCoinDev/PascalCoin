@@ -16,14 +16,17 @@ unit UFRMAbout;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
 {$I ../config.inc}
 
 uses
-  LCLIntf, LCLType, LMessages,
+  {$IFNDEF FPC}Winapi.Windows, Winapi.ShellAPI,{$ENDIF}
+  {$IFDEF FPC}LCLIntf, LCLType, LMessages,{$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ExtCtrls, StdCtrls, Buttons, UCommon.UI;
 
@@ -57,7 +60,11 @@ implementation
 uses
   UFolderHelper, UConst, UNode;
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 
 procedure TFRMAbout.FormCreate(Sender: TObject);
@@ -79,7 +86,11 @@ end;
 
 procedure TFRMAbout.OpenURL(Url: String);
 begin
-  OpenDocument(pchar(URL))
+  {$IFDEF FPC}
+  OpenDocument(PChar(URL));
+  {$ELSE}
+  ShellExecute(Handle, 'open', PChar(URL), nil, nil, SW_SHOWNORMAL);
+  {$ENDIF}
 end;
 
 end.

@@ -16,13 +16,16 @@ unit UFRMWalletKeys;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Messages,
-  Buttons, Menus, LMessages, UCommon.UI, UWallet;
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+  Classes, SysUtils, {$IFDEF FPC}FileUtil,{$ENDIF} Forms, Controls, Graphics, Dialogs, StdCtrls, Messages,
+  Buttons, Menus, {$IFDEF FPC}LMessages,{$ENDIF} UCommon.UI, UWallet;
 
 const
   CM_PC_WalletChanged = WM_USER + 1;
@@ -95,14 +98,21 @@ type
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
-uses LCLIntf, Clipbrd, UUserInterface, USettings, UCommon, UAccounts, UWIZAddKey, UMemory;
+uses {$IFDEF FPC}LCLIntf,{$ENDIF} Clipbrd, UUserInterface, USettings, UCommon, UAccounts, UWIZAddKey, UMemory, UBaseTypes;
 
 {%region Form life-cycle}
 
 procedure TFRMWalletKeys.FormCreate(Sender: TObject);
 begin
+  // Let the native button draw the original image-list alpha/mask, including
+  // its disabled state, instead of flattening the padlock into Glyph.
+  btnLock.Images := ilIcons;
   TWallet.Keys.OnChanged.Add(OnWalletChanged);
   RefreshUI;
 end;
@@ -145,7 +155,7 @@ Var
 begin
   if Not GetSelectedWalletKeyAndIndex(wk,index) then exit;
 
-  if (TSettings.MinerPrivateKeyType = mpk_Selected) AND (TSettings.MinerSelectedPrivateKey = TAccountComp.AccountKey2RawString(wk.AccountKey)) then begin
+  if (TSettings.MinerPrivateKeyType = mpk_Selected) AND TBaseType.Equals(TSettings.MinerSelectedPublicKey, TAccountComp.AccountKey2RawString(wk.AccountKey)) then begin
     TUserInterface.ShowError(Self, 'Delete Key Faied',
     'This key is currently being used for mining and cannot be deleted.' + #10 + #10 +
     'Remove this key from the Options dialog and try again.');
@@ -209,12 +219,16 @@ begin
   if not CheckIsWalletKeyValidPassword then exit;
   if Not GetSelectedWalletKey(wk) then exit;
   if Assigned(wk.PrivateKey) then begin
-    if TUserInterface.AskEnterProtectedString(Self, 'Export Private Key','Enter a password to encrypt private key',pwd1) then begin
+    if TUserInterface.AskEnterProtectedString(Self, 'Export Private Key','Enter an export password (leave empty for an unencrypted key)',pwd1) then begin
       if TUserInterface.AskEnterProtectedString(Self, 'Export Private Key','Re-enter the password',pwd2) then begin
         if pwd1<>pwd2 then raise Exception.Create('Passwords does not match!');
         enc := TWallet.ExportPrivateKey(wk, pwd1);
         Clipboard.AsText := enc;
-        TUserInterface.ShowInfo(Self, 'Completed',
+        if pwd1 = '' then
+          TUserInterface.ShowInfo(Self, 'Completed', 'The unencrypted private key has been copied to the clipboard.' +
+            #10+#10+'Key value:'+#10+enc)
+        else
+          TUserInterface.ShowInfo(Self, 'Completed',
          'The private key has been encrypted with your password and copied to the clipboard.'+
           #10+#10+
           'Encrypted key value (Copied to the clipboard):'+#10+
@@ -315,7 +329,7 @@ procedure TFRMWalletKeys.RefreshUI;
 var
   lasti,i : Integer;
   selected_wk,wk : TWalletKey;
-  keyName : AnsiString;
+  keyName : String;
 begin
   GetSelectedWalletKeyAndIndex(wk,lasti);
   lbWalletKeys.Items.BeginUpdate;
@@ -326,7 +340,7 @@ begin
     If NOT TWallet.Keys.HasPassword then begin
       // NO PASSWORD
       lblKeysEncrypted.Caption := 'Wallet has no password';
-      ilIcons.GetBitmap(1, btnLock.Glyph);
+      btnLock.ImageIndex := 1;
       btnLock.Enabled := false;
       btnChangePassword.Enabled := true;
       btnAddKey.Visible := true;
@@ -339,7 +353,7 @@ begin
     end else if TWallet.Keys.IsValidPassword then begin
       // UNLOCKED
       lblKeysEncrypted.Caption := 'Wallet is unlocked';
-      ilIcons.GetBitmap(1, btnLock.Glyph);
+      btnLock.ImageIndex := 1;
       btnLock.Enabled := true;
       btnChangePassword.Enabled := true;
       btnAddKey.Enabled := true;
@@ -353,7 +367,7 @@ begin
     end else begin
       // LOCKED
       lblKeysEncrypted.Caption := 'Wallet is locked';
-      ilIcons.GetBitmap(0, btnLock.Glyph);
+      btnLock.ImageIndex := 0;
       btnLock.Enabled := true;
       btnChangePassword.Enabled := false;
       btnAddKey.Visible := false;

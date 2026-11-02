@@ -16,16 +16,23 @@ unit UFRMAccountExplorer;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
 {$I ..\config.inc}
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ComCtrls,
+  Classes, SysUtils, Messages,
+  {$IFDEF FPC}FileUtil, LCLIntf, LMessages,{$ELSE}Winapi.Windows,{$ENDIF} Forms, Controls, Graphics, Dialogs, ComCtrls,
   ExtCtrls, StdCtrls, Buttons, Grids, Menus,
-  UCommon.UI, UBaseTypes, UPCDataTypes, UGridUtils, UNode, UAccounts, UBlockChain;
+  UCommon, UCommon.UI, UBaseTypes, UPCDataTypes, UGridUtils, UNode, UAccounts,
+  UBlockChain, UExplorerAccountSnapshots;
+
+const
+  CM_ExplorerKeysChanged = {$IFDEF FPC}LM_USER{$ELSE}WM_USER{$ENDIF} + 102;
 
 type
 
@@ -191,7 +198,10 @@ type
     FAccountsGrid : TAccountsGrid;
     FAccountOperationsGrid : TOperationsGrid;
     FAccountsSelectedGrid : TAccountsGrid;
-    FOrderedAccountsKeyList : TOrderedAccountKeysList;
+    FAccountSnapshots: TExplorerAccountSnapshots;
+    FBackendRefresh: TThrottledEvent;
+    FBackendPending, FBackendReady, FStopping: Boolean;
+    FSelectedAccountsRefreshPending: Boolean;
     FMinAccountBalance : Int64;
     FMaxAccountBalance : Int64;
     FLastAccountsGridInvalidateTC : TTickCount;
@@ -202,19 +212,41 @@ type
     procedure OnBlocksChanged(Sender: TObject);
     procedure OnPrivateKeysChanged(Sender: TObject);
     procedure OnAccountsSelectedGridUpdated(Sender: TObject);
+    function ReadAccount(Sender: TObject; AAccountNumber: Integer;
+      out AAccount: TAccount; out ABlockCount, AAccountCount: Integer): Boolean;
+    function ReadSummary(Sender: TObject; out AAccountCount: Integer;
+      out ABalance: Int64): Boolean;
+    procedure OnSnapshotUpdated(Sender: TObject);
+    procedure OnBackendReady(Sender: TObject);
+    procedure TryRefreshBackend;
+    procedure CM_PrivateKeysChanged(var AMsg: TMessage); message CM_ExplorerKeysChanged;
+  protected
+    function CreateAccountSnapshots: TExplorerAccountSnapshots; virtual;
+    procedure InitializeBackendRefresh; virtual;
+    function CanRefreshBackend: Boolean; virtual;
+    procedure RefreshBackend; virtual;
+    procedure DoShow; override;
+    procedure OnViewReady(Sender: TObject);
+    procedure ScheduleBackendRefresh;
+    property BackendRefreshEvent: TThrottledEvent read FBackendRefresh;
   public
     { public declarations }
     procedure OnSelectedAccountChanged;
+    procedure OnAccountsGridUpdatedData(Sender: TObject);
     procedure Refresh;
   end;
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UConst, USettings, UWallet, UCrypto, UCoreUtils,
-  UFRMAccountSelect, UFRMMemoText, UUserInterface, UCommon, UPCOrderedLists;
+  UFRMAccountSelect, UFRMMemoText, UUserInterface, UPCOrderedLists, UMemory;
 
 { TFRMAccountExplorer }
 
@@ -225,45 +257,77 @@ begin
   FLastAccountsGridInvalidateTC := TPlatform.GetTickCount;
   FMinAccountBalance := 0;
   FMaxAccountBalance := CT_MaxWalletAmount;
-  FOrderedAccountsKeyList := Nil;
+  FAccountSnapshots := CreateAccountSnapshots;
+  FAccountSnapshots.OnUpdated := OnSnapshotUpdated;
+  FAccountSnapshots.OnCompleted := OnViewReady;
+  InitializeBackendRefresh;
   FAccountsGrid := TAccountsGrid.Create(Self);
+  FAccountsGrid.OnReadAccount := ReadAccount;
+  FAccountsGrid.OnReadSummary := ReadSummary;
   FAccountsGrid.DrawGrid := dgAccounts;
   FAccountsGrid.Node := TUserInterface.Node;
   FAccountsGrid.AllowMultiSelect := True;
+  FAccountsGrid.OnUpdated := OnAccountsGridUpdatedData;
+  FAccountsGrid.OnAccountsGridUpdatedData := OnAccountsGridUpdatedData;
+  // Retired/cancelled filter work can become idle without publishing rows.
+  FAccountsGrid.OnRefreshStateChanged := OnViewReady;
   FAccountsSelectedGrid := TAccountsGrid.Create(Self);
+  FAccountsSelectedGrid.OnReadAccount := ReadAccount;
+  FAccountsSelectedGrid.AccountsGridDatasource := acds_InternalList;
   FAccountsSelectedGrid.DrawGrid :=dgSelectedAccounts;
   FAccountsSelectedGrid.Node := TUserInterface.Node;
   FAccountsSelectedGrid.OnUpdated := OnAccountsSelectedGridUpdated;
   FAccountOperationsGrid := TOperationsGrid.Create(Self);
+  FAccountOperationsGrid.AsynchronousUpdates := True;
+  FAccountOperationsGrid.AutoRefreshOnNodeEvents := False;
+  FAccountOperationsGrid.MustShowAlwaysAnAccount := True;
+  FAccountOperationsGrid.AccountNumber := -1;
   FAccountOperationsGrid.DrawGrid := dgAccountOperations;
   FAccountOperationsGrid.Node := TUserInterface.Node;
-  FAccountOperationsGrid.MustShowAlwaysAnAccount := true;
   pcAccountsOptions.ActivePage := tsAccountOperations;
-
-  // Get account list from SafeBox
-  FOrderedAccountsKeyList := TOrderedAccountKeysList.Create(TUserInterface.Node.Bank.SafeBox,false);
 
   // Subscribe to events
   TUserInterface.Loaded.Add(OnLoaded);
   TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
   TUserInterface.AccountsChanged.Add(OnAccountsChanged);
   TUserInterface.BlocksChanged.Add(OnBlocksChanged);
+  TUserInterface.AppStarted.Add(OnViewReady);
+  TUserInterface.StateChanged.Add(OnViewReady);
   Refresh;
 end;
 
 procedure TFRMAccountExplorer.FormDestroy(Sender: TObject);
 begin
+  FStopping := True;
+  if Assigned(FBackendRefresh) then FBackendRefresh.Remove(OnBackendReady);
   // Unsubscribe from events
   TUserInterface.Loaded.Remove(OnLoaded);
   TWallet.Keys.OnChanged.Remove(OnPrivateKeysChanged);
   TUserInterface.AccountsChanged.Remove(OnAccountsChanged);
   TUserInterface.BlocksChanged.Remove(OnBlocksChanged);
+  TUserInterface.AppStarted.Remove(OnViewReady);
+  TUserInterface.StateChanged.Remove(OnViewReady);
+
+  if Assigned(FAccountSnapshots) then begin
+    FAccountSnapshots.OnCompleted := nil;
+    FAccountSnapshots.Stop;
+  end;
+  if Assigned(FAccountsGrid) then begin
+    FAccountsGrid.OnReadAccount := nil;
+    FAccountsGrid.OnReadSummary := nil;
+    FAccountsGrid.OnUpdated := nil;
+    FAccountsGrid.OnAccountsGridUpdatedData := nil;
+    FAccountsGrid.OnRefreshStateChanged := nil;
+  end;
+  if Assigned(FAccountsSelectedGrid) then begin
+    FAccountsSelectedGrid.OnReadAccount := nil;
+    FAccountsSelectedGrid.OnUpdated := nil;
+  end;
 
   // Nullify fields
-  FAccountOperationsGrid.Node := Nil;
-  FAccountsGrid.Node := Nil;
-  FAccountsSelectedGrid.Node := Nil;
-  FAccountsGrid.Node := Nil;
+  if Assigned(FAccountOperationsGrid) then FAccountOperationsGrid.Node := Nil;
+  if Assigned(FAccountsGrid) then FAccountsGrid.Node := Nil;
+  if Assigned(FAccountsSelectedGrid) then FAccountsSelectedGrid.Node := Nil;
 
   // Note: grids themselves are collected with Self (TComponent dependency)
 end;
@@ -274,8 +338,108 @@ end;
 
 procedure TFRMAccountExplorer.Refresh;
 begin
-  RefreshAccountsGrid(true);
+  if FStopping or TUserInterface.Stopping then Exit;
   RefreshMyKeysCombo;
+  FSelectedAccountsRefreshPending := True;
+  FAccountSnapshots.Invalidate;
+  RefreshAccountsGrid(true);
+end;
+
+function TFRMAccountExplorer.CreateAccountSnapshots: TExplorerAccountSnapshots;
+begin
+  Result := TExplorerAccountSnapshots.Create(Self, TUserInterface.Node);
+end;
+
+function TFRMAccountExplorer.ReadAccount(Sender: TObject; AAccountNumber: Integer;
+  out AAccount: TAccount; out ABlockCount, AAccountCount: Integer): Boolean;
+begin
+  Result := FAccountSnapshots.TryGetAccount(AAccountNumber, AAccount,
+    ABlockCount, AAccountCount);
+end;
+
+function TFRMAccountExplorer.ReadSummary(Sender: TObject; out AAccountCount: Integer;
+  out ABalance: Int64): Boolean;
+begin
+  Result := FAccountSnapshots.TryGetSummary(AAccountCount, ABalance);
+end;
+
+procedure TFRMAccountExplorer.OnSnapshotUpdated(Sender: TObject);
+begin
+  if FStopping or TUserInterface.Stopping then Exit;
+  if FAccountsGrid.AccountsGridDatasource = acds_Node then
+    FAccountsGrid.UpdateData
+  else dgAccounts.Invalidate;
+  dgSelectedAccounts.Invalidate;
+  // A data revision changes selected totals; viewport batches only repaint.
+  if FSelectedAccountsRefreshPending then begin
+    FSelectedAccountsRefreshPending := False;
+    FAccountsSelectedGrid.UpdateData;
+  end;
+  OnAccountsGridUpdatedData(Self);
+  OnSelectedAccountChanged;
+  TryRefreshBackend;
+end;
+
+procedure TFRMAccountExplorer.InitializeBackendRefresh;
+begin
+  FBackendRefresh := TThrottledEvent.Create(Self);
+  FBackendRefresh.Mode := temNotifyOnEventBurstStartAndFinished;
+  FBackendRefresh.Interval := TTimeSpan.FromSeconds(5);
+  FBackendRefresh.Add(OnBackendReady);
+end;
+
+function TFRMAccountExplorer.CanRefreshBackend: Boolean;
+begin
+  Result := IsVisible and TUserInterface.Started and
+    (not FAccountsGrid.IsUpdatingData) and (not FAccountSnapshots.Updating);
+end;
+
+procedure TFRMAccountExplorer.RefreshBackend;
+begin
+  FSelectedAccountsRefreshPending := True;
+  FAccountSnapshots.Invalidate;
+  RefreshAccountsGrid(True);
+  FAccountOperationsGrid.UpdateAccountOperations;
+end;
+
+procedure TFRMAccountExplorer.ScheduleBackendRefresh;
+begin
+  if FStopping or TUserInterface.Stopping then Exit;
+  FBackendPending := True;
+  FBackendRefresh.Notify;
+end;
+
+procedure TFRMAccountExplorer.OnBackendReady(Sender: TObject);
+begin
+  if FStopping or TUserInterface.Stopping then Exit;
+  // Only inputs delivered to the owned throttle determine its deadline.
+  // A late callback after deferred work was consumed must not create new work.
+  if not FBackendPending then Exit;
+  FBackendReady := True;
+  TryRefreshBackend;
+end;
+
+procedure TFRMAccountExplorer.TryRefreshBackend;
+begin
+  if FStopping or TUserInterface.Stopping or not FBackendPending or not FBackendReady then Exit;
+  if not CanRefreshBackend then Exit;
+  FBackendPending := False;
+  FBackendReady := False;
+  RefreshBackend;
+end;
+
+procedure TFRMAccountExplorer.DoShow;
+begin
+  inherited;
+  OnViewReady(Self);
+end;
+
+procedure TFRMAccountExplorer.OnViewReady(Sender: TObject);
+begin
+  if FStopping or TUserInterface.Stopping then Exit;
+  // Visibility, application state and source completion consume already admitted
+  // work. They never Notify or extend the owned five-second quiet deadline.
+  TryRefreshBackend;
 end;
 
 {%endregion}
@@ -291,7 +455,7 @@ Var accl : TOrderedCardinalList;
   acc : TAccount;
   LFilters : TAccountsGridFilter;
 begin
-  If Not Assigned(FOrderedAccountsKeyList) Then exit;
+  if FStopping or not Assigned(FAccountsGrid) then Exit;
 
   if Not RefreshData then begin
     if TPlatform.GetElapsedMilliseconds(FLastAccountsGridInvalidateTC)>1000 then begin
@@ -308,18 +472,19 @@ begin
     LFilters := FAccountsGrid.AccountsGridFilter;
     LFilters.MinBalance := FMinAccountBalance;
     LFilters.MaxBalance := FMaxAccountBalance;
+    LFilters.UseAccountKey := False;
+    LFilters.AccountKey := CT_TECDSA_Public_Nul;
     if cbExploreMyAccounts.Checked then begin
-      TNode.Node.Bank.SafeBox.StartThreadSafe;
-      try
-        LFilters.OrderedAccountsKeyList := TWallet.Keys.AccountsKeyList;
-        if cbMyPrivateKeys.ItemIndex>0 then begin
-          i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
-          if (i>=0) And (i<TWallet.Keys.Count) then begin
-            LFilters.indexAccountsKeyList := TWallet.Keys.AccountsKeyList.IndexOfAccountKey(TWallet.Keys[i].AccountKey);
-          end
-        end else LFilters.indexAccountsKeyList := -1;
-      finally
-        TNode.Node.Bank.SafeBox.EndThreadSave;
+      // Capturing the key does not acquire the index lock held by a broad
+      // query. The owned worker resolves its position when that lock is free.
+      LFilters.OrderedAccountsKeyList := TWallet.Keys.AccountsKeyList;
+      LFilters.indexAccountsKeyList := -1;
+      if cbMyPrivateKeys.ItemIndex>0 then begin
+        i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
+        if (i>=0) And (i<TWallet.Keys.Count) then begin
+          LFilters.UseAccountKey := True;
+          LFilters.AccountKey := TWallet.Keys[i].AccountKey;
+        end;
       end;
     end else begin
       LFilters.OrderedAccountsKeyList := Nil;
@@ -336,7 +501,7 @@ end;
 procedure TFRMAccountExplorer.RefreshMyKeysCombo;
 Var i,last_i : Integer;
   wk : TWalletKey;
-  s : AnsiString;
+  s : String;
 begin
   cbMyPrivateKeys.Enabled := cbExploreMyAccounts.Checked;
   if (cbMyPrivateKeys.ItemIndex>=0) then last_i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex])
@@ -346,9 +511,6 @@ begin
     cbMyPrivateKeys.Items.Clear;
     For i:=0 to TWallet.Keys.Count-1 do begin
       wk := TWallet.Keys.Key[i];
-      if assigned(FOrderedAccountsKeyList) then begin
-        FOrderedAccountsKeyList.AddAccountKey(wk.AccountKey);
-      end;
       if (wk.Name='') then begin
         s := 'Sha256='+TCrypto.ToHexaString( TCrypto.DoSha256( TAccountComp.AccountKey2RawString(wk.AccountKey) ) );
       end else begin
@@ -404,22 +566,34 @@ end;
 
 procedure TFRMAccountExplorer.OnLoaded(Sender: TObject);
 begin
-  RefreshAccountsGrid(true);
+  ScheduleBackendRefresh;
 end;
 
 procedure TFRMAccountExplorer.OnAccountsChanged(Sender: TObject);
 begin
-  RefreshAccountsGrid(true);
+  ScheduleBackendRefresh;
 end;
 
 procedure TFRMAccountExplorer.OnBlocksChanged(Sender: TObject);
 begin
-  RefreshAccountsGrid(false);
+  ScheduleBackendRefresh;
 end;
 
 procedure TFRMAccountExplorer.OnPrivateKeysChanged(Sender: TObject);
 begin
+  if FStopping or TUserInterface.Stopping then Exit;
+  if TThread.CurrentThread.ThreadID <> MainThreadID then begin
+    // Wallet notifications may originate in RPC. Never read key choices or
+    // mutate controls there; native messages disappear with their receiver.
+    if HandleAllocated then PostMessage(Handle, CM_ExplorerKeysChanged, 0, 0);
+    Exit;
+  end;
   Refresh;
+end;
+
+procedure TFRMAccountExplorer.CM_PrivateKeysChanged(var AMsg: TMessage);
+begin
+  OnPrivateKeysChanged(nil);
 end;
 
 procedure TFRMAccountExplorer.OnSelectedAccountChanged;
@@ -427,6 +601,24 @@ Var accn : Int64;
 begin
   accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
   FAccountOperationsGrid.AccountNumber := accn;
+end;
+
+procedure TFRMAccountExplorer.OnAccountsGridUpdatedData(Sender: TObject);
+begin
+  if FStopping or TUserInterface.Stopping then Exit;
+  if FAccountsGrid.IsUpdatingData or
+    ((FAccountsGrid.AccountsGridDatasource = acds_Node) and FAccountSnapshots.Updating) then begin
+    lblAccountsCount.Caption := '(Calculating)';
+    lblAccountsBalance.Caption := '(Calculating)';
+  end else begin
+    lblAccountsCount.Caption := IntToStr(FAccountsGrid.AccountsCount);
+    lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
+    // A cached new page may require no snapshot callback. Its completed row
+    // replacement must still bind history to the account now selected.
+    if Assigned(FAccountOperationsGrid) then OnSelectedAccountChanged;
+  end;
+  // The account/filter worker has published; retry a previously admitted input.
+  OnViewReady(Sender);
 end;
 
 {%endregion}
@@ -471,6 +663,8 @@ end;
 
 procedure TFRMAccountExplorer.bbAccountsRefreshClick(Sender: TObject);
 begin
+  FSelectedAccountsRefreshPending := True;
+  FAccountSnapshots.Invalidate;
   RefreshAccountsGrid(true);
 end;
 
@@ -583,22 +777,34 @@ begin
 end;
 
 procedure TFRMAccountExplorer.ebFindAccountNumberChange(Sender: TObject);
-Var an : Cardinal =0;
+var
+  an: Cardinal;
+  accountName: TRawBytes;
+  matches: TOrderedRawList;
+  disposed: TDisposables;
+  found: Boolean;
 begin
+  an := 0;
   if Trim(ebFindAccountNumber.Text)='' then begin
     ebFindAccountNumber.Color := clWindow;
     ebFindAccountNumber.Font.Color := clDkGray;
-  end else if TAccountComp.AccountTxtNumberToAccountNumber(ebFindAccountNumber.Text,an) then begin
-    ebFindAccountNumber.Color := clWindow;
-    if FAccountsGrid.MoveRowToAccount(an) then begin
-      ebFindAccountNumber.Font.Color := clWindowText;
-    end else begin
-      ebFindAccountNumber.Font.Color := clRed;
-    end;
   end else begin
-    // Invalid value
-    ebFindAccountNumber.Color := clRed;
-    ebFindAccountNumber.Font.Color := clWindowText;
+    found := TAccountComp.AccountTxtNumberToAccountNumber(ebFindAccountNumber.Text, an);
+    if not found then begin
+      accountName.FromString(ebFindAccountNumber.Text);
+      matches := disposed.AddObject(TOrderedRawList.Create) as TOrderedRawList;
+      found := TUserInterface.Node.Bank.SafeBox.FindAccountsStartingByName(accountName, matches, 1) > 0;
+      if found then an := matches.GetTag(0);
+    end;
+    if found then begin
+      ebFindAccountNumber.Color := clWindow;
+      if FAccountsGrid.MoveRowToAccount(an) then
+        ebFindAccountNumber.Font.Color := clWindowText
+      else ebFindAccountNumber.Font.Color := clRed;
+    end else begin
+      ebFindAccountNumber.Color := clRed;
+      ebFindAccountNumber.Font.Color := clWindowText;
+    end;
   end;
 end;
 
@@ -685,7 +891,7 @@ end;
 
 procedure TFRMAccountExplorer.miAccountInformationClick(Sender: TObject);
 Var F : TFRMMemoText;
-  accn : Int64 =-1;
+  accn : Int64;
   acc : TAccount;
   i : Integer;
   opr : TOperationResume;
@@ -703,7 +909,7 @@ begin
 
   i := FAccountOperationsGrid.DrawGrid.Row;
   if (i>0) and (i<=FAccountOperationsGrid.OperationsResume.Count) then begin
-    opr := FAccountOperationsGrid.OperationsResume.OperationResume[i-1];
+    opr := FAccountOperationsGrid.OperationsResume[i-1];
   end;
 
   If opr.valid then

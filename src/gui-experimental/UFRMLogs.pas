@@ -16,17 +16,20 @@ unit UFRMLogs;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 interface
 
 {$I ..\config.inc}
 
 uses
-    LCLIntf,
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+    {$IFDEF FPC}LCLIntf,{$ENDIF}
     SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, ExtCtrls,  StdCtrls, UCommon.UI,
-    ULog, UBlockChain;
+    ULog, UBlockChain, UConst;
 
 type
 
@@ -38,7 +41,7 @@ type
     pnlTopLogs: TPanel;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : AnsiString);
+    procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : String);
   private
     { private declarations }
   public
@@ -51,7 +54,11 @@ var
 implementation
 uses  UUserInterface;
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 { TFRMLogs }
 
@@ -65,8 +72,8 @@ begin
   TUserInterface.Log.OnNewLog := nil;
 end;
 
-procedure TFRMLogs.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : TThreadID; const sender,logtext: AnsiString);
-Var s : AnsiString;
+procedure TFRMLogs.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : TThreadID; const sender,logtext: String);
+Var s : String;
 begin
   if (logtype=ltdebug) And (Not cbShowDebugLogs.Checked) then exit;
   if ThreadID=MainThreadID then s := 'MAIN:' else s:='TID:';
@@ -81,8 +88,8 @@ begin
   end;
   //memoLogs.Lines.Add('%s %s %p [%s] <%s> %s',                                                             XXXXXXXXXXXXXXXX Windows %p is invalid (not a pointer)
   //  [FormatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time), s, ThreadID, CT_LogType[Logtype], sender, logtext]); XXXXXXXXXXXXXXXX Windows %p is invalid (not a pointer)
-  memoLogs.Lines.Add('%s %s %s [%s] <%s> %s',
-    [FormatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time), s, IntToHex(PtrInt(ThreadID),8), CT_LogType[Logtype], sender, logtext]);
+  memoLogs.Lines.Add(Format('%s %s %s [%s] <%s> %s',
+    [FormatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time), s, IntToHex(PtrInt(ThreadID),8), CT_LogType[Logtype], sender, logtext]));
 end;
 
 end.

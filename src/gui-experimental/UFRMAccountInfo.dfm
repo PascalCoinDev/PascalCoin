@@ -1,0 +1,99 @@
+﻿object FRMAccountInfo: TFRMAccountInfo
+  Left = 0
+  Height = 300
+  Top = 0
+  Width = 635
+  BorderIcons = [biSystemMenu]
+  Caption = 'Account Information'
+  ClientHeight = 300
+  ClientWidth = 635
+  Color = clBtnFace
+  Font.Color = clWindowText
+  Font.Name = 'Tahoma'
+  Position = poOwnerFormCenter
+  Visible = False
+  object Label1: TLabel
+    Left = 25
+    Height = 19
+    Top = 26
+    Width = 57
+    Caption = 'Account'
+    ParentColor = False
+  end
+  object lblAccount: TLabel
+    Left = 77
+    Height = 19
+    Top = 21
+    Width = 97
+    Caption = '0000000-00'
+    Font.Color = clBlack
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentColor = False
+    ParentFont = False
+  end
+  object Label6: TLabel
+    Left = 24
+    Height = 19
+    Top = 56
+    Width = 71
+    Caption = 'Public key'
+    ParentColor = False
+  end
+  object lblBalance: TLabel
+    Left = 252
+    Height = 19
+    Top = 21
+    Width = 97
+    Caption = '0000000-00'
+    Font.Color = clBlack
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentColor = False
+    ParentFont = False
+  end
+  object Label3: TLabel
+    Left = 200
+    Height = 19
+    Top = 26
+    Width = 53
+    Caption = 'Balance'
+    ParentColor = False
+  end
+  object Label2: TLabel
+    Left = 25
+    Height = 19
+    Top = 91
+    Width = 35
+    Caption = 'State'
+    ParentColor = False
+  end
+  object Label4: TLabel
+    Left = 77
+    Height = 19
+    Top = 86
+    Width = 200
+    Caption = 'Normal/For sale/Private'
+    Font.Color = clBlack
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentColor = False
+    ParentFont = False
+  end
+  object ebPublicKey: TEdit
+    Left = 77
+    Height = 27
+    Top = 51
+    Width = 533
+    Font.Color = clBlack
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 0
+    Text = 'ebPublicKey'
+  end
+end

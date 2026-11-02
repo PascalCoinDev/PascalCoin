@@ -16,57 +16,37 @@ unit UFRMAccountSelect;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$MODE Delphi}
+{$ENDIF}
 
 interface
 
 {$I ..\config.inc}
 
 uses
-  LCLIntf, LCLType, LMessages,
-  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UCommon.UI,
-  UWallet, UNode, UGridUtils, UFRMMemoText, UConst, UThread, UPCOrderedLists, UBaseTypes, UPCDataTypes;
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+  {$IFDEF FPC}LCLIntf, LCLType, LMessages,{$ENDIF}
+  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, Dialogs,
+  UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UCommon.UI, UWallet, UNode,
+  UConst, UThread, UPCOrderedLists, UBaseTypes, UPCDataTypes,
+  Generics.Collections, UVisualGrid, UCommon.Data, UAccountSelectorData,
+  UWalletStartupTask;
 
 const
   CT_AS_MyAccounts = $0001;
   CT_AS_OnlyForSale = $0002;
 
 type
-  { TSearchThread }
-  TSearchValues = Record
-    SafeBox : TPCSafeBox;
-    inWalletKeys : TWalletKeys;
-    inAccountKey : TAccountKey;
-    onlyForSale,
-    onlyForPublicSale,
-    onlyForPrivateSaleToMe : Boolean;
-    minBal,maxBal : Int64;
-    searchName : TRawBytes;
-  end;
-
-  TSearchProcedure = procedure(Const searchFound : TCardinalsArray; const searchValues : TSearchValues) of object;
-
-  TSearchThread = Class(TPCThread)
+  TAccountSelectorStatsTask = class(TWalletStartupTask)
   private
-    FIsReadyForSearch: Boolean;
-    FOnSearchFinished: TSearchProcedure;
-    FDoStopSearch : Boolean;
-    FStartSearch : Boolean;
-    FAccounts : TCardinalsArray;
-    FSearchValues : TSearchValues;
-    procedure SetIsReadyForSearch(AValue: Boolean);
+    FSource: TAccountSelectorDataSource;
   protected
-    procedure BCExecute; override;
-    Procedure DoNotifySearchFinished;
+    procedure ExecuteLoad; override;
   public
-    property IsReadyForSearch : Boolean read FIsReadyForSearch write SetIsReadyForSearch;
-    Property OnSearchFinished : TSearchProcedure read FOnSearchFinished write FOnSearchFinished;
-    Procedure DoSearch(Const newSearchValues : TSearchValues);
-    Procedure StopSearch;
+    Stats: TAccountSelectorTypeStats;
+    constructor Create(ASource: TAccountSelectorDataSource); reintroduce;
   end;
-
-  { TFRMAccountSelect }
 
   TFRMAccountSelect = class(TApplicationForm)
     bbTypeStats: TBitBtn;
@@ -83,7 +63,7 @@ type
     bbSearch: TBitBtn;
     cbOnlyForPrivateSaleToMe: TCheckBox;
     pnlBottom: TPanel;
-    dgAccounts: TDrawGrid;
+    dgAccounts: Grids.TDrawGrid;
     bbSelect: TBitBtn;
     bbCancel: TBitBtn;
     cbAccountsBalance: TCheckBox;
@@ -99,294 +79,387 @@ type
     procedure ebMinBalanceExit(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+  private type
+    TKeyChoice = class
+      Key: TAccountKey;
+      Available: Boolean;
+    end;
   private
-    FAllowSelect: Boolean;
+    FAllowSelect, FChangingControls, FStopping, FDefaultSelectionApplied: Boolean;
     FDefaultAccount: Int64;
     FFilters: Integer;
     FWalletKeys: TWalletKeys;
     FNode: TNode;
-    FSafeBox : TPCSafeBox;
-    FAccountsGrid : TAccountsGrid;
-    FSearchThread : TSearchThread;
-    { Private declarations }
+    FSafeBox: TPCSafeBox;
+    FAccountsGrid: TVisualGrid;
+    FSource: TAccountSelectorDataSource;
+    FStatsTask: TAccountSelectorStatsTask;
+    FKeyChoices: TObjectList<TKeyChoice>;
     procedure SetAllowSelect(AValue: Boolean);
     procedure SetDefaultAccount(AValue: Int64);
     procedure SetFilters(AValue: Integer);
     procedure SetNode(const Value: TNode);
     procedure SetWalletKeys(const Value: TWalletKeys);
-    Procedure SearchFiltered;
-    Procedure UpdateControls;
-    procedure OnSearchFinished(Const searchFound : TCardinalsArray; const searchValues : TSearchValues);
-    procedure OnAccountsGridUpdated(Sender : TObject);
+    procedure SearchFiltered;
+    procedure UpdateControls;
+    procedure OnAccountsGridUpdated(Sender: TObject);
+    procedure OnGridSelection(Sender: TObject;
+      {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
+    procedure OnStatsCompleted(Sender: TObject);
+    function GetStatsRunning: Boolean;
   protected
-    FAccounts : TOrderedAccountList;
+    function AccountSafeBox: TPCSafeBox; virtual;
+    function CreateAccountSource: TAccountSelectorDataSource; virtual;
+    function CreateStatsTask: TAccountSelectorStatsTask; virtual;
+    procedure BuildTypeStatsReport(const AStats: TAccountSelectorTypeStats; AText: TStrings);
+    procedure ShowTypeStatsReport(const AStats: TAccountSelectorTypeStats); virtual;
   public
-    { Public declarations }
-    Property WalletKeys : TWalletKeys read FWalletKeys write SetWalletKeys;
-    Property Node : TNode read FNode write SetNode;
-    Property Filters : Integer read FFilters write SetFilters;
-    Property DefaultAccount : Int64 read FDefaultAccount write SetDefaultAccount;
-    Function GetSelected : Int64;
-    Property AllowSelect : Boolean read FAllowSelect write SetAllowSelect;
+    property WalletKeys: TWalletKeys read FWalletKeys write SetWalletKeys;
+    property Node: TNode read FNode write SetNode;
+    property Filters: Integer read FFilters write SetFilters;
+    property DefaultAccount: Int64 read FDefaultAccount write SetDefaultAccount;
+    function GetSelected: Int64;
+    property AllowSelect: Boolean read FAllowSelect write SetAllowSelect;
+    property AccountGrid: TVisualGrid read FAccountsGrid;
+    property AccountSource: TAccountSelectorDataSource read FSource;
+    property StatsRunning: Boolean read GetStatsRunning;
   end;
 
 implementation
 
-  {$R *.lfm}
+{$IFDEF FPC}{$R *.lfm}{$ELSE}{$R *.dfm}{$ENDIF}
 
-Uses strutils;
+uses UFRMMemoText;
 
-{ TSearchThread }
+{$IFNDEF FPC}
+type
+  TSelectorNativeGridAccess = class(UVisualGrid.TDrawGrid)
+  public
+    procedure PublishCurrentSelection;
+  end;
 
-procedure TSearchThread.SetIsReadyForSearch(AValue: Boolean);
+procedure TSelectorNativeGridAccess.PublishCurrentSelection;
 begin
-  if FIsReadyForSearch=AValue then Exit;
-  FIsReadyForSearch:=AValue;
+  // The native adapter retains its own ranges, including a one-row page whose
+  // current row does not move. Reuse its normal selection publication path.
+  SelectionMoved(Selection);
+end;
+{$ENDIF}
+
+constructor TAccountSelectorStatsTask.Create(ASource: TAccountSelectorDataSource);
+begin
+  inherited Create;
+  FSource := ASource;
 end;
 
-procedure TSearchThread.BCExecute;
-  procedure SearchFilteredInThread;
-  Var c,maxC : Cardinal;
-    account : TAccount;
-    isValid : Boolean;
-    validAccKey : Boolean;
-    errors : AnsiString;
-    i : Integer;
+procedure TAccountSelectorStatsTask.ExecuteLoad;
+begin
+  CheckCancelled;
+  FSource.CalculateTypeStats(Stats);
+  CheckCancelled;
+end;
+
+function TFRMAccountSelect.CreateAccountSource: TAccountSelectorDataSource;
+begin
+  Result := TAccountSelectorDataSource.Create(Self);
+end;
+
+function TFRMAccountSelect.AccountSafeBox: TPCSafeBox;
+begin
+  Result := FSafeBox;
+end;
+
+function TFRMAccountSelect.CreateStatsTask: TAccountSelectorStatsTask;
+begin
+  Result := TAccountSelectorStatsTask.Create(FSource);
+end;
+
+procedure TFRMAccountSelect.FormCreate(Sender: TObject);
+
+  procedure AddColumn(const ACaption, ABinding: String; AWidth: Integer);
   begin
-    SetLength(FAccounts,0);
-    c := 0;
-    maxC := FSearchValues.SafeBox.AccountsCount-1;
-    validAccKey := TAccountComp.IsValidAccountKey(FSearchValues.inAccountKey, FSearchValues.SafeBox.CurrentProtocol, errors);
-    while (c<=maxC) And (Not Terminated) And (Not FDoStopSearch) do begin
-      account := FSearchValues.SafeBox.Account(c);
-      isValid := True;
-      If validAccKey then begin
-        isValid := TAccountComp.EqualAccountKeys(account.accountInfo.accountKey,FSearchValues.inAccountKey);
-      end else if (Assigned(FSearchValues.inWalletKeys)) then begin
-        isValid := FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.accountKey)>=0;
-      end;
-      If isValid And (FSearchValues.onlyForSale) then begin
-        isValid := TAccountComp.IsAccountForSale(account.accountInfo);
-      end;
-      If IsValid and (FSearchValues.onlyForPublicSale) then begin
-        isValid := (TAccountComp.IsAccountForSale(account.accountInfo)) And (Not TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(account, FSearchValues.SafeBox.BlocksCount, FSearchValues.SafeBox.CurrentProtocol, nil));  // Skybuck: todo check/debug !
-      end;
-      If IsValid and (FSearchValues.onlyForPrivateSaleToMe) then begin
-        isValid := ( TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(account,FSearchValues.SafeBox.BlocksCount, FSearchValues.SafeBox.CurrentProtocol, nil)) And // Skybuck: todo check/debug !
-          (Assigned(FSearchValues.inWalletKeys)) And (FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.new_publicKey)>=0);
-      end;
-      If IsValid then begin
-        IsValid := (account.balance>=FSearchValues.minBal) And ((FSearchValues.maxBal<0) Or (account.balance<=FSearchValues.maxBal));
-      end;
-      If IsValid And (Length(FSearchValues.searchName)>0) then begin
-        i := TBaseType.FindIn(FSearchValues.searchName,account.name);
-        IsValid := i>0;
-      end;
-      //
-      if IsValid then begin
-        setLength(FAccounts,length(FAccounts)+1);
-        FAccounts[high(FAccounts)] := c;
-      end;
-      inc(c);
-    end;
-    If (Not Terminated) And (Not FDoStopSearch) then begin
-      Synchronize(DoNotifySearchFinished);
+    with FAccountsGrid.AddColumn(ACaption) do begin
+      Binding := ABinding;
+      Width := AWidth;
     end;
   end;
+
 begin
-  FIsReadyForSearch := True;
-  FDoStopSearch := False;
-  FStartSearch := False;
-  while (Not Terminated) do begin
-    FIsReadyForSearch := True;
-    If (FStartSearch) then begin
-      FStartSearch := False;
-      FIsReadyForSearch:=False;
-      FDoStopSearch:=False;
-      SearchFilteredInThread;
+  FChangingControls := True;
+  FDefaultAccount := -1;
+  FKeyChoices := TObjectList<TKeyChoice>.Create(True);
+  FAccountsGrid := TVisualGrid.Create(Self);
+  FAccountsGrid.Name := 'AccountSelectorGrid';
+  FAccountsGrid.Parent := Self;
+  FAccountsGrid.Align := alClient;
+  FAccountsGrid.CanSearch := False;
+  FAccountsGrid.SortMode := smNone;
+  FAccountsGrid.PageMode := vpmAuto;
+  FAccountsGrid.SelectionType := stRow;
+  FAccountsGrid.DeselectionType := dtDefault;
+  FAccountsGrid.Options := [vgoColSizing,vgoAutoHidePaging];
+  FAccountsGrid.OnFinishedUpdating := OnAccountsGridUpdated;
+  FAccountsGrid.OnSelection := OnGridSelection;
+  AddColumn('Account No','Account',95);
+  AddColumn('Name','Name',140);
+  AddColumn('Balance','BalanceDecimal',105);
+  AddColumn('N Op.','NOperation',55);
+  AddColumn('Type','Type',55);
+  AddColumn('Price','PriceDecimal',95);
+  AddColumn('State','State',70);
+  dgAccounts.Visible := False;
+  FSource := CreateAccountSource;
+  cbMyAccounts.OnClick := cbMyAccountsClick;
+  {$IFDEF FPC}cbMyAccounts.OnChange := nil;{$ENDIF}
+  // Opening a combo is not a key change; only its selection event refreshes.
+  cbMyPrivateKeys.OnClick := nil;
+  cbMyPrivateKeys.OnChange := cbMyPrivateKeysChange;
+  cbOnlyForSale.OnClick := cbMyAccountsClick;
+  cbOnlyForPrivateSaleToMe.OnClick := cbMyAccountsClick;
+  cbOnlyForPublicSale.OnClick := cbMyAccountsClick;
+  cbAccountsBalance.OnClick := cbMyAccountsClick;
+  cbAccountsName.OnClick := cbMyAccountsClick;
+  FChangingControls := False;
+  UpdateControls;
+  lblAccountsCount.Caption := '-';
+  lblAccountsBalance.Caption := '-';
+  AllowSelect := False;
+end;
+
+procedure TFRMAccountSelect.FormDestroy(Sender: TObject);
+begin
+  FStopping := True;
+  // The existing task owns its queued completion and cooperatively joins; no
+  // worker can call Synchronize while this form is releasing its receivers.
+  if Assigned(FStatsTask) then begin
+    FStatsTask.OnCompleted := nil;
+    FStatsTask.CancelAndWait;
+    FreeAndNil(FStatsTask);
+  end;
+  if Assigned(FAccountsGrid) then begin
+    FAccountsGrid.OnFinishedUpdating := nil;
+    FAccountsGrid.OnSelection := nil;
+    FreeAndNil(FAccountsGrid);
+  end;
+  FreeAndNil(FSource);
+  FKeyChoices.Free;
+end;
+
+procedure TFRMAccountSelect.SetNode(const Value: TNode);
+begin
+  FNode := Value;
+  FSafeBox := nil;
+  if Assigned(FNode) then FSafeBox := FNode.Bank.SafeBox;
+  SearchFiltered;
+end;
+
+procedure TFRMAccountSelect.SetWalletKeys(const Value: TWalletKeys);
+begin
+  FWalletKeys := Value;
+  UpdateControls;
+  SearchFiltered;
+end;
+
+procedure TFRMAccountSelect.UpdateControls;
+var LSelected: TAccountKey; LHasSelected: Boolean; LChoice: TKeyChoice; I: Integer;
+begin
+  LHasSelected := (cbMyPrivateKeys.ItemIndex > 0) and
+    (cbMyPrivateKeys.ItemIndex < cbMyPrivateKeys.Items.Count);
+  if LHasSelected then
+    LSelected := TKeyChoice(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]).Key;
+  FChangingControls := True;
+  cbMyPrivateKeys.Items.BeginUpdate;
+  try
+    cbMyPrivateKeys.Clear;
+    FKeyChoices.Clear;
+    cbMyAccounts.Enabled := Assigned(FWalletKeys);
+    if not Assigned(FWalletKeys) then cbMyAccounts.Checked := False;
+    cbMyPrivateKeys.Sorted := True;
+    if Assigned(FWalletKeys) then
+      for I := 0 to FWalletKeys.Count-1 do begin
+        LChoice := TKeyChoice.Create;
+        LChoice.Key := FWalletKeys.Key[I].AccountKey;
+        LChoice.Available := True;
+        FKeyChoices.Add(LChoice);
+        cbMyPrivateKeys.Items.AddObject(FWalletKeys.Key[I].Name,LChoice);
+      end;
+    cbMyPrivateKeys.Sorted := False;
+    cbMyPrivateKeys.Items.InsertObject(0,'(All)',nil);
+    cbMyPrivateKeys.ItemIndex := 0;
+    if LHasSelected then
+      for I := 1 to cbMyPrivateKeys.Items.Count-1 do
+        if TAccountComp.EqualAccountKeys(LSelected,TKeyChoice(cbMyPrivateKeys.Items.Objects[I]).Key) then begin
+          cbMyPrivateKeys.ItemIndex := I;
+          Break;
+        end;
+    if LHasSelected and (cbMyPrivateKeys.ItemIndex = 0) then begin
+      // A removed key is an unavailable selection, never an implicit All.
+      LChoice := TKeyChoice.Create;
+      LChoice.Key := LSelected;
+      FKeyChoices.Add(LChoice);
+      cbMyPrivateKeys.Items.InsertObject(1,'(Unavailable key)',LChoice);
+      cbMyPrivateKeys.ItemIndex := 1;
+    end;
+    cbMyPrivateKeys.Enabled := cbMyAccounts.Checked and Assigned(FWalletKeys);
+  finally
+    cbMyPrivateKeys.Items.EndUpdate;
+    FChangingControls := False;
+  end;
+end;
+
+procedure TFRMAccountSelect.SearchFiltered;
+var LFilter: TAccountSelectorFilter; I,LKeyCount: Integer;
+begin
+  if FStopping or FChangingControls or not Assigned(FSource) then Exit;
+  LFilter := Default(TAccountSelectorFilter);
+  LFilter.MinBalance := 0;
+  LFilter.MaxBalance := -1;
+  LFilter.MyAccounts := cbMyAccounts.Checked and Assigned(FWalletKeys);
+  // These public identities were captured by the UI-owned WalletKeys setter.
+  // Searching never follows mutable wallet positions or subscribes controls
+  // to key notifications which may originate on an RPC worker.
+  SetLength(LFilter.WalletKeys,FKeyChoices.Count);
+  LKeyCount := 0;
+  for I := 0 to FKeyChoices.Count-1 do
+    if FKeyChoices[I].Available then begin
+      LFilter.WalletKeys[LKeyCount] := FKeyChoices[I].Key;
+      Inc(LKeyCount);
+    end;
+  SetLength(LFilter.WalletKeys,LKeyCount);
+  if LFilter.MyAccounts then begin
+    LFilter.SpecificOwner := cbMyPrivateKeys.ItemIndex > 0;
+    if LFilter.SpecificOwner then begin
+      if (cbMyPrivateKeys.ItemIndex < cbMyPrivateKeys.Items.Count) and
+        TKeyChoice(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]).Available then begin
+        SetLength(LFilter.OwnerKeys,1);
+        LFilter.OwnerKeys[0] := TKeyChoice(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]).Key;
+      end;
+    end else LFilter.OwnerKeys := Copy(LFilter.WalletKeys);
+  end;
+  LFilter.OnlyForSale := cbOnlyForSale.Checked;
+  LFilter.OnlyForPublicSale := cbOnlyForPublicSale.Checked;
+  LFilter.OnlyForPrivateSaleToMe := cbOnlyForPrivateSaleToMe.Checked;
+  if cbAccountsBalance.Checked then begin
+    if not TAccountComp.TxtToMoney(ebMinBalance.Text,LFilter.MinBalance) then
+      raise Exception.Create('Invalid Min Balance');
+    ebMinBalance.Text := TAccountComp.FormatMoney(LFilter.MinBalance);
+    if Trim(ebMaxBalance.Text) <> '' then begin
+      if not TAccountComp.TxtToMoney(ebMaxBalance.Text,LFilter.MaxBalance) then
+        raise Exception.Create('Invalid Max Balance');
+      ebMaxBalance.Text := TAccountComp.FormatMoney(LFilter.MaxBalance);
     end;
   end;
-end;
-
-procedure TSearchThread.DoNotifySearchFinished;
-begin
-  If Assigned(FOnSearchFinished) then begin
-    FOnSearchFinished(FAccounts,FSearchValues);
+  if cbAccountsName.Checked then LFilter.Name.FromString(ebAccountName.Text);
+  cbMyPrivateKeys.Enabled := LFilter.MyAccounts;
+  if LFilter.MyAccounts then cbMyPrivateKeys.ParentFont := True
+  else cbMyPrivateKeys.Font.Color := clGray;
+  if cbAccountsBalance.Checked then begin
+    ebMinBalance.ParentFont := True;
+    ebMaxBalance.ParentFont := True;
+  end else begin
+    ebMinBalance.Font.Color := clGray;
+    ebMaxBalance.Font.Color := clGray;
   end;
+  if cbAccountsName.Checked then ebAccountName.ParentFont := True
+  else ebAccountName.Font.Color := clGray;
+  FDefaultSelectionApplied := False;
+  bbSelect.Enabled := False;
+  lblAccountsCount.Caption := '-';
+  lblAccountsBalance.Caption := '-';
+  // Retain the latest input and cancel an obsolete provider without joining it.
+  // The grid discards its stale result before admitting this generation.
+  FAccountsGrid.RefreshSuspended := True;
+  FSource.Configure(AccountSafeBox,LFilter);
+  FAccountsGrid.PageIndex := 0;
+  if not Assigned(FAccountsGrid.DataSource) then FAccountsGrid.DataSource := FSource
+  else FAccountsGrid.RefreshGrid;
+  if not StatsRunning then FAccountsGrid.RefreshSuspended := False;
 end;
-
-procedure TSearchThread.DoSearch(const newSearchValues: TSearchValues);
-begin
-  FDoStopSearch := True;
-  FStartSearch := False;
-  While (Not FIsReadyForSearch) do sleep(1);
-  FSearchValues := newSearchValues;
-  FStartSearch := True;
-end;
-
-procedure TSearchThread.StopSearch;
-begin
-  FDoStopSearch := True;
-  FStartSearch := False;
-  While (Not FIsReadyForSearch) do sleep(1);
-end;
-
-{ TFRMAccountSelect }
 
 procedure TFRMAccountSelect.SetDefaultAccount(AValue: Int64);
 begin
-  if FDefaultAccount=AValue then Exit;
-  FDefaultAccount:=AValue;
+  FDefaultAccount := AValue;
+  FDefaultSelectionApplied := False;
 end;
 
 procedure TFRMAccountSelect.SetAllowSelect(AValue: Boolean);
 begin
-  FAllowSelect:=AValue;
-  bbSelect.Visible:=AValue;
-  bbSelect.Enabled:=AValue;
+  FAllowSelect := AValue;
+  bbSelect.Visible := AValue;
+  bbSelect.Enabled := AValue and (GetSelected >= 0) and not StatsRunning;
 end;
 
 procedure TFRMAccountSelect.SetFilters(AValue: Integer);
 begin
-  FFilters:=AValue;
-  cbMyAccounts.Checked := (AValue and CT_AS_MyAccounts) = CT_AS_MyAccounts;
-  cbOnlyForSale.Checked := (AValue and CT_AS_OnlyForSale) = CT_AS_OnlyForSale;
+  FFilters := AValue;
+  FChangingControls := True;
+  try
+    cbMyAccounts.Checked := (AValue and CT_AS_MyAccounts) <> 0;
+    cbOnlyForSale.Checked := (AValue and CT_AS_OnlyForSale) <> 0;
+  finally
+    FChangingControls := False;
+  end;
   SearchFiltered;
 end;
 
-procedure TFRMAccountSelect.FormCreate(Sender: TObject);
+procedure TFRMAccountSelect.OnAccountsGridUpdated(Sender: TObject);
+var LTotal: TAccountSelectorTotal; LIndex,LPage,I: Integer;
+  LDeselection: TDeselectionType;
 begin
-  FSearchThread := TSearchThread.Create(false);
-  FSearchThread.OnSearchFinished := OnSearchFinished;
-  FAccounts := TOrderedAccountList.Create;
-  FWalletKeys := Nil;
-  FNode := Nil;
-  FSafeBox:=Nil;
-  FFilters:=0;
-  FDefaultAccount:=-1;
-  FAccountsGrid := TAccountsGrid.Create(Self);
-  FAccountsGrid.DrawGrid := dgAccounts;
-  FAccountsGrid.OnUpdated:=OnAccountsGridUpdated;
-  //
-  cbMyAccounts.OnClick:=cbMyAccountsClick;
-  cbMyPrivateKeys.OnClick:=cbMyAccountsClick;
-  cbOnlyForSale.OnClick:=cbMyAccountsClick;
-  cbOnlyForPrivateSaleToMe.OnClick:=cbMyAccountsClick;
-  cbOnlyForPublicSale.OnClick:=cbMyAccountsClick;
-  cbAccountsBalance.OnClick:=cbMyAccountsClick;
-  cbAccountsName.OnClick:=cbMyAccountsClick;
-  UpdateControls;
-  AllowSelect:=False;
+  if FStopping then Exit;
+  if FSource.TryGetSummary(LTotal) then begin
+    lblAccountsCount.Caption := IntToStr(LTotal.Accounts);
+    lblAccountsBalance.Caption := TAccountComp.FormatMoney(LTotal.Balance);
+  end;
+  if not FDefaultSelectionApplied and (FDefaultAccount >= 0) then begin
+    LIndex := FSource.PublishedAccountIndex(FDefaultAccount);
+    if LIndex >= 0 then begin
+      LPage := 0;
+      if FAccountsGrid.PageMode <> vpmSingle then LPage := LIndex div FAccountsGrid.PageSize;
+      if LPage <> FAccountsGrid.PageIndex then begin
+        FAccountsGrid.PageIndex := LPage;
+        Exit;
+      end;
+      for I := 0 to FAccountsGrid.RowCount-1 do
+        if Int64(TDataRowData(FAccountsGrid.Rows[I])['AccountNumber']) = FDefaultAccount then begin
+          LDeselection := FAccountsGrid.DeselectionType;
+          FAccountsGrid.DeselectionType := dtNone;
+          FAccountsGrid.InternalDrawGrid.Row := I+1;
+          {$IFNDEF FPC}
+          TSelectorNativeGridAccess(FAccountsGrid.InternalDrawGrid).PublishCurrentSelection;
+          {$ENDIF}
+          FAccountsGrid.DeselectionType := LDeselection;
+          Break;
+        end;
+    end;
+    FDefaultSelectionApplied := True;
+  end;
+  bbSelect.Enabled := FAllowSelect and (GetSelected >= 0) and not StatsRunning;
+end;
+
+procedure TFRMAccountSelect.OnGridSelection(Sender: TObject;
+  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
+begin
+  bbSelect.Enabled := FAllowSelect and (GetSelected >= 0) and not StatsRunning;
+end;
+
+function TFRMAccountSelect.GetSelected: Int64;
+var LRows: TArray<Variant>;
+begin
+  Result := -1;
+  if not Assigned(FAccountsGrid) or FAccountsGrid.IsUpdating then Exit;
+  LRows := FAccountsGrid.SelectedRows;
+  if Length(LRows) = 1 then Result := Int64(TDataRowData(LRows[0])['AccountNumber']);
+end;
+
+function TFRMAccountSelect.GetStatsRunning: Boolean;
+begin
+  Result := Assigned(FStatsTask);
 end;
 
 procedure TFRMAccountSelect.bbSearchClick(Sender: TObject);
 begin
   SearchFiltered;
-end;
-
-procedure TFRMAccountSelect.bbTypeStatsClick(Sender: TObject);
-Type
-  TAccTypeStats = Record
-    accounts:Integer;
-    balance:Int64;
-  end;
-Const
-  TAccTypeStats_NUL : TAccTypeStats = (accounts:0;balance:0);
-Var i,j,k : Integer;
-  account : TAccount;
-  c : Cardinal;
-  s_0,s_inv : TAccTypeStats;
-  s_5 : Array[0..6] of Array[1..4,0..9] of TAccTypeStats;
-  FRM : TFRMMemoText;
-  sl : TStringList;
-begin
-  c := 0;
-  s_0 := TAccTypeStats_NUL;
-  s_inv := TAccTypeStats_NUL;
-  for i := low(s_5) to high(s_5) do
-    for j := 1 to 4 do
-      for k := 0 to 9 do
-        s_5[i,j,k] := TAccTypeStats_NUL;
-
-
-  while (c<FSafeBox.AccountsCount) do begin
-    account := FSafeBox.Account(c);
-    if (account.account_type=0) then begin
-      inc(s_0.accounts);
-      inc(s_0.balance,account.balance);
-    end else if (account.account_type<10000) then begin
-      inc(s_inv.accounts);
-      inc(s_inv.balance,account.balance);
-    end;
-    k := ((account.account_type MOD 100000) DIV 10000); // k is 0..6 because account.account_type is a word 0..65535
-    if (k<0) or (k>6) then k:=0;
-    for i := 0 to 9 do begin
-      j := ((account.account_type MOD 10000) DIV 1000); // j is 0..9
-      if (j=i) then begin
-        inc(s_5[k][1][j].accounts);
-        inc(s_5[k][1][j].balance,account.balance);
-      end;
-    end;
-    for i := 0 to 9 do begin
-      j := ((account.account_type MOD 1000) DIV 100); // j is 0..9
-      if (j=i) then begin
-        inc(s_5[k][2][j].accounts);
-        inc(s_5[k][2][j].balance,account.balance);
-      end;
-    end;
-    for i := 0 to 9 do begin
-      j := ((account.account_type MOD 100) DIV 10); // j is 0..9
-      if (j=i) then begin
-        inc(s_5[k][3][j].accounts);
-        inc(s_5[k][3][j].balance,account.balance);
-      end;
-    end;
-    for i := 0 to 9 do begin
-      j := ((account.account_type MOD 10) DIV 1); // j is 0..9
-      if (j=i) then begin
-        inc(s_5[k][4][j].accounts);
-        inc(s_5[k][4][j].balance,account.balance);
-      end;
-    end;
-    inc(c);
-  end;
-  sl := TStringList.Create;
-  Try
-    sl.Add('*** Account type stats ***');
-    sl.Add(Format('Current block:%d accounts:%d coins:%s',[FSafeBox.BlocksCount,FSafeBox.AccountsCount,TAccountComp.FormatMoney(FSafeBox.TotalBalance)]));
-    sl.Add('');
-    sl.Add('** Basic stats **');
-    sl.Add(Format('Account type=0 accounts:%d coins:%s',[s_0.accounts,TAccountComp.FormatMoney(s_0.balance)]));
-    sl.Add(Format('Account type [1..9999] accounts:%d coins:%s',[s_inv.accounts,TAccountComp.FormatMoney(s_inv.balance)]));
-    sl.Add('');
-    sl.Add('*** Stats by group ***');
-    for k := 0 to 6 do begin
-      // Note: Account type is a Word [0..65535], so left digit can be only 0..6, deprecating 6 to not fill, result for stats is 0..5
-      sl.Add('');
-      sl.Add(Format('** Group [%d..%d] **',[(k)*10000,((k+1)*10000)-1]));
-      for j := 0 to 9 do begin
-        sl.Add(Format('Account type like %d%d*** accounts:%d coins:%s',[k,j,s_5[k][1][j].accounts,TAccountComp.FormatMoney(s_5[k][1][j].balance)]));
-      end;
-      for j := 0 to 9 do begin
-        sl.Add(Format('Account type like %d*%d** accounts:%d coins:%s',[k,j,s_5[k][2][j].accounts,TAccountComp.FormatMoney(s_5[k][2][j].balance)]));
-      end;
-      for j := 0 to 9 do begin
-        sl.Add(Format('Account type like %d**%d* accounts:%d coins:%s',[k,j,s_5[k][3][j].accounts,TAccountComp.FormatMoney(s_5[k][3][j].balance)]));
-      end;
-      for j := 0 to 9 do begin
-        sl.Add(Format('Account type like %d***%d accounts:%d coins:%s',[k,j,s_5[k][4][j].accounts,TAccountComp.FormatMoney(s_5[k][4][j].balance)]));
-      end;
-    end;
-    FRM := TFRMMemoText.Create(Self);
-    Try
-      FRM.InitData('Account Type Stats',sl.Text);
-      FRM.ShowModal;
-    Finally
-      FRM.Free;
-    End;
-  Finally
-    sl.Free;
-  End;
 end;
 
 procedure TFRMAccountSelect.cbMyAccountsChange(Sender: TObject);
@@ -404,168 +477,104 @@ begin
   SearchFiltered;
 end;
 
-procedure TFRMAccountSelect.ebMaxBalanceExit(Sender: TObject);
-begin
-  if ebMaxBalance.text<>'' then begin
-    cbAccountsBalance.Checked:=True;
-    SearchFiltered;
-  end;
-end;
-
 procedure TFRMAccountSelect.ebMinBalanceExit(Sender: TObject);
 begin
-  if ebMinBalance.text<>'' then begin
-    cbAccountsBalance.Checked:=True;
+  if ebMinBalance.Text <> '' then begin
+    cbAccountsBalance.Checked := True;
     SearchFiltered;
   end;
 end;
 
-procedure TFRMAccountSelect.FormDestroy(Sender: TObject);
+procedure TFRMAccountSelect.ebMaxBalanceExit(Sender: TObject);
 begin
-  FSearchThread.Terminate;
-  FSearchThread.WaitFor;
-  FSearchThread.Free;
-  FAccounts.Free;
-end;
-
-procedure TFRMAccountSelect.SetNode(const Value: TNode);
-begin
-  FNode := Value;
-  FSafeBox := FNode.Bank.SafeBox;
-  UpdateControls;
-end;
-
-procedure TFRMAccountSelect.SetWalletKeys(const Value: TWalletKeys);
-begin
-  FWalletKeys := Value;
-  UpdateControls;
-  SearchFiltered;
-end;
-
-procedure TFRMAccountSelect.SearchFiltered;
-Var
-  i : Integer;
-  searchValues : TSearchValues;
-begin
-  FSearchThread.StopSearch;
-  searchValues.SafeBox := FSafeBox;
-  searchValues.inAccountKey := CT_AccountInfo_NUL.accountKey;
-  searchValues.inWalletKeys := Nil;
-  If (cbMyAccounts.Checked) And (Assigned(FWalletKeys)) then begin
-    If (cbMyPrivateKeys.ItemIndex<=0) then begin
-      // All
-      searchValues.inWalletKeys := FWalletKeys;
-    end else begin
-      i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
-      if (i>=0) and (i<FWalletKeys.Count) then searchValues.inAccountKey := FWalletKeys.Key[i].AccountKey;
-    end;
-    cbMyPrivateKeys.ParentFont:=True;
-  end else begin
-    cbMyPrivateKeys.Font.Color := clGray;
-  end;
-  searchValues.onlyForSale := (cbOnlyForSale.Checked);
-  searchValues.onlyForPrivateSaleToMe := (cbOnlyForPrivateSaleToMe.Checked);
-  If searchValues.onlyForPrivateSaleToMe then begin
-    searchValues.inWalletKeys := FWalletKeys;
-  end;
-  searchValues.onlyForPublicSale := (cbOnlyForPublicSale.Checked);
-  If cbAccountsBalance.Checked then begin
-    If not TAccountComp.TxtToMoney(ebMinBalance.Text,searchValues.minBal) then Raise Exception.Create('Invalid Min Balance');
-    ebMinBalance.Text:=TAccountComp.FormatMoney(searchValues.minBal);
-    If Trim(ebMaxBalance.Text)='' then begin
-      ebMaxBalance.Text:='';
-      searchValues.maxBal:=-1;
-    end else begin
-      If not TAccountComp.TxtToMoney(ebMaxBalance.Text,searchValues.maxBal) then Raise Exception.Create('Invalid Max Balance');
-      ebMaxBalance.Text:=TAccountComp.FormatMoney(searchValues.maxBal);
-    end;
-    ebMinBalance.ParentFont:=True;
-    ebMaxBalance.ParentFont:=True;
-  end else begin
-    searchValues.minBal:=0;
-    searchValues.maxBal:=-1;
-    ebMinBalance.Font.Color:=clGray;
-    ebMaxBalance.Font.Color:=clGray;
-  end;
-  if (cbAccountsName.Checked) then begin
-    searchValues.searchName.FromString(ebAccountName.Text);
-    ebAccountName.ParentFont:=True;
-  end else begin
-    searchValues.searchName:=Nil;
-    ebAccountName.Font.Color := clGray;
-  end;
-  If (searchValues.inAccountKey.EC_OpenSSL_NID=0) AND (searchValues.inWalletKeys=Nil) And (searchValues.maxBal<0) And (searchValues.minBal<=0) And
-     (Not searchValues.onlyForPrivateSaleToMe) And (Not searchValues.onlyForPublicSale) And (Not searchValues.onlyForSale) And
-     (Length(searchValues.searchName)=0) then begin
-    FAccountsGrid.AccountsGridDatasource := acds_Node;
-    lblAccountsCount.Caption := IntToStr(FAccountsGrid.Node.Bank.SafeBox.AccountsCount);
-    lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
-  end else begin
-    FAccountsGrid.AccountsGridDatasource := acds_InternalList;
-    FSearchThread.DoSearch(searchValues);
+  if ebMaxBalance.Text <> '' then begin
+    cbAccountsBalance.Checked := True;
+    SearchFiltered;
   end;
 end;
 
-procedure TFRMAccountSelect.UpdateControls;
-var i : Integer;
+procedure TFRMAccountSelect.bbTypeStatsClick(Sender: TObject);
 begin
-  cbMyAccounts.Enabled:=Assigned(FWalletKeys);
-  If not Assigned(FWalletKeys) then begin
-    cbMyAccounts.Checked:=False;
-    cbMyPrivateKeys.Enabled:=False;
-    cbMyPrivateKeys.Clear;
-  end else begin
-    cbMyPrivateKeys.Enabled:=True;
-    cbMyPrivateKeys.Items.BeginUpdate;
+  if FStopping or StatsRunning or not Assigned(FSource) then Exit;
+  FAccountsGrid.RefreshSuspended := True;
+  FAccountsGrid.ShowLoading('Please Wait','Calculating account type statistics');
+  bbTypeStats.Enabled := False;
+  bbSelect.Enabled := False;
+  try
+    FStatsTask := CreateStatsTask;
+    FStatsTask.OnCompleted := OnStatsCompleted;
+    FStatsTask.Start;
+  except
+    FreeAndNil(FStatsTask);
+    FAccountsGrid.HideLoading;
+    FAccountsGrid.RefreshSuspended := False;
+    bbTypeStats.Enabled := True;
+    raise;
+  end;
+end;
+
+procedure TFRMAccountSelect.OnStatsCompleted(Sender: TObject);
+var LTask: TAccountSelectorStatsTask; LStats: TAccountSelectorTypeStats; LError: String;
+begin
+  if FStopping or (Sender <> FStatsTask) then Exit;
+  LTask := FStatsTask;
+  FStatsTask := nil;
+  LStats := LTask.Stats;
+  LError := LTask.ErrorMessage;
+  LTask.Free;
+  FAccountsGrid.HideLoading;
+  FAccountsGrid.RefreshSuspended := False;
+  bbTypeStats.Enabled := True;
+  if LError <> '' then ShowMessage(LError)
+  else ShowTypeStatsReport(LStats);
+end;
+
+procedure TFRMAccountSelect.BuildTypeStatsReport(const AStats: TAccountSelectorTypeStats; AText: TStrings);
+var K,J: Integer;
+begin
+  AText.Clear;
+  AText.Add('*** Account type stats ***');
+  AText.Add(Format('Current block:%d accounts:%d coins:%s',
+    [AStats.Chain.Blocks,AStats.Chain.Accounts,TAccountComp.FormatMoney(AStats.Chain.Balance)]));
+  AText.Add('');
+  AText.Add('** Basic stats **');
+  AText.Add(Format('Account type=0 accounts:%d coins:%s',
+    [AStats.Zero.Accounts,TAccountComp.FormatMoney(AStats.Zero.Balance)]));
+  AText.Add(Format('Account type [1..9999] accounts:%d coins:%s',
+    [AStats.Invalid.Accounts,TAccountComp.FormatMoney(AStats.Invalid.Balance)]));
+  AText.Add('');
+  AText.Add('*** Stats by group ***');
+  for K := 0 to 6 do begin
+    AText.Add('');
+    AText.Add(Format('** Group [%d..%d] **',[K*10000,(K+1)*10000-1]));
+    for J := 0 to 9 do AText.Add(Format('Account type like %d%d*** accounts:%d coins:%s',
+      [K,J,AStats.Digits[K,1,J].Accounts,TAccountComp.FormatMoney(AStats.Digits[K,1,J].Balance)]));
+    for J := 0 to 9 do AText.Add(Format('Account type like %d*%d** accounts:%d coins:%s',
+      [K,J,AStats.Digits[K,2,J].Accounts,TAccountComp.FormatMoney(AStats.Digits[K,2,J].Balance)]));
+    for J := 0 to 9 do AText.Add(Format('Account type like %d**%d* accounts:%d coins:%s',
+      [K,J,AStats.Digits[K,3,J].Accounts,TAccountComp.FormatMoney(AStats.Digits[K,3,J].Balance)]));
+    for J := 0 to 9 do AText.Add(Format('Account type like %d***%d accounts:%d coins:%s',
+      [K,J,AStats.Digits[K,4,J].Accounts,TAccountComp.FormatMoney(AStats.Digits[K,4,J].Balance)]));
+  end;
+end;
+
+procedure TFRMAccountSelect.ShowTypeStatsReport(const AStats: TAccountSelectorTypeStats);
+var LText: TStringList; LForm: TFRMMemoText;
+begin
+  // Keep the established global report and wording; only computation moved off
+  // the UI thread. Formatting this bounded report is presentation work.
+  LText := TStringList.Create;
+  try
+    BuildTypeStatsReport(AStats,LText);
+    LForm := TFRMMemoText.Create(Self);
     try
-      cbMyPrivateKeys.Items.Clear;
-      For i:=0 to FWalletKeys.Count-1 do begin
-        cbMyPrivateKeys.Items.AddObject(FWalletKeys.Key[i].Name,TObject(i));
-      end;
-      cbMyPrivateKeys.Sorted:=True;
-      cbMyPrivateKeys.Sorted:=False;
-      cbMyPrivateKeys.items.InsertObject(0,'(All)',TObject(-1));
+      LForm.InitData('Account Type Stats',LText.Text);
+      LForm.ShowModal;
     finally
-      cbMyPrivateKeys.Items.EndUpdate;
+      LForm.Free;
     end;
-  end;
-end;
-
-procedure TFRMAccountSelect.OnSearchFinished(const searchFound: TCardinalsArray; const searchValues: TSearchValues);
-Var l : TOrderedCardinalList;
-  i, foundpos : Integer;
-begin
-  foundpos := -1;
-  l := FAccountsGrid.LockAccountsList;
-  try
-    l.Clear;
-    for i:=0 to High(searchFound) do begin
-      l.Add(searchFound[i]);
-      If searchFound[i]=FDefaultAccount then foundpos := i;
-    end;
-    lblAccountsCount.Caption := inttostr(l.Count);
   finally
-    FAccountsGrid.UnlockAccountsList;
-  end;
-  If foundpos>=0 then begin
-    FAccountsGrid.DrawGrid.Row := foundpos + 1;
-  end;
-end;
-
-procedure TFRMAccountSelect.OnAccountsGridUpdated(Sender: TObject);
-begin
-  lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
-end;
-
-function TFRMAccountSelect.GetSelected: Int64;
-Var ocl : TOrderedCardinalList;
-begin
-  Result := -1;
-  ocl := TOrderedCardinalList.Create;
-  try
-    If FAccountsGrid.SelectedAccounts(ocl)=1 then Result := ocl.Get(0);
-  finally
-    ocl.Free;
+    LText.Free;
   end;
 end;
 

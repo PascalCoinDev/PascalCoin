@@ -9,7 +9,9 @@ object CTRLWallet: TCTRLWallet
   ClientHeight = 571
   ClientWidth = 1151
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnResize = FormResize
+  OnShow = FormResize
   LCLVersion = '2.0.10.0'
   object PairSplitter1: TPairSplitter
     Cursor = crDefault
@@ -40,7 +42,7 @@ object CTRLWallet: TCTRLWallet
         object Label1: TLabel
           Left = 16
           Height = 14
-          Top = 16
+          Top = 19
           Width = 68
           Caption = 'Total PASC'
           Font.Style = [fsBold]
@@ -50,7 +52,7 @@ object CTRLWallet: TCTRLWallet
         object Label2: TLabel
           Left = 16
           Height = 14
-          Top = 48
+          Top = 51
           Width = 69
           Caption = 'Total PASA'
           Font.Style = [fsBold]
@@ -60,12 +62,12 @@ object CTRLWallet: TCTRLWallet
         object lblTotalPASA: TLabel
           Left = 220
           Height = 15
-          Top = 48
+          Top = 51
           Width = 108
           Alignment = taRightJustify
           Anchors = [akTop, akRight]
           AutoSize = False
-          Caption = '0'
+          Caption = '-'
           Font.Style = [fsBold]
           ParentColor = False
           ParentFont = False
@@ -73,12 +75,12 @@ object CTRLWallet: TCTRLWallet
         object lblTotalPASC: TLabel
           Left = 220
           Height = 15
-          Top = 16
+          Top = 19
           Width = 106
           Alignment = taRightJustify
           Anchors = [akTop, akRight]
           AutoSize = False
-          Caption = '0'
+          Caption = '-'
           Font.Style = [fsBold]
           ParentColor = False
           ParentFont = False
