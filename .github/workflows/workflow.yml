@@ -47,6 +47,26 @@ jobs:
         cat .ci-threading/results.log
         grep -q '^0 unfreed memory blocks' .ci-threading/results.log.heap.log
 
+    - name: Diagnose Unix threading failures
+      if: ${{ failure() && runner.os != 'Windows' }}
+      shell: bash
+      run: |
+        if [[ ! -x .ci-threading/bin/ThreadingTests ]]; then exit 0; fi
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          gdb --batch -ex 'set pagination off' -ex run -ex 'thread apply all bt' \
+            --args ./.ci-threading/bin/ThreadingTests .ci-threading/debug-results.log
+        else
+          lldb --batch -o run -o 'thread backtrace all' \
+            -- ./.ci-threading/bin/ThreadingTests .ci-threading/debug-results.log
+        fi
+
+    - name: Upload threading reports
+      if: ${{ always() && hashFiles('.ci-threading/*.log*') != '' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: Threading-${{ runner.os }}
+        path: .ci-threading/*.log*
+
     - name: Build the Pascal daemon
       run: lazbuild -B "src/pascalcoin_daemon.lpi"
 
