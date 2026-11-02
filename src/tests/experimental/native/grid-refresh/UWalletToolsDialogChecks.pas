@@ -671,6 +671,9 @@ begin
   FMain.Mode := wmWallet;
   FMain.Model.SetData(7401, 5);
   LGrid := LWallet.AccountsGrid;
+  // This scenario needs all five public accounts, independently of the native
+  // viewport. Auto capacity is covered by the separate grid component tests.
+  LGrid.PageMode := vpmSingle;
   LGrid.RefreshThrottle.Cancel;
   LGrid.RefreshGrid;
   LUntil := GetTickCount64 + 8000;
@@ -679,6 +682,9 @@ begin
     Pump(5);
   Require(not LGrid.IsUpdating and (LGrid.RowCount = 5),
     'History picker requires the actual five-row account grid');
+  for I := 0 to 4 do
+    Require(Cardinal(LGrid.Rows[I].__KEY) = Cardinal(I),
+      'The history picker must use all five public account IDs');
   Require(LWallet.OperationsGrid.WidgetControl is TComboBox,
     'The actual operations-grid duration widget is missing');
   LDuration := TComboBox(LWallet.OperationsGrid.WidgetControl);
@@ -698,6 +704,9 @@ begin
 
     LWallet.OperationsGrid.RefreshThrottle.Cancel;
     LCompleted := FMain.Model.Metrics(mdkOperations).CompletedCount;
+    // A small native viewport may scroll even this complete five-row result.
+    // Keep the actual target visible before checking its hit test and click.
+    LGrid.InternalDrawGrid.TopRow := I + 2;
     LCell := LGrid.InternalDrawGrid.CellRect(0, I + 2);
     Require((LCell.Left >= 0) and (LCell.Top >= 0) and
       (LCell.Right <= LGrid.InternalDrawGrid.ClientWidth) and
@@ -1009,11 +1018,14 @@ var
   LCell: TRect;
   LPoint: LPARAM;
   LUntil: UInt64;
+  I: Integer;
   LPreviousPopup: TPreparePopupMenuEvent;
   LPreviousEnabled: Boolean;
 begin
   FMain.Model.SetData(7301, 5);
   LGrid := FMain.MockWallet.AccountsGrid;
+  // Native popup/wizard checks need these five IDs, not an Auto-sized slice.
+  LGrid.PageMode := vpmSingle;
   LGrid.RefreshThrottle.Cancel;
   LGrid.RefreshGrid;
   LUntil := GetTickCount64 + 8000;
@@ -1021,6 +1033,9 @@ begin
     (GetTickCount64 < LUntil) do
     Pump(5);
   Require(not LGrid.IsUpdating and (LGrid.RowCount = 5), 'Mock wallet did not display five public account IDs');
+  for I := 0 to 4 do
+    Require(Cardinal(LGrid.Rows[I].__KEY) = Cardinal(I),
+      'The native wizard must use all five public account IDs');
   LCell := LGrid.InternalDrawGrid.CellRect(0, 1);
   LPoint := LPARAM(((LCell.Top + LCell.Bottom) div 2) shl 16) or
     LPARAM((LCell.Left + LCell.Right) div 2);
