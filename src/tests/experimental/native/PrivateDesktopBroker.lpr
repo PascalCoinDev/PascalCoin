@@ -240,10 +240,11 @@ begin
     try
       WriteLn('Started own QA child PID ', LChild.dwProcessId, ' on ', LDesktopPath,
         '; input desktop unchanged; data: ', LDataDirectory);
-      // The complete suite includes real pending-save waits and heap tracing.
-      // Bound that owned test process separately from the short native UI probes.
+      // The complete suite includes real pending-save waits, large collections
+      // and heap tracing; measured runs can exceed ten minutes. Individual test
+      // deadlines and the short native UI probe budget remain independent.
       if AMode = 'units' then
-        LWaitResult := WaitForSingleObject(LChild.hProcess, 600000)
+        LWaitResult := WaitForSingleObject(LChild.hProcess, 1800000)
       else
         LWaitResult := WaitForSingleObject(LChild.hProcess, 30000);
       if LWaitResult = WAIT_TIMEOUT then begin

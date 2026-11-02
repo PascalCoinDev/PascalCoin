@@ -1,5 +1,43 @@
 # Experimental wallet regression tests
 
+## Complete Windows runner
+
+Build the experimental wallet, then run:
+
+```powershell
+& src/tests/experimental/RunAllWalletTests.ps1
+```
+
+The runner finds FPC and Lazarus on `PATH`, or accepts `-FpcPath` and
+`-LazarusDirectory`. Use `-OutputDirectory` for compiler outputs and reports;
+`-WalletExecutable` selects the already-built shipping wallet used by startup
+checks. CI builds both wallet applications before invoking this runner.
+
+It runs every registered unit fixture, the isolated main-grid integration
+fixture, native grid scenarios, network toggling, buffered backlog, startup and
+shutdown, downloader cancellation and safebox recovery. Native checks also cover
+Classic key selection/closure, connection restart, all nine pending-protocol
+groups, buffered frames, real-node grid cancellation and mempool lock upgrades.
+Each phase uses its own
+process and fresh data. The controller fixture remains separate because its
+application state lasts for the process. A registration manifest fails if a
+fixture unit is absent from both unit runners. `test-coverage.json` records the
+native phases and helpers already covered by the unit fixtures.
+
+The general suite passed **751 tests** on 2 November 2026 with zero errors,
+failures or unfreed blocks. This includes the common/collection fixtures and
+the previously unregistered box and comparer cases. The dedicated controller
+fixture supplies one additional FPCUnit case in its own process.
+
+The native Windows checks require the real Win32 widgetset. Linux and macOS
+build both wallets and run the portable lock suite below. Delphi-only probes
+and the opt-in large-chain fixture have separate inputs and commands.
+The pending-protocol checks use the existing visibility-only source-copy script:
+three declarations become protected, every method body stays identical, and
+source hashes/equivalence are recorded. That copy is never shipped. Classic uses
+its application's arithmetic settings; the other native core probes enable range
+and overflow checks. All processes must exit naturally with clean heap reports.
+
 ## Portable lock tests
 
 [ThreadingTests.lpr](ThreadingTests.lpr) runs the 62 core and shared read/write

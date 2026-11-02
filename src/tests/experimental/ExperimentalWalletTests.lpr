@@ -8,7 +8,9 @@ program ExperimentalWalletTests;
 {$mode delphi}
 
 uses
-  heaptrc, Interfaces, Forms, SysUtils, fpcunit, testregistry, plaintestreport,
+  // Heap tracing must precede POSIX thread-variable relocation.
+  heaptrc, {$IFDEF UNIX}cthreads,{$ENDIF}
+  Interfaces, Forms, SysUtils, fpcunit, testregistry, plaintestreport,
   UWalletStartupTests, UPendingRestoreTests, UPendingCleanupTests, UOperationPreparationTests, UChangeInfoBatchTests, UOperationWizardTests,
   UWalletRestoreTests, UWalletViewTests, UWalletAccountEnumerationTests, UWalletHistoryTests,
   UWalletSnapshotTests, UWalletMempoolReadSafetyTests, UWalletProgressDisplayTests, UThreadConcurrencyTests,
@@ -28,8 +30,30 @@ uses
   UWalletLanguageTests, UWalletParityTests, UWalletInfoTests,
   UCache.Tests, UWizard.Tests, UCommon.Data.Tests, UCommon.UI.Tests, UVisualGrid.Tests,
   UVisualGrid.Refresh.Tests, UFramework.UI.Integration.Tests, UMemory.Tests, UConcurrency.Tests,
-  UScope.Tests, UReadWriteScope.Tests,
-  UMemory;
+  UScope.Tests, UReadWriteScope.Tests, UCommon.Tests, UCommon.Collections.Tests,
+  UMemory, UCommon;
+
+type
+  TProgressResultsWriter = class(TPlainResultsWriter)
+  public
+    procedure StartTest(ATest: TTest); override;
+    procedure EndTest(ATest: TTest); override;
+  end;
+
+procedure TProgressResultsWriter.StartTest(ATest: TTest);
+begin
+  // A blocked native case leaves its name before the final report is written.
+  TFileTool.AppendText(ParamStr(1) + '.progress.log',
+    'START ' + ATest.TestSuiteName + '.' + ATest.TestName);
+  inherited StartTest(ATest);
+end;
+
+procedure TProgressResultsWriter.EndTest(ATest: TTest);
+begin
+  TFileTool.AppendText(ParamStr(1) + '.progress.log',
+    'END ' + ATest.TestSuiteName + '.' + ATest.TestName);
+  inherited EndTest(ATest);
+end;
 
 procedure RunTests;
 var
@@ -38,7 +62,7 @@ var
   disposed: TDisposables;
 begin
   // Reverse-order disposal follows FPCUnit's result-before-listener lifetime.
-  writer := disposed.AddObject(TPlainResultsWriter.Create(nil)) as TPlainResultsWriter;
+  writer := disposed.AddObject(TProgressResultsWriter.Create(nil)) as TPlainResultsWriter;
   results := disposed.AddObject(TTestResult.Create) as TTestResult;
   writer.FileName := ParamStr(1);
   results.AddListener(writer);
@@ -51,7 +75,8 @@ begin
 end;
 
 begin
-  if ParamCount <> 1 then Halt(64);
+  if ParamCount <> 1 then
+    Halt(64);
   SetHeapTraceOutput(ParamStr(1) + '.heap.log');
   Application.Initialize;
   RunTests;

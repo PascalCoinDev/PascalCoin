@@ -691,6 +691,7 @@ begin
 end;
 
 initialization
+  RegisterTest(TCompareTests);
   RegisterTest(TFilterTests);
   RegisterTest(TTransformTests);
   RegisterTest(TPublicCollectionContractTests);

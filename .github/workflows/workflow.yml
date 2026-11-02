@@ -84,11 +84,30 @@ jobs:
 
     - name: Build Experimental Wallet (Windows/Linux)
       if: ${{ runner.os != 'macOS' }}
-      run: lazbuild -B "src/pascalcoin_wallet_experimental.lpi"
+      run: lazbuild -B --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
 
     - name: Build Experimental Wallet (macOS)
       if: ${{ runner.os == 'macOS' }}
-      run: lazbuild -B --ws=cocoa "src/pascalcoin_wallet_experimental.lpi"
+      run: lazbuild -B --ws=cocoa --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
+
+    - name: Test wallet units and native workflows (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        & .\src\tests\experimental\RunAllWalletTests.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'wallet-tests')
+        exit $LASTEXITCODE
+
+    - name: Upload wallet test reports
+      if: ${{ always() && runner.os == 'Windows' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: Wallet-tests-Windows
+        if-no-files-found: warn
+        path: |
+          ${{ runner.temp }}/wallet-tests/**/*.log
+          ${{ runner.temp }}/wallet-tests/**/*.json
+          ${{ runner.temp }}/wallet-tests/**/*.png
+          ${{ runner.temp }}/wallet-tests/**/*.bmp
 
     - name: Upload binary (Windows)
       if: ${{ (matrix.operating-system == 'windows-latest')  &&  (matrix.lazarus-versions == 'stable') }}

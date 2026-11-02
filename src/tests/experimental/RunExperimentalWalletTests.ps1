@@ -83,6 +83,11 @@ if ($status -eq 0) {
         $status = 1
     }
 }
-if ($status -ne 0) { Get-Content -LiteralPath (Join-Path $outputDirectory 'broker.log') -Tail 40 }
+if ($status -ne 0) {
+    Get-Content -LiteralPath (Join-Path $outputDirectory 'broker.log') -Tail 40
+    if (Test-Path -LiteralPath "$results.progress.log") {
+        Get-Content -LiteralPath "$results.progress.log" -Tail 30
+    }
+}
 Write-Host "Experimental wallet test evidence: $outputDirectory"
 exit $status

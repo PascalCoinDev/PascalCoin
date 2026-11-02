@@ -752,6 +752,7 @@ initialization
   RegisterTest(TLogMessageTests);
   RegisterTest(TResultTests);
   RegisterTest(TVariantToolTests);
+  RegisterTest(TBoxTests);
   RegisterTest(TFileToolTests);
   RegisterTest(TStatsTests);
 end.
