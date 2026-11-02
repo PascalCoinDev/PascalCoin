@@ -945,21 +945,22 @@ end;
 function TReadWriteLock.CanAcquire(AKind: TLockKind; AThreadID: TThreadID;
   const ACounts: TThreadCounts): Boolean;
 begin
+  // RTL thread IDs may be integers or pointers; use their typed empty value.
   // Existing owners can recurse without queuing behind a writer that needs
   // them to finish. New readers/upgraders wait once any writer has queued.
   case AKind of
     lkRead:
       Result := (ACounts.Reads > 0) or (ACounts.Writes > 0) or
-        (ACounts.Upgrades > 0) or ((FWriter = 0) and (FWaitingWriters = 0));
+        (ACounts.Upgrades > 0) or ((FWriter = Default(TThreadID)) and (FWaitingWriters = 0));
     lkWrite:
       // Only the reserved upgrader may discount its own explicit read ownership;
       // all other readers must leave before that thread can acquire write mode.
-      Result := (ACounts.Writes > 0) or ((FWriter = 0) and
-        ((FUpgrader = 0) or (FUpgrader = AThreadID)) and
+      Result := (ACounts.Writes > 0) or ((FWriter = Default(TThreadID)) and
+        ((FUpgrader = Default(TThreadID)) or (FUpgrader = AThreadID)) and
         (FReaders = Ord(ACounts.Reads > 0)));
     lkUpgradeable:
       Result := (ACounts.Upgrades > 0) or (ACounts.Writes > 0) or
-        ((FUpgrader = 0) and (FWriter = 0) and (FWaitingWriters = 0));
+        ((FUpgrader = Default(TThreadID)) and (FWriter = Default(TThreadID)) and (FWaitingWriters = 0));
   else
     Result := False;
   end;
@@ -1121,13 +1122,13 @@ begin
         begin
           Dec(LCounts.Writes);
           if LCounts.Writes = 0 then
-            FWriter := 0;
+            FWriter := Default(TThreadID);
         end;
       lkUpgradeable:
         begin
           Dec(LCounts.Upgrades);
           if LCounts.Upgrades = 0 then
-            FUpgrader := 0;
+            FUpgrader := Default(TThreadID);
         end;
     end;
     if (LCounts.Reads = 0) and (LCounts.Writes = 0) and (LCounts.Upgrades = 0) then

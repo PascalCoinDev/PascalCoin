@@ -1,5 +1,31 @@
 # Experimental wallet regression tests
 
+## Portable lock tests
+
+[ThreadingTests.lpr](ThreadingTests.lpr) runs the 62 core and shared read/write
+lock cases without a GUI, Lazarus units or OpenSSL. It covers concurrent readers,
+exclusive writers, upgrades, recursion, timed waits, ownership and disposal.
+From the repository root on Linux or macOS:
+
+```sh
+mkdir -p src/tests/experimental/lib/threading/units
+fpc -B -Mdelphi -Sh -gl -Cr -Co \
+  -FUsrc/tests/experimental/lib/threading/units \
+  -FEsrc/tests/experimental/lib/threading \
+  -Fusrc/core -Fusrc/libraries/sphere10 -Fusrc/libraries/pascalcoin \
+  -Fusrc/libraries/generics.collections -Fisrc/libraries/generics.collections/inc \
+  -Fusrc/tests/experimental/core -Fusrc/tests/experimental/framework \
+  src/tests/experimental/ThreadingTests.lpr
+src/tests/experimental/lib/threading/ThreadingTests src/tests/experimental/lib/threading/tests.log
+```
+
+The same compiler arguments work on Windows; run `ThreadingTests.exe` there.
+The runner returns a nonzero code on failure and writes the test and heap reports
+beside the supplied log path. Unix initializes the RTL thread manager before the
+tests; Darwin's pointer-shaped thread IDs exercise the same ownership checks.
+
+## Wallet and native tests
+
 The shared scope fixtures are [UScope.Tests](framework/UScope.Tests.pas),
 [UMemory.Tests](../UMemory.Tests.pas) and
 [UReadWriteScope.Tests](framework/UReadWriteScope.Tests.pas). Together with
