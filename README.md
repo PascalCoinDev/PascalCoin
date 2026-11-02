@@ -4,7 +4,7 @@
 [![Discord](https://img.shields.io/discord/383064643482025984.svg?label=DISCORD%20COMMUNITY&style=for-the-badge)](https://discord.gg/9YYZyw)
 [![Reddit](https://img.shields.io/reddit/subreddit-subscribers/pascalcoin.svg?style=for-the-badge)](https://www.reddit.com/r/pascalcoin)
 
-<p align="center"><img width="300" src="resources/logo.svg" alt="PascalCoin" /></p>
+<p align="center"><img width="480" src="resources/logo.svg" alt="PascalCoin" /></p>
 
 # PascalCoin
 
