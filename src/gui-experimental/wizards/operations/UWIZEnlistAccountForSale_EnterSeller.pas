@@ -26,6 +26,16 @@ unit UWIZEnlistAccountForSale_EnterSeller;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Selects the beneficiary account that will receive the account sale proceeds.
+}
+
+{ Public types in this unit
+
+  Type                                 | Purpose
+  -------------------------------------+--------------------------------------------------------------------------
+  TWIZEnlistAccountForSale_EnterSeller | Validates the sale beneficiary against the accounts being sold.
+}
+
 interface
 
 uses

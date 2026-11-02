@@ -20,6 +20,18 @@ unit UFRMMainForm;
 {$mode delphi}
 {$ENDIF}
 
+{ Hosts the wallet, banner and synchronization view, menus and status
+  controls. Routes application events and user commands to the controller and
+  owned views. }
+
+{ Public types in this unit
+
+  Type             | Purpose
+  -----------------+-------------------------------------------------------------------------
+  TFRMMainForm     | Hosts the experimental wallet window, views and main commands.
+  TFRMMainFormMode | Selects the wallet or synchronization view.
+}
+
 interface
 
 {$I ..\config.inc}

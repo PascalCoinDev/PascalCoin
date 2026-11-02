@@ -17,6 +17,16 @@ unit UWIZAddKey_EnterName;
 {$mode delphi}
 {$ENDIF}
 
+{ Collects a nonempty display name for the wallet key being added.
+}
+
+{ Public types in this unit
+
+  Type                 | Purpose
+  ---------------------+--------------------------------------------------------------------------
+  TWIZAddKey_EnterName | Edits and validates the new wallet key's display name.
+}
+
 interface
 
 uses

@@ -26,6 +26,16 @@ unit UWIZOperationPayload_Password;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Collects a nonempty password used to encrypt an operation payload.
+}
+
+{ Public types in this unit
+
+  Type                          | Purpose
+  ------------------------------+--------------------------------------------------------------------------
+  TWIZOperationPayload_Password | Validates a nonempty payload password before content entry.
+}
+
 interface
 
 uses

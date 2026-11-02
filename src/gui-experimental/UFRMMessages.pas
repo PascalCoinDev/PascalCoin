@@ -20,6 +20,16 @@ unit UFRMMessages;
 {$mode delphi}
 {$ENDIF}
 
+{ Lists received node messages and sends messages to selected peer
+  connections. }
+
+{ Public types in this unit
+
+  Type         | Purpose
+  -------------+-------------------------------------------------------------------------
+  TFRMMessages | Displays received messages and composes messages for peers.
+}
+
 interface
 
 {$I ..\config.inc}

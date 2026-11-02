@@ -21,6 +21,17 @@ unit UWIZEnlistAccountForSale;
 {$mode delphi}
 {$ENDIF}
 
+{ Coordinates public or private account sale terms, signer selection,
+  confirmation and execution.
+}
+
+{ Public types in this unit
+
+  Type                           | Purpose
+  -------------------------------+--------------------------------------------------------------------------
+  TWIZEnlistAccountForSaleWizard | Runs and executes confirmed account-for-sale listings.
+}
+
 interface
 
 uses

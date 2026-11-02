@@ -21,6 +21,17 @@ unit UWIZBuyAccount;
 {$mode delphi}
 {$ENDIF}
 
+{ Coordinates account purchase details, optional fee and payload steps,
+  confirmation and execution.
+}
+
+{ Public types in this unit
+
+  Type                 | Purpose
+  ---------------------+--------------------------------------------------------------------------
+  TWIZBuyAccountWizard | Runs the account purchase workflow and submits the confirmed purchase.
+}
+
 interface
 
 uses

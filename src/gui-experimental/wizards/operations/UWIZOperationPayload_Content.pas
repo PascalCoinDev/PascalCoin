@@ -26,6 +26,17 @@ unit UWIZOperationPayload_Content;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Collects an operation message and checks message text length against the limit before the
+  next wizard step.
+}
+
+{ Public types in this unit
+
+  Type                         | Purpose
+  -----------------------------+--------------------------------------------------------------------------
+  TWIZOperationPayload_Content | Edits payload content and checks its length against the size limit.
+}
+
 interface
 
 uses

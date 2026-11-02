@@ -21,6 +21,15 @@ unit UFRMAbout;
 {$mode delphi}
 {$ENDIF}
 
+{ Displays the wallet version, project links and software credits. }
+
+{ Public types in this unit
+
+  Type      | Purpose
+  ----------+-------------------------------------------------------------------------
+  TFRMAbout | Shows version information, credits and project links.
+}
+
 interface
 
 {$I ../config.inc}

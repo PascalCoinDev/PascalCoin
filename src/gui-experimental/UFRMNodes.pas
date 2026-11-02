@@ -20,6 +20,16 @@ unit UFRMNodes;
 {$mode delphi}
 {$ENDIF}
 
+{ Displays peer connections, known node addresses and network statistics.
+  Refreshes the lists from network-change events. }
+
+{ Public types in this unit
+
+  Type      | Purpose
+  ----------+-------------------------------------------------------------------------
+  TFRMNodes | Shows peer connections, known nodes and network statistics.
+}
+
 interface
 
 {$I ..\config.inc}

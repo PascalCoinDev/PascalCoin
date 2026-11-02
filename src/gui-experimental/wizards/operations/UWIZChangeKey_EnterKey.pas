@@ -26,6 +26,17 @@ unit UWIZChangeKey_EnterKey;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Collects a new owner public key for account transfer and optional fee or
+  payload settings.
+}
+
+{ Public types in this unit
+
+  Type                   | Purpose
+  -----------------------+--------------------------------------------------------------------------
+  TWIZChangeKey_EnterKey | Validates an imported owner key and adds the selected operation steps.
+}
+
 interface
 
 uses

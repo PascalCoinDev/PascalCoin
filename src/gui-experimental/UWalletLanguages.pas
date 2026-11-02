@@ -9,6 +9,17 @@ unit UWalletLanguages;
 {$mode delphi}
 {$ENDIF}
 
+{ Finds installed translation catalogs and reads, saves and applies the wallet
+  language preference for Delphi and Lazarus forms. }
+
+{ Public types in this unit
+
+  Type             | Purpose
+  -----------------+-------------------------------------------------------------------------
+  TWalletLanguage  | Pairs a translation code with its display name.
+  TWalletLanguages | Discovers catalogs and manages the wallet language preference.
+}
+
 interface
 
 uses SysUtils, UCommon, UAppParams;

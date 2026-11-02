@@ -20,6 +20,15 @@ unit UFRMLogs;
 {$mode delphi}
 {$ENDIF}
 
+{ Displays runtime log messages and lets the user include debug output. }
+
+{ Public types in this unit
+
+  Type     | Purpose
+  ---------+-------------------------------------------------------------------------
+  TFRMLogs | Displays application logs with an optional debug-message filter.
+}
+
 interface
 
 {$I ..\config.inc}

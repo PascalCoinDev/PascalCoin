@@ -19,6 +19,16 @@ unit UFRMSaleAccounts;
 
 {$I ..\config.inc}
 
+{ Contains the account-sale dialog and its seller, price, lock-period and
+  buyer-key inputs. }
+
+{ Public types in this unit
+
+  Type             | Purpose
+  -----------------+-------------------------------------------------------------------------
+  TFRMSaleAccounts | Provides account-sale inputs and execution controls.
+}
+
 interface
 
 uses

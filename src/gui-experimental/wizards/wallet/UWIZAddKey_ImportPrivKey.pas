@@ -17,6 +17,17 @@ unit UWIZAddKey_ImportPrivKey;
 {$mode delphi}
 {$ENDIF}
 
+{ Collects private-key import text and its password, then validates that the
+  key can be decoded.
+}
+
+{ Public types in this unit
+
+  Type                     | Purpose
+  -------------------------+--------------------------------------------------------------------------
+  TWIZAddKey_ImportPrivKey | Edits and validates an imported private key and password.
+}
+
 interface
 
 uses

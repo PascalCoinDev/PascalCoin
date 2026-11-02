@@ -20,6 +20,16 @@ unit UFRMPayloadDecoder;
 {$mode Delphi}
 {$ENDIF}
 
+{ Decodes operation payloads as text or bytes and attempts decryption with
+  wallet keys or a supplied password. }
+
+{ Public types in this unit
+
+  Type               | Purpose
+  -------------------+-------------------------------------------------------------------------
+  TFRMPayloadDecoder | Inspects and decrypts operation payload data.
+}
+
 interface
 
 {$I ../config.inc}

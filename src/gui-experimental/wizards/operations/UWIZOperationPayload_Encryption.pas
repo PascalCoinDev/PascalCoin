@@ -26,6 +26,17 @@ unit UWIZOperationPayload_Encryption;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Selects public payloads or encryption using the sender, recipient or a
+  password.
+}
+
+{ Public types in this unit
+
+  Type                            | Purpose
+  --------------------------------+--------------------------------------------------------------------------
+  TWIZOperationPayload_Encryption | Chooses payload encryption and inserts password or content entry.
+}
+
 interface
 
 uses

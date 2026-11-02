@@ -22,6 +22,20 @@ unit UCTRLWallet;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Hosts wallet account and operation grids, key selection, balances and
+  operation actions. Node synchronization pauses queries; completed reads
+  update the grids and overview. }
+
+{ Public types in this unit
+
+  Type                         | Purpose
+  -----------------------------+-------------------------------------------------------------------------
+  TCTRLWallet                  | Hosts account/history grids, wallet totals and operation actions.
+  TCTRLWalletAccountsMode      | Selects the account grid or the first-account prompt.
+  TCTRLWalletOperationsHistory | Selects seven-day, thirty-day or all available stored history.
+  TCTRLWalletOperationsMode    | Selects history for chosen accounts or the whole wallet.
+}
+
 interface
 
 uses

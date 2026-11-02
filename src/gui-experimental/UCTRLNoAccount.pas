@@ -17,6 +17,16 @@ unit UCTRLNoAccount;
 {$mode delphi}
 {$ENDIF}
 
+{ Presents the first-account view when the wallet has no accounts and opens
+  the account-acquisition page. }
+
+{ Public types in this unit
+
+  Type            | Purpose
+  ----------------+-------------------------------------------------------------------------
+  TCTRLNoAccounts | Shows the first-account prompt and account-acquisition action.
+}
+
 interface
 
 uses

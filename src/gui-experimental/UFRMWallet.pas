@@ -17,6 +17,17 @@ unit UFRMWallet;
 
   }
 
+{ Combines account and operation grids with explorer, network, mining and
+  key-management controls in one wallet form. }
+
+{ Public types in this unit
+
+  Type             | Purpose
+  -----------------+-------------------------------------------------------------------------
+  TFRMWallet       | Combines wallet, explorer, networking and mining controls.
+  TMinerPrivateKey | Selects how the mining reward key is chosen.
+}
+
 interface
 
 {$I ../config.inc}

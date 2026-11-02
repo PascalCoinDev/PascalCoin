@@ -17,6 +17,16 @@ unit UCellRenderers;
 {$mode delphi}
 {$ENDIF}
 
+{ Formats account and operation values for visual-grid cells, including
+  amounts, timestamps, payloads and operation hashes. }
+
+{ Public types in this unit
+
+  Type           | Purpose
+  ---------------+-------------------------------------------------------------------------
+  TCellRenderers | Formats and paints wallet account and operation cells.
+}
+
 interface
 
 uses

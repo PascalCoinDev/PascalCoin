@@ -26,6 +26,17 @@ unit UWIZEnlistAccountForSale_SelectOption;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Chooses a public or private account sale and adds buyer restrictions for
+  private sales.
+}
+
+{ Public types in this unit
+
+  Type                                  | Purpose
+  --------------------------------------+--------------------------------------------------------------------------
+  TWIZEnlistAccountForSale_SelectOption | Selects the sale mode and inserts private-buyer key entry.
+}
+
 interface
 
 uses

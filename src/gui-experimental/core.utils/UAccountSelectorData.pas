@@ -7,6 +7,22 @@ unit UAccountSelectorData;
 
 {$IFDEF FPC}{$mode delphi}{$ENDIF}
 
+{ Queries confirmed accounts using owner, sale, balance and name filters.
+  Caches matching account numbers for paging and calculates account-type
+  totals on a consistent chain snapshot. }
+
+{ Public types in this unit
+
+  Type                            | Purpose
+  --------------------------------+-------------------------------------------------------------------------
+  EAccountSelectorSnapshotChanged | Reports that the queried chain snapshot changed during a read.
+  TAccountSelectorChain           | Captures the safebox identity and chain totals for a query.
+  TAccountSelectorDataSource      | Filters and pages confirmed accounts and calculates type statistics.
+  TAccountSelectorFilter          | Carries owner, sale, balance and account-name query filters.
+  TAccountSelectorTotal           | Pairs an account count with its total balance.
+  TAccountSelectorTypeStats       | Groups account counts and balances by account-type digits.
+}
+
 interface
 
 {$I ..\..\config.inc}

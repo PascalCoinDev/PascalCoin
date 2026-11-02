@@ -20,6 +20,16 @@ unit UFRMPendingOperations;
 {$mode delphi}
 {$ENDIF}
 
+{ Displays the node's pending operations and opens details for a selected
+  operation. }
+
+{ Public types in this unit
+
+  Type                  | Purpose
+  ----------------------+-------------------------------------------------------------------------
+  TFRMPendingOperations | Lists pending operations and their details.
+}
+
 interface
 
 {$I ..\config.inc}

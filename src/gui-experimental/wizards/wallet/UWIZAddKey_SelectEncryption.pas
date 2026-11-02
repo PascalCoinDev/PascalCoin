@@ -17,6 +17,16 @@ unit UWIZAddKey_SelectEncryption;
 {$mode delphi}
 {$ENDIF}
 
+{ Selects a supported elliptic curve for a newly generated wallet key.
+}
+
+{ Public types in this unit
+
+  Type                        | Purpose
+  ----------------------------+--------------------------------------------------------------------------
+  TWIZAddKey_SelectEncryption | Lists supported key curves and stores the chosen OpenSSL NID.
+}
+
 interface
 
 uses

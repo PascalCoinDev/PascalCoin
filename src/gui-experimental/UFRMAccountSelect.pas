@@ -20,6 +20,16 @@ unit UFRMAccountSelect;
 {$MODE Delphi}
 {$ENDIF}
 
+{ Selects an account using owner, sale, balance and name filters. Queries and
+  account-type statistics run outside the UI thread. }
+
+{ Public types in this unit
+
+  Type              | Purpose
+  ------------------+-------------------------------------------------------------------------
+  TFRMAccountSelect | Filters accounts and returns the chosen account number.
+}
+
 interface
 
 {$I ..\config.inc}

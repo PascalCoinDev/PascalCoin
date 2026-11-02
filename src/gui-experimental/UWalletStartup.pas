@@ -10,6 +10,16 @@ unit UWalletStartup;
 {$mode delphi}
 {$ENDIF}
 
+{ Parses startup options for data location, offline mode and startup dialogs
+  without opening wallet data or sockets. }
+
+{ Public types in this unit
+
+  Type                  | Purpose
+  ----------------------+-------------------------------------------------------------------------
+  TWalletStartupOptions | Carries parsed data-directory, offline, dialog and help options.
+}
+
 interface
 
 uses

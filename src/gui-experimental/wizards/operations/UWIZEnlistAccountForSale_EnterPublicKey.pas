@@ -26,6 +26,17 @@ unit UWIZEnlistAccountForSale_EnterPublicKey;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Collects the permitted buyer public key for a private sale before its
+  locking-block step.
+}
+
+{ Public types in this unit
+
+  Type                                    | Purpose
+  ----------------------------------------+--------------------------------------------------------------------------
+  TWIZEnlistAccountForSale_EnterPublicKey | Validates the buyer key and inserts the private-sale lock step.
+}
+
 interface
 
 uses

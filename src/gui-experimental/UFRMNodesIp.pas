@@ -20,6 +20,16 @@ unit UFRMNodesIp;
 {$MODE Delphi}
 {$ENDIF}
 
+{ Edits the node addresses used for peer discovery and fixed-server
+  connections. }
+
+{ Public types in this unit
+
+  Type        | Purpose
+  ------------+-------------------------------------------------------------------------
+  TFRMNodesIp | Edits discovery addresses and fixed-server connection settings.
+}
+
 interface
 
 uses

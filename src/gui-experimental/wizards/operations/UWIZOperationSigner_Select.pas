@@ -26,6 +26,17 @@ unit UWIZOperationSigner_Select;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Selects an eligible signer and whether it pays every fee or serves as a
+  fallback payer.
+}
+
+{ Public types in this unit
+
+  Type                       | Purpose
+  ---------------------------+--------------------------------------------------------------------------
+  TWIZOperationSigner_Select | Filters signers by ownership, locks and fees, then records the choice.
+}
+
 interface
 
 uses

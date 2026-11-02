@@ -20,6 +20,16 @@ unit UFRMPascalCoinWalletConfig;
 {$mode delphi}
 {$ENDIF}
 
+{ Edits wallet, network, mining, fee, logging and language settings and saves
+  the selected configuration. }
+
+{ Public types in this unit
+
+  Type                       | Purpose
+  ---------------------------+-------------------------------------------------------------------------
+  TFRMPascalCoinWalletConfig | Edits and saves wallet, network, mining and display settings.
+}
+
 interface
 
 uses

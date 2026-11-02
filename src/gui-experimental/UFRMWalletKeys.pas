@@ -20,6 +20,16 @@ unit UFRMWalletKeys;
 {$mode delphi}
 {$ENDIF}
 
+{ Manages wallet keys, their names and export/import formats. Provides wallet
+  backup, restore, password and lock controls. }
+
+{ Public types in this unit
+
+  Type           | Purpose
+  ---------------+-------------------------------------------------------------------------
+  TFRMWalletKeys | Manages keys, wallet backups, passwords and wallet locking.
+}
+
 interface
 
 uses

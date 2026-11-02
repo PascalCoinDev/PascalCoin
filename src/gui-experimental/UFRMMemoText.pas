@@ -1,5 +1,16 @@
 unit UFRMMemoText;
 
+{ Shows or edits multiline text in a bounded, scrollable dialog. Confirmation
+  and result helpers keep long operation details inside the available work
+  area. }
+
+{ Public types in this unit
+
+  Type         | Purpose
+  -------------+-------------------------------------------------------------------------
+  TFRMMemoText | Displays or edits multiline text with confirmation controls.
+}
+
 interface
 
 uses

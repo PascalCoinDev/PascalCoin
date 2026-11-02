@@ -17,6 +17,16 @@ unit UWIZAddKey_ImportPubKey;
 {$mode delphi}
 {$ENDIF}
 
+{ Collects and validates an imported public key for a watch-only wallet entry.
+}
+
+{ Public types in this unit
+
+  Type                    | Purpose
+  ------------------------+--------------------------------------------------------------------------
+  TWIZAddKey_ImportPubKey | Edits and validates an imported public key.
+}
+
 interface
 
 uses

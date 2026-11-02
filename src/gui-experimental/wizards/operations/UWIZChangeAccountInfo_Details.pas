@@ -26,6 +26,17 @@ unit UWIZChangeAccountInfo_Details;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Collects a new account name or type and builds the approval, fee and payload
+  route.
+}
+
+{ Public types in this unit
+
+  Type                          | Purpose
+  ------------------------------+--------------------------------------------------------------------------
+  TWIZChangeAccountInfo_Details | Validates requested changes and separates changed and skipped accounts.
+}
+
 interface
 
 uses

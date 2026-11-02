@@ -20,6 +20,17 @@ unit UFRMAccountExplorer;
 {$mode delphi}
 {$ENDIF}
 
+{ Explores accounts and their operations, with wallet-key and balance filters
+  and a batch-selection list. Account painting reads cached snapshots while
+  owned workers load node data. }
+
+{ Public types in this unit
+
+  Type                | Purpose
+  --------------------+-------------------------------------------------------------------------
+  TFRMAccountExplorer | Explores accounts, account history and batch selections.
+}
+
 interface
 
 {$I ..\config.inc}

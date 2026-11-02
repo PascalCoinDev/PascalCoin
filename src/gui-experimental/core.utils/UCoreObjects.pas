@@ -17,6 +17,24 @@ unit UCoreObjects;
 {$mode delphi}
 {$ENDIF}
 
+{ Defines the operation choices and balance/block summaries shared by wallet
+  controls, data sources and operation wizards. }
+
+{ Public types in this unit
+
+  Type                   | Purpose
+  -----------------------+-------------------------------------------------------------------------
+  PBalanceSummary        | References a balance summary shared with an owning control.
+  TAccountSaleMode       | Selects a public sale or a sale reserved for a buyer key.
+  TBalanceSummary        | Stores total wallet currency and account counts.
+  TBlockSummary          | Stores block identity, amounts, work and timing statistics.
+  TChangeKeyMode         | Selects ownership transfer or a change of account signing key.
+  TExecuteOperationType  | Identifies the wallet operation to prepare or execute.
+  TOperationSigningMode  | Selects the primary or a separate operation signer.
+  TPayloadEncryptionMode | Selects sender-key, recipient-key, password or public payloads.
+  TSendPASCMode          | Selects a specified transfer amount or the whole balance.
+}
+
 interface
 
 uses

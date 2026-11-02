@@ -10,6 +10,17 @@ unit UWalletStartupTask;
 {$mode delphi}
 {$ENDIF}
 
+{ Runs an owned, cancellable node task with queued progress and completion
+  notifications. Cancellation joins the worker and removes callbacks before
+  its receivers are destroyed. }
+
+{ Public types in this unit
+
+  Type               | Purpose
+  -------------------+-------------------------------------------------------------------------
+  TWalletStartupTask | Runs cancellable node work and delivers progress/completion events.
+}
+
 interface
 
 uses

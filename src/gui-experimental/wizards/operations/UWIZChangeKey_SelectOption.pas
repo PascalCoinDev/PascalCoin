@@ -26,6 +26,17 @@ unit UWIZChangeKey_SelectOption;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Chooses whether to transfer accounts to an imported public key or select an
+  existing wallet key.
+}
+
+{ Public types in this unit
+
+  Type                       | Purpose
+  ---------------------------+--------------------------------------------------------------------------
+  TWIZChangeKey_SelectOption | Selects the key-change mode and inserts its key-entry screen.
+}
+
 interface
 
 uses

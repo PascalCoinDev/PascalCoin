@@ -8,6 +8,17 @@ unit UExplorerAccountSnapshots;
 
 {$IFDEF FPC}{$mode delphi}{$ENDIF}
 
+{ Supplies cached account rows and totals to the Accounts Explorer. Owned
+  background reads update a bounded cache so painting does not enter node
+  locks or storage. }
+
+{ Public types in this unit
+
+  Type                      | Purpose
+  --------------------------+-------------------------------------------------------------------------
+  TExplorerAccountSnapshots | Caches explorer account rows and totals using owned background reads.
+}
+
 interface
 
 uses Classes, SysUtils, ExtCtrls, Generics.Collections, UCommon, UCache,

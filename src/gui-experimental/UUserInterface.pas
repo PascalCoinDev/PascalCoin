@@ -20,6 +20,19 @@ unit UUserInterface;
 {$mode delphi}
 {$ENDIF}
 
+{ Coordinates application startup and shutdown, node services, UI events and
+  wallet dialogs. Owns background loading and serialized network/mining
+  configuration changes. }
+
+{ Public types in this unit
+
+  Type                | Purpose
+  --------------------+-------------------------------------------------------------------------
+  EUserInterface      | Reports an invalid or unavailable UI operation.
+  TUserInterface      | Coordinates node services, application events and wallet dialogs.
+  TUserInterfaceState | Identifies loading, connectivity, synchronization and error states.
+}
+
 interface
 
 {$I ..\config.inc}

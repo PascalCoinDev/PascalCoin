@@ -26,6 +26,16 @@ unit UWIZEnlistAccountForSale_EnterLockingBlock;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Collects the block height until which a private account sale remains locked.
+}
+
+{ Public types in this unit
+
+  Type                                       | Purpose
+  -------------------------------------------+--------------------------------------------------------------------------
+  TWIZEnlistAccountForSale_EnterLockingBlock | Validates and stores the sale's locking block height.
+}
+
 interface
 
 uses

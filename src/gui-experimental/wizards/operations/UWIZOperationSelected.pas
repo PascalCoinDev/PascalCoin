@@ -21,6 +21,17 @@ unit UWIZOperationSelected;
 {$mode delphi}
 {$ENDIF}
 
+{ Reviews selected operation accounts and their total balance before
+  validating operation eligibility.
+}
+
+{ Public types in this unit
+
+  Type                  | Purpose
+  ----------------------+--------------------------------------------------------------------------
+  TWIZOperationSelected | Displays selected accounts and checks their operation prerequisites.
+}
+
 interface
 
 uses

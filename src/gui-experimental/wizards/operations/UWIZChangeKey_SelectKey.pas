@@ -26,6 +26,17 @@ unit UWIZChangeKey_SelectKey;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Selects an existing wallet key as the accounts' new owner and configures
+  optional operation steps.
+}
+
+{ Public types in this unit
+
+  Type                    | Purpose
+  ------------------------+--------------------------------------------------------------------------
+  TWIZChangeKey_SelectKey | Chooses a wallet key and rejects an unchanged account owner.
+}
+
 interface
 
 uses

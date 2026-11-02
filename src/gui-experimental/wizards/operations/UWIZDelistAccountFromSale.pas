@@ -21,6 +21,17 @@ unit UWIZDelistAccountFromSale;
 {$mode delphi}
 {$ENDIF}
 
+{ Coordinates removal of accounts from sale, including fees, payload, signer
+  and confirmation.
+}
+
+{ Public types in this unit
+
+  Type                            | Purpose
+  --------------------------------+--------------------------------------------------------------------------
+  TWIZDelistAccountFromSaleWizard | Runs and executes confirmed account-delisting operations.
+}
+
 interface
 
 uses

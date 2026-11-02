@@ -17,6 +17,19 @@ unit UWIZAddKey;
 {$mode delphi}
 {$ENDIF}
 
+{ Coordinates wallet key generation and private or public key import through a
+  shared wizard model.
+}
+
+{ Public types in this unit
+
+  Type             | Purpose
+  -----------------+--------------------------------------------------------------------------
+  TWIZAddKeyAction | Selects key generation, private-key import or public-key import.
+  TWIZAddKeyModel  | Stores the key name, import text, password, curve and chosen action.
+  TWIZAddKeyWizard | Runs the Add Key workflow and commits the selected key action.
+}
+
 interface
 
 uses

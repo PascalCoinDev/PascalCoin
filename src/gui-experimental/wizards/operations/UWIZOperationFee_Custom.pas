@@ -26,6 +26,17 @@ unit UWIZOperationFee_Custom;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Chooses the operation fee and, for account-information changes, an optional
+  single fee payer.
+}
+
+{ Public types in this unit
+
+  Type                    | Purpose
+  ------------------------+--------------------------------------------------------------------------
+  TWIZOperationFee_Custom | Validates per-operation fees and optional batch fee-payer selection.
+}
+
 interface
 
 uses

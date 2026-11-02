@@ -26,6 +26,17 @@ unit UWIZDelistAccountFromSale_Options;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Selects optional fee and payload settings before confirming account
+  delisting.
+}
+
+{ Public types in this unit
+
+  Type                              | Purpose
+  ----------------------------------+--------------------------------------------------------------------------
+  TWIZDelistAccountFromSale_Options | Builds the optional fee, payload and signer route for delisting.
+}
+
 interface
 
 uses

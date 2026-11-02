@@ -26,6 +26,16 @@ unit UWIZEnlistAccountForSale_EnterSaleAmount;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Collects an account sale price and optional fee or payload settings.
+}
+
+{ Public types in this unit
+
+  Type                                     | Purpose
+  -----------------------------------------+--------------------------------------------------------------------------
+  TWIZEnlistAccountForSale_EnterSaleAmount | Validates the sale amount and adds optional operation steps.
+}
+
 interface
 
 uses

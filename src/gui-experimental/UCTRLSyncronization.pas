@@ -17,6 +17,18 @@ unit UCTRLSyncronization;
 {$mode delphi}
 {$ENDIF}
 
+{ Displays startup progress, synchronization state, network details and mining
+  statistics. Secondary node reads run on an owned worker and publish
+  completed snapshots to the view. }
+
+{ Public types in this unit
+
+  Type                | Purpose
+  --------------------+-------------------------------------------------------------------------
+  TCTRLSyncronization | Displays loading progress and current node/network statistics.
+  TSyncNodeSnapshot   | Carries display values returned by a node-statistics read.
+}
+
 interface
 
 {$I ..\config.inc}

@@ -17,6 +17,18 @@ unit UFRMRandomOperations;
 
   }
 
+{ Generates randomized transactions and multioperation batches for node
+  testing. The form controls the worker and reports generation and execution
+  results. }
+
+{ Public types in this unit
+
+  Type                     | Purpose
+  -------------------------+-------------------------------------------------------------------------
+  TFRMRandomOperations     | Controls random-operation generation and displays its results.
+  TRandomGenerateOperation | Builds randomized operations from available accounts and keys.
+}
+
 interface
 
 {$I ../config.inc}

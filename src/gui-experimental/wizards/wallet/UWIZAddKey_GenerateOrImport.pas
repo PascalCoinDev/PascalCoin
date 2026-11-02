@@ -17,6 +17,16 @@ unit UWIZAddKey_GenerateOrImport;
 {$mode delphi}
 {$ENDIF}
 
+{ Chooses whether to generate a private key or import an existing private key.
+}
+
+{ Public types in this unit
+
+  Type                        | Purpose
+  ----------------------------+--------------------------------------------------------------------------
+  TWIZAddKey_GenerateOrImport | Selects generation or import and inserts the matching key step.
+}
+
 interface
 
 uses

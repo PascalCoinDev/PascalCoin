@@ -26,6 +26,17 @@ unit UWIZSendPASC_Details;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Collects a transfer recipient and amount or send-all choice, with optional
+  fee and payload settings.
+}
+
+{ Public types in this unit
+
+  Type                 | Purpose
+  ---------------------+--------------------------------------------------------------------------
+  TWIZSendPASC_Details | Validates transfer inputs and inserts optional fee and payload steps.
+}
+
 interface
 
 uses

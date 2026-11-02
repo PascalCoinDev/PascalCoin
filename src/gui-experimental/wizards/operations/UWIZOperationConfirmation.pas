@@ -26,6 +26,17 @@ unit UWIZOperationConfirmation;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Summarizes operation targets, signers, fees and payload before execution,
+  and requests wallet unlock when needed.
+}
+
+{ Public types in this unit
+
+  Type                      | Purpose
+  --------------------------+--------------------------------------------------------------------------
+  TWIZOperationConfirmation | Presents the final operation summary and validates wallet unlock.
+}
+
 interface
 
 uses

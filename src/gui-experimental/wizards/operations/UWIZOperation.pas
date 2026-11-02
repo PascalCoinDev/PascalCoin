@@ -21,6 +21,31 @@ unit UWIZOperation;
 {$mode delphi}
 {$ENDIF}
 
+{ Shares selected accounts, operation inputs, fees and payload state across
+  wizard screens. Tracks wallet unlock ownership so only wizard-owned
+  unlocks are relocked.
+}
+
+{ Public types in this unit
+
+  Type                                               | Purpose
+  ---------------------------------------------------+--------------------------------------------------------------------------
+  TWalletUnlockScope                                 | Relocks a password-protected wallet only when it owns the unlock.
+  TWIZOperationsModel                                | Owns the shared inputs and unlock scope for an operation wizard.
+  TWIZOperationsModel.TAccountModel                  | Stores the selected source accounts and their count.
+  TWIZOperationsModel.TBuyAccountModel               | Stores the purchase target, price and new owner key.
+  TWIZOperationsModel.TChangeAccountInfoModel        | Stores name/type changes, approved targets and an optional fee payer.
+  TWIZOperationsModel.TChangeAccountPrivateKeyModel  | Stores the selected wallet key for an account ownership change.
+  TWIZOperationsModel.TChangeKeyModel                | Selects transfer to an imported key or an existing wallet key.
+  TWIZOperationsModel.TEnlistAccountForSaleModel     | Stores sale price, beneficiary, buyer restrictions and lock height.
+  TWIZOperationsModel.TFeeModel                      | Stores the default and selected fee per operation.
+  TWIZOperationsModel.TOperationExecuteResultHandler | Receives an operation's source account, outcome and result text.
+  TWIZOperationsModel.TPayloadModel                  | Stores payload content, encryption mode, password and encoded bytes.
+  TWIZOperationsModel.TSendPASCModel                 | Stores transfer amount, recipient and specified-amount or send-all mode.
+  TWIZOperationsModel.TSignerModel                   | Stores eligible signers, the selected signer and fee-paying mode.
+  TWIZOperationsModel.TTransferAccountModel          | Stores the imported public key that will own transferred accounts.
+}
+
 interface
 
 uses

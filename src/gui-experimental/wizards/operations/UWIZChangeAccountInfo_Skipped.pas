@@ -6,6 +6,17 @@ unit UWIZChangeAccountInfo_Skipped;
 
 {$IFDEF FPC}{$mode delphi}{$ENDIF}
 
+{ Explains which accounts already have the requested type and requires
+  approval to skip them.
+}
+
+{ Public types in this unit
+
+  Type                          | Purpose
+  ------------------------------+--------------------------------------------------------------------------
+  TWIZChangeAccountInfo_Skipped | Confirms skipped accounts before a batch type change continues.
+}
+
 interface
 
 uses Classes, SysUtils, Types, Math, Forms, Controls, StdCtrls, UWizard, UWIZOperation;

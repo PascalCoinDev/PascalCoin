@@ -21,6 +21,17 @@ unit UWIZSendPASC;
 {$mode delphi}
 {$ENDIF}
 
+{ Coordinates recipient and amount entry, optional fee and payload steps,
+  confirmation and transfer execution.
+}
+
+{ Public types in this unit
+
+  Type               | Purpose
+  -------------------+--------------------------------------------------------------------------
+  TWIZSendPASCWizard | Runs and executes confirmed PASC transfers from selected accounts.
+}
+
 interface
 
 uses

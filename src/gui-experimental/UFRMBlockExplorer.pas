@@ -20,6 +20,16 @@ unit UFRMBlockExplorer;
 {$mode delphi}
 {$ENDIF}
 
+{ Displays blockchain blocks with a block-range filter. Its Tools actions
+  refresh the list or reset that filter. }
+
+{ Public types in this unit
+
+  Type              | Purpose
+  ------------------+-------------------------------------------------------------------------
+  TFRMBlockExplorer | Browses blocks and applies or resets a block-range filter.
+}
+
 interface
 
 {$I ..\config.inc}

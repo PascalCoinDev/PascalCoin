@@ -21,6 +21,17 @@ unit UWIZChangeAccountInfo;
 {$mode delphi}
 {$ENDIF}
 
+{ Coordinates account name or type changes, approval of skipped targets, fees
+  and execution.
+}
+
+{ Public types in this unit
+
+  Type                        | Purpose
+  ----------------------------+--------------------------------------------------------------------------
+  TWIZChangeAccountInfoWizard | Runs account-information updates for the approved target accounts.
+}
+
 interface
 
 uses

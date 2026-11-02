@@ -26,6 +26,17 @@ unit UWIZBuyAccount_Details;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Collects the account to buy and its new owner key, with optional fee and
+  payload settings.
+}
+
+{ Public types in this unit
+
+  Type                   | Purpose
+  -----------------------+--------------------------------------------------------------------------
+  TWIZBuyAccount_Details | Validates purchase details and inserts optional fee and payload steps.
+}
+
 interface
 
 uses

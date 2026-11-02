@@ -20,6 +20,16 @@ unit UFRMOperationExplorer;
 {$mode delphi}
 {$ENDIF}
 
+{ Browses blockchain operations within a block range. Opens operation details
+  on a click without treating row scrolling as a request to open a dialog. }
+
+{ Public types in this unit
+
+  Type                  | Purpose
+  ----------------------+-------------------------------------------------------------------------
+  TFRMOperationExplorer | Browses operation history and opens details for a clicked row.
+}
+
 interface
 
 {$I ..\config.inc}

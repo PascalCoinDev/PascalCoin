@@ -17,6 +17,16 @@
 {$mode delphi}
 {$ENDIF}
 
+{ Displays the wallet logo, version, node status and available languages.
+  Language changes update the saved startup preference. }
+
+{ Public types in this unit
+
+  Type        | Purpose
+  ------------+-------------------------------------------------------------------------
+  TCTRLBanner | Displays wallet branding, node status and the language selector.
+}
+
 interface
 
 {$I ..\config.inc}

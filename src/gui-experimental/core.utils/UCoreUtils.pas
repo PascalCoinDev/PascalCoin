@@ -25,6 +25,27 @@ unit UCoreUtils;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Provides account/key comparisons, wallet summaries and bounded
+  operation-history queries. Prepares, validates and executes operation
+  batches using supplied accounts and keys. }
+
+{ Public types in this unit
+
+  Type                        | Purpose
+  ----------------------------+-------------------------------------------------------------------------
+  TAccountComparer            | Orders accounts for wallet collections.
+  TAccountEqualityComparer    | Compares and hashes account identities.
+  TAccountHelper              | Formats account identifiers, display text and detailed information.
+  TAccountKeyComparer         | Orders account public keys.
+  TAccountKeyEqualityComparer | Compares and hashes account public keys.
+  TCoreTool                   | Collects wallet accounts, balances, signer candidates and pending history.
+  TNodeHelper                 | Reads account snapshots and bounded pending/stored history.
+  TOperationResumeHelper      | Formats operation hashes and operation-detail text.
+  TTimeSpanHelper             | Converts a time span to its expected block count.
+  TWalletOperationRequest     | Carries the accounts, fees, keys and payload for operation preparation.
+  TWIZOperationsHelper        | Prepares, validates, signs and submits wallet operation batches.
+}
+
 interface
 
 uses

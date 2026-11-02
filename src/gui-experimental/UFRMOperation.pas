@@ -20,6 +20,17 @@ unit UFRMOperation;
   {$MODE Delphi}
 {$ENDIF}
 
+{ Prepares and executes transactions, key changes, account sales and
+  account-information changes. Validates destination, fee-payer and payload
+  choices before submitting operations. }
+
+{ Public types in this unit
+
+  Type          | Purpose
+  --------------+-------------------------------------------------------------------------
+  TFRMOperation | Prepares, validates and submits advanced wallet operations.
+}
+
 interface
 
 uses

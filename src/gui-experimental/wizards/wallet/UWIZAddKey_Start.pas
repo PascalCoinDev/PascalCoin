@@ -17,6 +17,16 @@ unit UWIZAddKey_Start;
 {$mode delphi}
 {$ENDIF}
 
+{ Chooses between adding a private key and importing a watch-only public key.
+}
+
+{ Public types in this unit
+
+  Type             | Purpose
+  -----------------+--------------------------------------------------------------------------
+  TWIZAddKey_Start | Routes Add Key to private-key setup or public-key import.
+}
+
 interface
 
 uses

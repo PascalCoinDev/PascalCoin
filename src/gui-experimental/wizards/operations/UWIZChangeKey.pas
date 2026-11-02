@@ -14,6 +14,17 @@ unit UWIZChangeKey;
   Herman Schoenfeld - designer
 }
 
+{ Coordinates account ownership changes to an imported public key or an
+  existing wallet key.
+}
+
+{ Public types in this unit
+
+  Type                | Purpose
+  --------------------+--------------------------------------------------------------------------
+  TWIZChangeKeyWizard | Runs key-change setup, signer selection, confirmation and execution.
+}
+
 interface
 
 uses

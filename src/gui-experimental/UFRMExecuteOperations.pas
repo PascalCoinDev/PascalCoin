@@ -20,6 +20,15 @@ unit UFRMExecuteOperations;
 {$mode delphi}
 {$ENDIF}
 
+{ Defines the operation-execution dialog shell and its grid placeholder. }
+
+{ Public types in this unit
+
+  Type               | Purpose
+  -------------------+-------------------------------------------------------------------------
+  TExecuteOperations | Provides the operation-execution dialog shell.
+}
+
 interface
 
 uses

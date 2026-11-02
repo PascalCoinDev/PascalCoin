@@ -22,6 +22,28 @@ unit UDataSources;
 {$modeswitch nestedprocvars}
 {$ENDIF}
 
+{ Adapts accounts, pending/stored operations and block summaries to visual
+  grid data sources. Wallet sources page account records, cache history
+  snapshots and publish balance totals from owned workers. }
+
+{ Public types in this unit
+
+  Type                                    | Purpose
+  ----------------------------------------+-------------------------------------------------------------------------
+  TAccountOwnershipChange                 | Identifies a pending account ownership change.
+  TAccountReadContext                     | Carries the node, safebox, pending overlay and snapshot identity for a read.
+  TAccountsDataSource                     | Reads accounts filtered by owner keys and pending-state policy.
+  TAccountsDataSourceBase                 | Maps account records to common grid columns and values.
+  TAccountsOperationsDataSource           | Loads bounded operation history for selected or wallet accounts.
+  TBlockSummarySource                     | Loads block summaries for the selected block range.
+  TBlockSummarySourceBase                 | Maps block summaries and configures range/hash-rate display.
+  TBlockSummarySourceBase.TShowHashRateAs | Selects kilo-, mega-, giga- or tera-hash display units.
+  TMyAccountsDataSource                   | Pages wallet-owned accounts and publishes asynchronous wallet totals.
+  TOperationsDataSource                   | Loads operations within a configured block range.
+  TOperationsDataSourceBase               | Maps operation summaries to grid columns and values.
+  TPendingOperationsDataSource            | Loads the node's available pending operation summaries.
+}
+
 interface
 
 uses
