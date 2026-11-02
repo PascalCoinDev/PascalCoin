@@ -17,6 +17,7 @@ type
     psSuspendedModeScrollOrigin, psHeldModeScrollOrigin);
 
 procedure CheckVisualGridPaging(AScenario: TGridPagingScenario; ALog: TStrings = nil);
+procedure CheckVisualGridFooter(AGrid: TVisualGrid; APpi: Integer; ALog: TStrings = nil);
 procedure ChooseVisualGridPageMode(AGrid: TVisualGrid; AIndex: Integer; AKeyboard: Boolean = False);
 
 implementation
@@ -449,6 +450,25 @@ begin
     LPoint.Y + AControl.Height);
 end;
 
+function RectText(const ARect: Types.TRect): String;
+begin
+  Result := Format('%d,%d,%d,%d',[ARect.Left,ARect.Top,ARect.Right,ARect.Bottom]);
+end;
+function NativeClientBounds(AControl: TWinControl): Types.TRect;
+var LOrigin: Types.TPoint;
+begin
+  LOrigin := Types.Point(0,0);
+  {$IFDEF MSWINDOWS}
+  if AControl.HandleAllocated then begin
+    Require(Windows.GetClientRect(AControl.Handle,Result),'Cannot read native footer ancestor client bounds');
+    Require(Windows.ClientToScreen(AControl.Handle,LOrigin),'Cannot locate native footer ancestor client bounds');
+    Windows.OffsetRect(Result,LOrigin.X,LOrigin.Y);
+    Exit;
+  end;
+  {$ENDIF}
+  LOrigin := AControl.ClientToScreen(LOrigin);
+  Result := Types.Rect(LOrigin.X,LOrigin.Y,LOrigin.X+AControl.ClientWidth,LOrigin.Y+AControl.ClientHeight);
+end;
 procedure CheckFooterGeometry(AGrid: TPagingGrid; APpi, ALogicalWidth: Integer; ALog: TStrings);
 var
   LMode, LFirst, LRect, LOther, LFooter: Types.TRect;
@@ -456,6 +476,8 @@ var
   LControls: TArray<TControl>;
     LBitmap: Graphics.TBitmap;
   LGap, I, J: Integer;
+  LAncestor: TWinControl;
+  LAncestorClient: Types.TRect;
   LCheckpoint: String;
 begin
   LCheckpoint := Format('footer PPI=%d logicalWidth=%d mode=%d',
@@ -487,6 +509,11 @@ begin
   end;
   Require(AGrid.ModeControl.Parent = AGrid.NavigationPanel,
     LCheckpoint + ': selector must retain its navigation parent, including Single');
+  if Assigned(ALog) then
+    ALog.Add(Format('%s footerLogical=%s footerNativeClient=%s navLogical=%s navNativeClient=%s fontHeight=%d fontPPI=%d',
+      [LCheckpoint,RectText(AGrid.Footer.BoundsRect),RectText(NativeClientBounds(AGrid.Footer)),
+       RectText(AGrid.NavigationPanel.BoundsRect),RectText(NativeClientBounds(AGrid.NavigationPanel)),
+       AGrid.Font.Height,AGrid.Font.PixelsPerInch]));
   LControls := AGrid.FooterControls;
   for I := 0 to High(LControls) do begin
     if not LControls[I].Visible then Continue;
@@ -495,6 +522,16 @@ begin
       (LRect.Left >= LFooter.Left) and (LRect.Right <= LFooter.Right) and
       (LRect.Top >= LFooter.Top) and (LRect.Bottom <= LFooter.Bottom),
       LCheckpoint + ': visible footer control is clipped: ' + LControls[I].ClassName);
+    LAncestor := LControls[I].Parent;
+    while Assigned(LAncestor) and (LAncestor <> AGrid.Parent) do begin
+      LAncestorClient := NativeClientBounds(LAncestor);
+      Require((LRect.Left >= LAncestorClient.Left) and (LRect.Top >= LAncestorClient.Top) and
+        (LRect.Right <= LAncestorClient.Right) and (LRect.Bottom <= LAncestorClient.Bottom),
+        LCheckpoint + Format(': footer control #%d %s [%d,%d,%d,%d] is clipped by native ancestor %s [%d,%d,%d,%d]',
+          [I,LControls[I].ClassName,LRect.Left,LRect.Top,LRect.Right,LRect.Bottom,LAncestor.ClassName,
+           LAncestorClient.Left,LAncestorClient.Top,LAncestorClient.Right,LAncestorClient.Bottom]));
+      LAncestor := LAncestor.Parent;
+    end;
     for J := I + 1 to High(LControls) do begin
       if not LControls[J].Visible then Continue;
       LOther := NativeBounds(LControls[J]);
@@ -522,9 +559,105 @@ begin
   end;
 end;
 
+procedure CheckVisualGridFooter(AGrid: TVisualGrid; APpi: Integer; ALog: TStrings);
+begin
+  CheckFooterGeometry(TPagingGrid(AGrid),APpi,(AGrid.Width*96+APpi div 2) div APpi,ALog);
+end;
+procedure CheckFooterHostedFirstShow(ALog: TStrings);
+const
+  InitialPpis: array[0..2] of Integer = (96,120,144);
+  ChangedPpis: array[0..4] of Integer = (144,120,96,120,144);
+var
+  LForm: TForm;
+  LGroup: TGroupBox;
+  LPanel: TPanel;
+  LGrid: TPagingGrid;
+  LSource: TPagingSource;
+  LPpi, LCase, LMode, LScalePass, LNextPpi, LBeforeCalls, LWidthCase: Integer;
+begin
+  for LCase := Low(InitialPpis) to High(InitialPpis) do begin
+    LPpi := InitialPpis[LCase];
+    LForm := TForm.CreateNew(nil);
+    try
+      LForm.Font.Name := 'Tahoma';
+      LForm.Font.Height := -11;
+      LForm.ClientWidth := 340;
+      LForm.ClientHeight := 330;
+      LGroup := TGroupBox.Create(LForm);
+      LGroup.Parent := LForm;
+      LGroup.Align := alClient;
+      LGroup.Caption := 'My Accounts';
+      LPanel := TPanel.Create(LForm);
+      LPanel.Parent := LGroup;
+      LPanel.Align := alClient;
+      LPanel.BevelOuter := bvNone;
+      LSource := TPagingSource.Create(LForm);
+      LSource.Count := 277;
+      LSource.SnapshotCacheEnabled := True;
+      LGrid := TPagingGrid.Create(LForm);
+      LGrid.PageMode := vpmAuto;
+      LGrid.FetchDataInThread := True;
+      LGrid.RefreshThrottle.Mode := temNone;
+      LGrid.Options := [vgoAutoHidePaging,vgoAutoHideSearchPanel];
+      LGrid.AddColumn('Id').Binding := 'Id';
+      LGrid.AddColumn('Name').Binding := 'Name';
+      LGrid.Align := alClient;
+      LSource.HoldNext := True;
+      LSource.ReleaseRead.ResetEvent;
+      LGrid.DataSource := LSource;
+      LPanel.AddControlDockCenter(LGrid);
+      if LPpi <> 96 then begin
+        {$IFDEF FPC}LForm.ScaleBy(LPpi,96);{$ELSE}LForm.ScaleForPPI(LPpi);{$ENDIF}
+      end;
+      LForm.Show;
+      try
+        PumpFor(200);
+        CheckFooterGeometry(LGrid,LPpi,340,ALog);
+        Require(LSource.Entered.WaitFor(1000) = wrSignaled,'First-show provider was not actually held');
+        LBeforeCalls := LSource.Calls;
+        for LWidthCase := 0 to 1 do begin
+          if LWidthCase = 0 then LForm.ClientWidth := (240*LPpi+48) div 96
+          else LForm.ClientWidth := (340*LPpi+48) div 96;
+          PumpFor(150);
+          Require(LGrid.IsUpdating,'Busy footer fixture released its provider too early');
+          Require(LSource.Calls = LBeforeCalls,'Visual footer reflow queried a busy provider');
+          CheckFooterGeometry(LGrid,LPpi,LForm.ClientWidth*96 div LPpi,ALog);
+          if Assigned(ALog) then ALog.Add(Format('PASS held footer resize PPI=%d width=%d sourceCalls=%d',
+            [LPpi,LForm.ClientWidth,LSource.Calls]));
+        end;
+      finally
+        LSource.ReleaseRead.SetEvent;
+      end;
+      Settle(LGrid);
+      CheckFooterGeometry(LGrid,LPpi,340,ALog);
+      for LMode := Ord(vpmSingle) to Ord(vpmManual) do begin
+        LGrid.PageMode := TVisualGridPageMode(LMode);
+        Settle(LGrid);
+        CheckFooterGeometry(LGrid,LPpi,340,ALog);
+      end;
+      // Grow and shrink the same native hierarchy; a fresh form per DPI alone
+      // misses stale minimum sizes and first-fetch rounding in hosted grids.
+      for LScalePass := Low(ChangedPpis) to High(ChangedPpis) do begin
+        LNextPpi := ChangedPpis[LScalePass];
+        if LNextPpi <> LPpi then begin
+          {$IFDEF FPC}LForm.ScaleBy(LNextPpi,LPpi);{$ELSE}LForm.ScaleForPPI(LNextPpi);{$ENDIF}
+          LPpi := LNextPpi;
+        end;
+        for LMode := Ord(vpmSingle) to Ord(vpmManual) do begin
+          LGrid.PageMode := TVisualGridPageMode(LMode);
+          Settle(LGrid);
+          CheckFooterGeometry(LGrid,LPpi,340,ALog);
+        end;
+      end;
+    finally
+      LForm.Free;
+    end;
+  end;
+end;
+
 procedure CheckFooterAnchoringMatrix(ALog: TStrings);
 const
-  Widths: array[0..4] of Integer = (240, 300, 340, 400, 900);
+  Widths: array[0..6] of Integer = (340, 240, 900, 300, 240, 400, 900);
   Modes: array[0..2] of TVisualGridPageMode = (vpmAuto, vpmManual, vpmSingle);
 var
   LForm: TForm;
@@ -842,6 +975,7 @@ begin
         Require((LGrid.PageMode = vpmManual) and (LGrid.PageSize = 25),
           'Disabling legacy ShowAllData did not restore Manual size');
         CheckSelector;
+        CheckFooterHostedFirstShow(ALog);
         CheckFooterAnchoringMatrix(ALog);
       end;
       psCompleteSearchAndSort: begin

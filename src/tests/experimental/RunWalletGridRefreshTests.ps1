@@ -6,6 +6,8 @@ The default target is the dedicated FPCUnit fixture. Use -Demo to run the native
 interactive demo's automatic scenarios instead. Add -AllDemoCases to include
 every distinct native presentation/logging/dialog group in fresh processes.
 Use -DemoCase <name> with -Demo to run one of those groups instead.
+Native demo checks use the shipping Release optimization level so layout bugs
+that disappear in less optimized builds remain covered.
 Use -NetworkOff for the real
 connectivity toggle and deferred-refresh lifecycle regression. Use -Backlog for
 the actual buffered-response processor, outgoing/incoming transport ownership,
@@ -94,7 +96,8 @@ $program = if ($Demo) { Join-Path $gridDirectory 'WalletGridRefreshDemo.lpr' }
            else { Join-Path $PSScriptRoot 'ui\WalletGridRefreshTests.lpr' }
 $name = [IO.Path]::GetFileNameWithoutExtension($program)
 $executable = Join-Path $output "$name.exe"
-$arguments = @('-B', '-MDelphi', '-O1', '-gl', '-Cr', '-Co', '-WG',
+$optimization = if ($Demo) { '-O2' } else { '-O1' }
+$arguments = @('-B', '-MDelphi', $optimization, '-gl', '-Cr', '-Co', '-WG',
     '-dBorland', '-dVer150', '-dDelphi7', '-dCompiler6_Up', '-dPUREPASCAL',
     "-FU$units", "-FE$output", "-o$executable",
     "-Fi$source\libraries\generics.collections\inc",

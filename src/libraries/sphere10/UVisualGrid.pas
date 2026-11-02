@@ -366,7 +366,7 @@ uses
     FInternalLayoutDepth: Integer;
     FPendingRefreshParams, FActiveRefreshParams: TPageFetchParams;
     FPendingRefreshSource, FActiveRefreshSource: IDataSource;
-    FBoundsClientPending, FBoundsAlreadyNotified: Boolean;
+    FBoundsClientPending, FBoundsAlreadyNotified, FBoundsVisualPending: Boolean;
     FOnPreparePopupMenu: TPreparePopupMenuEvent;
     FOnSelection: TSelectionEvent;
     FOnFinishedUpdating: TNotifyEvent;
@@ -1112,7 +1112,9 @@ begin
       Width := 217;
       Height := 40;
       Align := alNone;
-      Anchors := [akTop, akRight];
+      // This layout owns right placement; a second right-anchor move during
+      // DPI scaling would offset the group after its bounds were calculated.
+      Anchors := [akTop, akLeft];
       BevelOuter := bvNone;
       FPageCountLabel := TLabel.Create(Self);
       FPageCountLabel.Parent := FBottomRightPanel;
@@ -1709,6 +1711,7 @@ end;
 procedure TCustomVisualGrid.ScheduleBoundsChange;
 begin
   if FShuttingDown then Exit;
+  if FInternalLayoutDepth = 0 then FBoundsVisualPending := True;
   if Assigned(FRefreshThrottle) and (FInternalLayoutDepth = 0) then begin
     FBoundsClientPending := True;
     // A real resize is input now, even when page-capacity layout is deferred.
@@ -1977,7 +1980,18 @@ begin
   {$IFNDEF FPC}
   if not Assigned(Parent) then begin FDelayedBoundsChangeTimer.Enabled:=False; Exit; end;
   {$ENDIF}
-  // check data loading. try in next cycle
+  // Coalesce visual reflow independently from data admission, including while
+  // a provider is busy. This pass never issues a source query.
+  if FBoundsVisualPending then begin
+    FBoundsVisualPending := False;
+    Inc(FInternalLayoutDepth);
+    try
+      UpdatePagingControls;
+    finally
+      Dec(FInternalLayoutDepth);
+    end;
+  end;
+  // Data admission can wait for a provider; native footer layout cannot.
   if FFetchInProgress and (FRefreshThrottle.Mode = temNone) and not FRefreshSuspended then
     Exit;
   FDelayedBoundsChangeTimer.Enabled:=false;
@@ -3085,12 +3099,15 @@ end;
 procedure TCustomVisualGrid.UpdatePagingControls;
 var
   LNavigation, LManual, LInline, LManualBelow: Boolean;
-  LWidth, LAvailable, LMargin, LGap, LModeGap, LModeWidth,
+  // FPC 3.2.0 Win64 -O2 omits the inline scalar-height assignment and reuses the button-height register, clipping controls.
+  // Keep dimensions in TSize so the compiler stores/reloads the calculated footer height instead of that stale register.
+  LFooterSize: TSize;
+  LAvailable, LMargin, LGap, LModeGap, LModeWidth,
     LTotalWidth, LManualWidth, LLabelWidth, LEditWidth, LEditHeight,
     LButtonWidth, LButtonMinimum, LButtonHeight, LPageWidth,
     LRequiredPageWidth, LCountWidth, LRowHeight,
     LGroupWidth, LGroupHeight, LGroupRowHeight, LGroupLeft, LGroupTop,
-    LLeftWidth, LTopHeight, LHeight, LManualLeft, LManualTop, LX, LY, I: Integer;
+    LLeftWidth, LTopHeight, LManualLeft, LManualTop, LX, LY, I: Integer;
 
   function ControlTextWidth(AControl: TControl; AFont: TFont; const AText: String): Integer;
   var LCanvas: TControlCanvas;
@@ -3141,8 +3158,8 @@ begin
   LMargin := Scale96ToFont(7);
   LGap := Scale96ToFont(4);
   LModeGap := Scale96ToFont(4);
-  LWidth := FBottomPanel.ClientWidth;
-  LAvailable := Max(1,LWidth-2*LMargin);
+  LFooterSize.cx := FBottomPanel.ClientWidth;
+  LAvailable := Max(1,LFooterSize.cx-2*LMargin);
   LTotalWidth := 0;
   if FAllRecordsCountLabel.Visible then LTotalWidth := FAllRecordsCountLabel.Width;
   LLabelWidth := Max(FPageSizeLabel.Width,Scale96ToFont(60));
@@ -3204,19 +3221,19 @@ begin
     if LLeftWidth > 0 then Inc(LLeftWidth,2*LMargin);
     Inc(LLeftWidth,LManualWidth);
   end;
-  LInline := LLeftWidth+LGroupWidth+3*LMargin <= LWidth;
+  LInline := LLeftWidth+LGroupWidth+3*LMargin <= LFooterSize.cx;
   LManualBelow := LManual and (LLeftWidth > LAvailable);
   LTopHeight := FAllRecordsCountLabel.Height;
   if LManual then LTopHeight := Max(LTopHeight,LEditHeight);
   if LManualBelow then LTopHeight := FAllRecordsCountLabel.Height+LGap+LEditHeight;
   if LInline then begin
-    LHeight := Max(LRowHeight,LGroupHeight+Scale96ToFont(4));
-    LGroupTop := (LHeight-LGroupHeight) div 2;
-    LManualTop := (LHeight-LEditHeight) div 2;
-    FAllRecordsCountLabel.Top := (LHeight-FAllRecordsCountLabel.Height) div 2;
+    LFooterSize.cy := Max(LRowHeight,LGroupHeight+Scale96ToFont(4));
+    LGroupTop := (LFooterSize.cy-LGroupHeight) div 2;
+    LManualTop := (LFooterSize.cy-LEditHeight) div 2;
+    FAllRecordsCountLabel.Top := (LFooterSize.cy-FAllRecordsCountLabel.Height) div 2;
   end else begin
-    LHeight := Max(LRowHeight,LTopHeight+LGroupHeight+Scale96ToFont(2));
-    LGroupTop := LHeight-LGroupHeight-Scale96ToFont(2);
+    LFooterSize.cy := Max(LRowHeight,LTopHeight+LGroupHeight+Scale96ToFont(2));
+    LGroupTop := LFooterSize.cy-LGroupHeight-Scale96ToFont(2);
     LManualTop := (LTopHeight-LEditHeight) div 2;
     FAllRecordsCountLabel.Top := (LTopHeight-FAllRecordsCountLabel.Height) div 2;
     if LManualBelow then begin
@@ -3230,8 +3247,11 @@ begin
   FPageSizeLabel.SetBounds(LManualLeft,LManualTop+
     (LEditHeight-FPageSizeLabel.Height) div 2,LLabelWidth,FPageSizeLabel.Height);
   FPageSizeEdit.SetBounds(LManualLeft+LLabelWidth+LMargin,LManualTop,LEditWidth,LEditHeight);
-  FBottomPanel.Height := LHeight;
-  LGroupLeft := Max(0,LWidth-LMargin-LGroupWidth);
+  FBottomPanel.Height := LFooterSize.cy;
+  LGroupLeft := Max(0,LFooterSize.cx-LMargin-LGroupWidth);
+  // LCL may round a scaled button up before a busy fetch permits refitting.
+  // Its navigation host must retain the same minimum height during that gap.
+  FBottomRightPanel.Constraints.MinHeight := LGroupHeight;
   FBottomRightPanel.SetBounds(LGroupLeft,LGroupTop,LGroupWidth,LGroupHeight);
 end;
 
