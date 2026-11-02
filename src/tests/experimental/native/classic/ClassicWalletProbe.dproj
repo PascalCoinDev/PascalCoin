@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{3CC9A0A5-C9D4-4BD7-A144-96DFB022E722}</ProjectGuid>
+    <MainSource>ClassicWalletProbe.dpr</MainSource>
+    <Config>Debug</Config>
+    <Platform>Win64</Platform>
+    <Base>True</Base>
+    <TargetedPlatforms>3</TargetedPlatforms>
+    <AppType>Application</AppType>
+    <FrameworkType>VCL</FrameworkType>
+    <ProjectVersion>20.3</ProjectVersion>
+    <DCC_Namespace>System;Winapi;Vcl;Vcl.Imaging;Data;Xml</DCC_Namespace>
+    <DCC_UnitAlias>Generics.Collections=System.Generics.Collections;Generics.Defaults=System.Generics.Defaults;$(DCC_UnitAlias)</DCC_UnitAlias>
+    <DCC_UnitSearchPath>..\..\..\..\gui-classic;..\..\..\..\core;..\..\..\..\libraries\sphere10;..\..\..\..\libraries\simplebaselib4pascal;..\..\..\..\libraries\hashlib4pascal;..\..\..\..\libraries\cryptolib4pascal;..\..\..\..\libraries\synapse;..\..\..\..\libraries\pascalcoin;..\..\..\..\libraries\paszlib;..\..\..\..\libraries\abstractmem;..\..\..\..\libraries\regex;..\..\..\..\libraries\gnugettext</DCC_UnitSearchPath>
+    <DCC_IncludePath>..\..\..\..\core;..\..\..\..\libraries\generics.collections\inc;..\..\..\..\libraries\sphere10</DCC_IncludePath>
+    <DCC_ResourcePath>..\..\..\..;..\..\..\..\gui-classic</DCC_ResourcePath>
+    <DCC_DcuOutput>..\..\lib\classic-compatibility\Delphi\$(Platform)\$(Config)\dcu</DCC_DcuOutput>
+    <DCC_ExeOutput>..\..\lib\classic-compatibility\Delphi\$(Platform)\$(Config)</DCC_ExeOutput>
+    <DCC_DebugInformation>true</DCC_DebugInformation>
+    <!-- Match the existing Classic application's arithmetic settings. The
+         independent core probes exercise checked lock/transport behavior. -->
+    <DCC_RangeChecking>false</DCC_RangeChecking>
+    <DCC_IntegerOverflowCheck>false</DCC_IntegerOverflowCheck>
+  </PropertyGroup>
+  <ItemGroup>
+    <DelphiCompile Include="$(MainSource)"><MainSource>MainSource</MainSource></DelphiCompile>
+    <DCCReference Include="UClassicWalletChecks.pas" />
+  </ItemGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+    <BorlandProject>
+      <Delphi.Personality><Source><Source Name="MainSource">ClassicWalletProbe.dpr</Source></Source></Delphi.Personality>
+      <Platforms><Platform value="Win32">True</Platform><Platform value="Win64">True</Platform></Platforms>
+    </BorlandProject>
+  </ProjectExtensions>
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" />
+</Project>
