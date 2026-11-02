@@ -2,6 +2,7 @@ program PascalCoinMiner;
 
 {$mode delphi}{$H+}
 {$DEFINE UseCThreads}
+{$R *.res}
 {$I config.inc}
 
 { Copyright (c) 2017 by Albert Molina
@@ -57,7 +58,7 @@ type
   end;
 
 Const
-  CT_MINER_VERSION = {$IFDEF PRODUCTION}'5.4'{$ELSE}{$IFDEF TESTNET}'5.4 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
+  CT_MINER_VERSION = {$IFDEF PRODUCTION}'5.9'{$ELSE}{$IFDEF TESTNET}'5.9 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
   CT_Line_DeviceStatus = 3;
   CT_Line_ConnectionStatus = 4;
   CT_Line_MinerValues = 7;

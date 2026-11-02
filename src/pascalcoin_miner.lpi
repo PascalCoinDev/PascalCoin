@@ -16,6 +16,14 @@
     <i18n>
       <EnableI18N LFM="False"/>
     </i18n>
+    <VersionInfo>
+      <UseVersionInfo Value="True"/>
+      <MajorVersionNr Value="5"/>
+      <MinorVersionNr Value="9"/>
+      <RevisionNr Value="0"/>
+      <BuildNr Value="0"/>
+      <StringTable ProductName="PascalCoin" ProductVersion="5.9.0.0" FileVersion="5.9.0.0"/>
+    </VersionInfo>
     <BuildModes Count="1">
       <Item1 Name="Default" Default="True"/>
     </BuildModes>
