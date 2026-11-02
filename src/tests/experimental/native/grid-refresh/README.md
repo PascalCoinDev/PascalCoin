@@ -112,7 +112,7 @@ Use the `*-native-grid.bmp` captures for those cells: recursive form/composite
 printing on a private desktop can omit windowed descendants even when the actual
 native controls are visible and paint correctly.
 
-## Operations Explorer input
+## Operation Details input and layout
 
 Set `PASCAL_WALLET_TOOLS_ONLY=1` and `PASCAL_WALLET_OPERATION_INPUT_ONLY=1`
 to exercise the actual Operations Explorer form and details dialog with
@@ -121,6 +121,19 @@ details. A left press/release on a populated cell opens exactly that operation,
 including when the row was already selected. Right clicks, header/blank clicks,
 unpaired releases and drag gestures must not open a dialog. The fixture uses
 read-only generated operation rows and closes its own observed modal dialogs.
+
+The same group checks the main wallet separately: selecting an operation never
+opens a dialog. The information button and right-click **Details** action each
+request the selected hash once and retain selection. Invalid, missing and busy
+rows disable the action. Native checks cover both wallet footers at 100%, 125%
+and 150% scaling, including their intermediate parent panels.
+
+[Operation-information layout checks](UWalletOperationInfoLayoutChecks.pas)
+exercise the actual decoder with large block/operation counters, localized dates
+and long monetary values. Captions must remain readable without overlap on first
+show, after updates and across DPI changes; enlarging the form adds payload space.
+The demo uses Release optimization (`-O2`) to cover the footer failure that less
+optimized builds did not expose.
 
 ## Main-wallet history range
 

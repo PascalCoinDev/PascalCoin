@@ -13,6 +13,7 @@
 - Add read/write locking with recursive writes, upgradeable reads, timeouts and automatic lock scopes.
 - Add cleanup scopes, collection helpers, typed data sources and UTF-8 file text; standardize String APIs and document public types.
 - Add Single/Auto/Manual paging with a compact mode button, accurate row counts and scroll resets.
+- Prevent Release-mode footer clipping and overlapping operation-information fields with large values.
 - Reuse complete results when resizing and report completion once per fetched page.
 - Add rounded-spoke loading cards, retain rows during updates and fix completion, cancellation, errors, parenting and empty selections.
 - Keep wizard windows stationary, retain inputs and allow validation and completion retries.
@@ -40,7 +41,7 @@
 - Add account-index paging, cached history queries, cancellable wallet totals and a bounded account cache that survives safebox replacement.
 - Limit Recent Operations to 2,016/8,640 blocks for 7/30 days; search all available history for Maximum and cancel obsolete selections.
 - Use bounded visible-row snapshots and cancellable workers for Explorer filters, history, totals and type statistics; fix My Accounts/key filters.
-- Restore account/block explorers, RPC tools, message history and language settings; add Block Explorer refresh/reset and click-only operation details.
+- Restore account/block explorers, RPC tools, message history and language settings; add Block Explorer refresh/reset and explicit operation Details actions.
 - Share cached committed counts/timestamps between footer and synchronization view without data/status polling; marshal key notifications to the UI.
 - Show dashes until totals first load; show Wallet Keys padlocks in every state.
 - Align footer buttons, retain full icon height and correct unsigned key hashes and PASC balances.

@@ -30,7 +30,7 @@ points; it does not require the two interfaces to have identical layouts.
 | Operation history and block range | **Tools → Operations Explorer** |
 | Pending operations | **Tools → Operations** |
 | Operation-hash search and payload decoding | History/pending-operation menus and payload decoder |
-| Account/operation information and JSON | Account information memo, operation details and payload decoder |
+| Account/operation information and JSON | Account information memo, explicit operation **Details** button and context menu, and payload decoder; selecting operation rows does not open a dialog |
 | Block range, timing, target and hash-rate statistics | **Tools → Blocks**; Refresh/F5 and reset-range actions, persisted averaging and h/s–Eh/s units |
 | Connections, known servers and blacklist | **Tools → Nodes** |
 | Fixed peers / node IPs | **Wallet → Seed Nodes** |

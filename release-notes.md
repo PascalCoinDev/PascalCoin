@@ -11,6 +11,7 @@ all Windows, Linux and Intel macOS release archives and can be kept side by side
 - Update synchronization and status from node events; refresh account selections immediately outside synchronization.
 - Fix peer reconnection, safebox recovery, pending restore/saving and cooperative shutdown.
 - Reuse mining keys and improve native layout, icons, loading feedback and operation dialogs.
+- Keep paging controls visible in Release builds, reflow large operation fields and open details through explicit actions.
 - Build and package both wallets on Windows, Linux and macOS; run the Windows wallet regressions and portable core/framework lock tests in CI.
 - Add Delphi/FPC screenshots and credit Herman Schoenfeld for the experimental GUI while preserving Albert Molina's original attribution.
 - Align application and executable versions at 5.9.
