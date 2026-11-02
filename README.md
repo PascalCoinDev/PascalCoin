@@ -6,8 +6,6 @@
 
 <p align="center"><img width="480" src="resources/logo.svg" alt="PascalCoin" /></p>
 
-# PascalCoin
-
 PascalCoin is a peer-to-peer cryptocurrency written in Object Pascal. Its
 **SafeBox** records the current state of every account, allowing nodes to verify
 the ledger without retaining the complete history of operations. **PASC** is the
@@ -118,13 +116,12 @@ From the repository root, with `lazbuild` and FPC available:
 lazbuild -B src/pascalcoin_daemon.lpi
 lazbuild -B src/pascalcoin_miner.lpi
 lazbuild -B src/pascalcoin_wallet_classic.lpi
-lazbuild -B --build-mode=Release src/pascalcoin_wallet_experimental.lpi
+lazbuild -B src/pascalcoin_wallet_experimental.lpi
 ```
 
-The experimental project's `Release` mode enables optimization and strips debug
-symbols. Use `--build-mode=Debug` when debugging; omitting the flag selects its
-unoptimized `Default` mode. The classic wallet, daemon and miner retain their
-existing default build settings.
+Each command uses its project's default configuration. For the experimental
+wallet, optionally add `--build-mode=Release` for an optimized build without debug
+symbols, or `--build-mode=Debug` for debugging. Its `Default` mode is unoptimized.
 
 On macOS, add `--ws=cocoa` to both wallet commands. Linux uses GTK2. Outputs are
 under `src` with the executable names listed above. For a source build, place the
