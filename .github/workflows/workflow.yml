@@ -145,6 +145,8 @@ jobs:
 
     - name: Download the Release binary
       uses: actions/download-artifact@v7
+      with:
+        pattern: PascalCoin*
 
     - name: List files
       run: |
@@ -154,16 +156,26 @@ jobs:
 
     - name: Create release files
       run: |
+        for package in PascalCoinWindows PascalCoinLinux PascalCoinMacOS; do
+          cp -R src/locale licenses "$package/"
+          cp src/pascalsha.cl LICENSE "$package/"
+        done
         cd PascalCoinWindows
         cp ../windows-dll/*.dll .
-        zip -r PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-win64.zip *.exe *.dll
+        zip -r PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-win64.zip *.exe *.dll locale licenses pascalsha.cl LICENSE
         cd ../PascalCoinLinux
         cp ../linux-libs/*.so.1.1 .
         chmod +x PascalCoin* pascalcoin*
-        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-linux.tar.gz PascalCoin* pascalcoin* *.so.1.1
+        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-linux.tar.gz PascalCoin* pascalcoin* *.so.1.1 locale licenses pascalsha.cl LICENSE
         cd ../PascalCoinMacOS
         chmod +x PascalCoin* pascalcoin*
-        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.tar.gz PascalCoin* pascalcoin*
+        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.tar.gz PascalCoin* pascalcoin* locale licenses pascalsha.cl LICENSE
+
+    - name: Checksum release files
+      run: |
+        for archive in PascalCoinWindows/*.zip PascalCoinLinux/*.tar.gz PascalCoinMacOS/*.tar.gz; do
+          sha256sum "$archive" | sed 's@  .*/@  @'
+        done > SHA256SUMS
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v3
@@ -174,6 +186,7 @@ jobs:
           PascalCoinWindows/*.zip
           PascalCoinLinux/*.tar.gz
           PascalCoinMacOS/*.tar.gz
+          SHA256SUMS
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

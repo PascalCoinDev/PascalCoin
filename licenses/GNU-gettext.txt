@@ -1,0 +1,38 @@
+(**************************************************************)
+(*                                                            *)
+(*  (C) Copyright by Lars B. Dybdahl and others               *)
+(*  E-mail: Lars@dybdahl.dk, phone +45 70201241               *)
+(*                                                            *)
+(*  Contributors: Peter Thornqvist, Troy Wolbrink,            *)
+(*                Frank Andreas de Groot, Igor Siticov,       *)
+(*                Jacques Garcia Vazquez, Igor Gitman,        *)
+(*                Arvid Winkelsdorf,                          *)
+(*                Thomas Mueller (dummzeuch)                  *)
+(*                Olivier Sannier (obones)                    *)
+(*                                                            *)
+(*  See http://dybdahl.dk/dxgettext/ for more information     *)
+(*                                                            *)
+(**************************************************************)
+
+// Information about this file:
+// $LastChangedDate: 2010-08-25 15:40:17 +0200 (on, 25 aug 2010) $
+// $LastChangedRevision: 220 $
+// $HeadURL: http://svn.berlios.de/svnroot/repos/dxgettext/trunk/dxgettext/sample/gnugettext.pas $
+
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// The names of any contributor may not be used to endorse or promote
+// products derived from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+// OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
