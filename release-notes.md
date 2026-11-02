@@ -11,7 +11,8 @@ all Windows, Linux and Intel macOS release archives and can be kept side by side
 - Update synchronization and status from node events; refresh account selections immediately outside synchronization.
 - Fix peer reconnection, safebox recovery, pending restore/saving and cooperative shutdown.
 - Reuse mining keys and improve native layout, icons, loading feedback and operation dialogs.
-- Build and package both wallets on Windows, Linux and macOS, with portable core/framework lock tests.
+- Build and package both wallets on Windows, Linux and macOS; run the Windows wallet regressions and portable core/framework lock tests in CI.
+- Add Delphi/FPC screenshots and credit Herman Schoenfeld for the experimental GUI while preserving Albert Molina's original attribution.
 - Align application and executable versions at 5.9.
 
 ## Applications
@@ -30,4 +31,5 @@ GTK2 runtime libraries.
 On Linux, launch the executables from the extracted folder so the bundled runtime
 can be found.
 
-See [Build 5.9](CHANGELOG.md#build-59---2026-10-28) for the complete change list.
+See [Build 5.9](https://github.com/PascalCoin/PascalCoin/blob/5.9/CHANGELOG.md#build-59---2026-10-28)
+for the complete change list.

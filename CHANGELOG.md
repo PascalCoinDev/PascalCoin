@@ -51,8 +51,11 @@
 - Embed application/tray icons and set application and wallet executable versions to 5.9.0.0.
 - Update GNU gettext and regular-expression compatibility for Delphi.
 - Document wallet features, Sphere 10 Pascal Framework and Delphi/Lazarus build and test commands.
+- Add Delphi and FPC screenshots and credit Herman Schoenfeld for the experimental GUI, preserving Albert Molina's original attribution.
 - Add runners for unit and isolated native regression tests covering shared components, operations, classic wallet, synchronization, loading and shutdown.
+- Register all common utility fixtures and run the full Windows wallet regression driver in CI.
 - Build and package both wallet applications in Windows, Linux and macOS CI; run core and framework lock tests on every platform.
+- Build the experimental release with optimization and support pointer-shaped macOS thread IDs.
 - Include language catalogs, miner resources, license notices and checksums in release packages.
 
 ## Build 5.8 - 2024-01-17
