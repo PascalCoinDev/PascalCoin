@@ -103,7 +103,7 @@ $arguments = @('-B', '-MDelphi', $optimization, '-gl', '-Cr', '-Co', '-WG',
     "-Fi$source\libraries\generics.collections\inc",
     "-Fu$lazarus\lcl\units\$target", "-Fu$lazarus\lcl\units\$target\win32",
     "-Fu$lazarus\components\lazutils\lib\$target", "-Fu$lazarus\packager\units\$target",
-    "-Fu$gridDirectory", "-Fu$backlogDirectory", "-Fu$PSScriptRoot\ui")
+    "-Fu$gridDirectory", "-Fu$backlogDirectory", "-Fu$PSScriptRoot\ui", "-Fu$PSScriptRoot\framework")
 $directories = @('core', 'gui-experimental', 'gui-experimental\core.utils',
     'gui-experimental\wizards\wallet', 'gui-experimental\wizards\operations', 'gui-classic',
     'libraries\simplebaselib4pascal', 'libraries\hashlib4pascal', 'libraries\cryptolib4pascal',

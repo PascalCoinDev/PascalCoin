@@ -23,7 +23,7 @@ uses Windows, Messages, Classes, SysUtils, Types, Math, Variants, Generics.Colle
   UFRMOperationsExplorer, UFRMRPCCalls, UFRMLogs, UFRMNodes, UFRMMessages, UFRMPayloadDecoder,
   UBlockChain, UFileStorage, UCrypto, UConst, UCoreObjects, UCoreUtils, UWIZOperation,
   UWIZChangeKey, UWIZOperationSelected, UWIZOperationConfirmation,
-  UWalletOperationInfoLayoutChecks;
+  UWalletOperationDetailsChecks, UWalletOperationInfoLayoutChecks;
 
 type
   TGroupBoxAccess = class(TGroupBox);
@@ -615,10 +615,11 @@ begin
   CheckConnections;
   LoadGenesis;
   CheckOperationInput;
+  CheckWalletOperationDetails(FLogPath);
   CheckWalletOperationInfoLayout(FLogPath);
   CheckConnections;
   CheckErrors;
-  Log('PASS actual Operations Explorer click-only details checks');
+  Log('PASS Operations Explorer click-only details and explicit main-wallet Details checks');
 end;
 
 procedure TWalletToolsChecks.CheckHistoryDepth;
@@ -687,9 +688,9 @@ begin
   for I := 0 to 4 do
     Require(Cardinal(LGrid.Rows[I].__KEY) = Cardinal(I),
       'The history picker must use all five public account IDs');
-  Require(LWallet.OperationsGrid.WidgetControl is TComboBox,
+  Require(LWallet.OperationsGrid.FindComponent('OperationsHistory') is TComboBox,
     'The actual operations-grid duration widget is missing');
-  LDuration := TComboBox(LWallet.OperationsGrid.WidgetControl);
+  LDuration := TComboBox(LWallet.OperationsGrid.FindComponent('OperationsHistory'));
   Require(Assigned(LDuration.OnChange), 'The actual history picker is unwired');
   for I := 0 to High(CDepths) do begin
     // Reset optional throttle state without replacing the actual refresh

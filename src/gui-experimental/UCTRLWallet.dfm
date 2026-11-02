@@ -201,7 +201,7 @@ object CTRLWallet: TCTRLWallet
       Caption = '-'
     end
     object miOperationInfo: TMenuItem
-      Caption = 'Operation Info'
+      Caption = 'Details'
       OnClick = miOperationInfoClick
     end
   end

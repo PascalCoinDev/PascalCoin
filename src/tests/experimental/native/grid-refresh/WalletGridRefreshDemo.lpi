@@ -28,7 +28,7 @@
     <Target><Filename Value="..\..\..\..\WalletGridRefreshDemoFPC"/></Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);..\..\..\..\libraries\generics.collections\inc"/>
-      <OtherUnitFiles Value="..\..\..\..\core;..\..\..\..\gui-experimental;..\..\..\..\gui-experimental\core.utils;..\..\..\..\gui-experimental\wizards\wallet;..\..\..\..\gui-experimental\wizards\operations;..\..\..\..\gui-classic;..\..\..\..\libraries\sphere10;..\..\..\..\libraries\simplebaselib4pascal;..\..\..\..\libraries\hashlib4pascal;..\..\..\..\libraries\cryptolib4pascal;..\..\..\..\libraries\synapse;..\..\..\..\libraries\pascalcoin;..\..\..\..\libraries\paszlib;..\..\..\..\libraries\abstractmem;..\..\..\..\libraries\regex"/>
+      <OtherUnitFiles Value="..\..\..\..\core;..\..\..\..\gui-experimental;..\..\..\..\gui-experimental\core.utils;..\..\..\..\gui-experimental\wizards\wallet;..\..\..\..\gui-experimental\wizards\operations;..\..\..\..\gui-classic;..\..\..\..\libraries\sphere10;..\..\..\..\libraries\simplebaselib4pascal;..\..\..\..\libraries\hashlib4pascal;..\..\..\..\libraries\cryptolib4pascal;..\..\..\..\libraries\synapse;..\..\..\..\libraries\pascalcoin;..\..\..\..\libraries\paszlib;..\..\..\..\libraries\abstractmem;..\..\..\..\libraries\regex;..\..\framework"/>
       <UnitOutputDirectory Value="..\..\lib\grid-refresh\FPC\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing><SyntaxOptions><SyntaxMode Value="Delphi"/></SyntaxOptions></Parsing>

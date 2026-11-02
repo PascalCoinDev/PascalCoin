@@ -41,7 +41,7 @@ interface
 uses
   {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
   Classes, SysUtils, Types, Math, Messages, {$IFDEF FPC}FileUtil, LCLType, LCLIntf, LMessages,{$ENDIF} Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
-  ExtCtrls, {$IFDEF FPC}PairSplitter,{$ENDIF} Buttons, UVisualGrid, UCommon, UCommon.UI, Generics.Collections,
+  ExtCtrls, {$IFDEF FPC}PairSplitter,{$ENDIF} Buttons, ActnList, UVisualGrid, UCommon, UCommon.UI, Generics.Collections,
   ULog, UAccounts, UPCDataTypes, UDataSources, UNode, UCoreObjects, UCoreUtils, UCTRLNoAccount;
 
 const
@@ -114,6 +114,8 @@ type
     FCTRLNoAccounts: TCTRLNoAccounts;
     FAccountsGrid: TVisualGrid;
     FOperationsGrid: TVisualGrid;
+    FOperationDetailsAction: TAction;
+    FOperationDetailsButton: TBitBtn;
     FBalance : TBalanceSummary;
     FHasBalanceSummary: Boolean;
     FAccountsDataSource: TMyAccountsDataSource;
@@ -128,6 +130,8 @@ type
     procedure RefreshOperationsGrid;
     procedure OnSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
     procedure OnBalanceSummaryCompleted(Sender: TObject);
+    procedure UpdateOperationDetailsAction(Sender: TObject);
+    procedure OnOperationsGridFinishedUpdating(Sender: TObject);
     function GetSelectedAccounts : TArray<Cardinal>;
     procedure LayoutOverviewLabels;
     procedure CM_PrivateKeysChanged(var AMsg: TMessage); message CM_WalletControlKeysChanged;
@@ -136,6 +140,7 @@ type
     // descendants can supply another typed backend through the same lifecycle.
     function CreateAccountsDataSource: TMyAccountsDataSource; virtual;
     function CreateOperationsDataSource: TAccountsOperationsDataSource; virtual;
+    procedure ShowOperationDetails(const AOperationHash: String); virtual;
     property AccountsGrid: TVisualGrid read FAccountsGrid;
     property OperationsGrid: TVisualGrid read FOperationsGrid;
     procedure RefreshBalances;
@@ -177,6 +182,8 @@ type
 procedure TCTRLWallet.FormCreate(Sender: TObject);
 var
   cmbDuration: TComboBox;
+  LOperationActions: TPanel;
+  LActionList: TActionList;
 begin
   {$IFNDEF FPC}
   with TSplitter.Create(Self) do begin
@@ -336,6 +343,7 @@ begin
     Filters := SORTABLE_TEXT_FILTER;
   end;
   FOperationsGrid.OnSelection := OnOperationSelected;
+  FOperationsGrid.OnFinishedUpdating := OnOperationsGridFinishedUpdating;
   FOperationsGrid.OnPreparePopupMenu := OnPrepareOperationsPopupMenu;
   FOperationsGrid.Caption.Alignment := taCenter;
   FOperationsGrid.Caption.Text := 'All Account Operations';
@@ -348,10 +356,58 @@ begin
   paAccounts.AddControlDockCenter(FAccountsGrid);
   paOperations.AddControlDockCenter(FOperationsGrid);
 
-  // duration combo
+  // Selection remains passive. A shared explicit action opens details from
+  // either the toolbar button or the selected row's context menu.
+  LActionList := TActionList.Create(Self);
+  FOperationDetailsAction := TAction.Create(Self);
+  FOperationDetailsAction.Name := 'OperationDetailsAction';
+  FOperationDetailsAction.ActionList := LActionList;
+  FOperationDetailsAction.Caption := 'Details';
+  FOperationDetailsAction.Hint := 'Details for the selected operation';
+  FOperationDetailsAction.Enabled := False;
+  FOperationDetailsAction.OnExecute := miOperationInfoClick;
+  FOperationDetailsAction.OnUpdate := UpdateOperationDetailsAction;
+  miOperationInfo.Action := FOperationDetailsAction;
+
+  LOperationActions := TPanel.Create(FOperationsGrid);
+  LOperationActions.Name := 'OperationActions';
+  LOperationActions.BevelOuter := bvNone;
+  LOperationActions.Caption := '';
+  LOperationActions.Height := 24;
+  // Keep both controls in the supported grid widget slot, so native scaling
+  // and header visibility treat them as a single component-owned region.
   cmbDuration := TComboBox.Create(FOperationsGrid);
+  cmbDuration.Name := 'OperationsHistory';
+  cmbDuration.Parent := LOperationActions;
+  cmbDuration.Align := alLeft;
   cmbDuration.Style := csDropDownList;
-  FOperationsGrid.WidgetControl := cmbDuration;
+  FOperationDetailsButton := TBitBtn.Create(Self);
+  FOperationDetailsButton.Name := 'OperationDetailsButton';
+  FOperationDetailsButton.Parent := LOperationActions;
+  FOperationDetailsButton.Align := alRight;
+  FOperationDetailsButton.Width := LOperationActions.Height;
+  FOperationDetailsButton.Action := FOperationDetailsAction;
+  FOperationDetailsButton.Caption := '';
+  FOperationDetailsButton.ShowHint := True;
+  // A small portable information glyph needs no extra runtime image file.
+  with FOperationDetailsButton.Glyph do begin
+    PixelFormat := pf24bit;
+    SetSize(16, 16);
+    Canvas.Brush.Color := clBtnFace;
+    Canvas.FillRect(Types.Rect(0, 0, 16, 16));
+    Canvas.Pen.Color := clNavy;
+    Canvas.Brush.Style := bsClear;
+    Canvas.Ellipse(1, 1, 15, 15);
+    Canvas.Pen.Width := 2;
+    Canvas.MoveTo(8, 7);
+    Canvas.LineTo(8, 12);
+    Canvas.MoveTo(8, 4);
+    Canvas.LineTo(8, 6);
+    TransparentColor := clBtnFace;
+    Transparent := True;
+  end;
+  LOperationActions.Width := cmbDuration.Width + 4 + FOperationDetailsButton.Width;
+  FOperationsGrid.WidgetControl := LOperationActions;
   cmbDuration.Items.BeginUpdate;
   try
     cmbDuration.AddItem('7 Days', TObject(woh7Days));
@@ -443,6 +499,11 @@ begin
   Result := TAccountsOperationsDataSource.Create(Self);
 end;
 
+procedure TCTRLWallet.ShowOperationDetails(const AOperationHash: String);
+begin
+  TUserInterface.ShowOperationInfoDialog(Self, AOperationHash);
+end;
+
 procedure TCTRLWallet.ActivateFirstTime;
 begin
   // add first time-init here
@@ -460,6 +521,7 @@ begin
   FOperationsDataSource.InvalidateWalletAccounts;
   FAccountsGrid.RefreshGrid;
   FOperationsGrid.RefreshGrid;
+  UpdateOperationDetailsAction(Self);
   // Page completion requests the independent aggregate; its owned worker
   // reports completion without polling or delaying the page.
 end;
@@ -600,6 +662,7 @@ begin
       raise ENotSupportedException.Create(Format('AMode %d not supported', [integer(FOperationsMode)]));
   end;
   FOperationsGrid.RefreshGrid;
+  UpdateOperationDetailsAction(Self);
 end;
 
 function GetAccNoWithoutChecksum({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ARow: variant): cardinal;
@@ -674,6 +737,7 @@ begin
     wohFullHistory: FOperationsDataSource.BlockDepth := High(Cardinal);
   end;
   FOperationsGrid.RefreshGrid;
+  UpdateOperationDetailsAction(Self);
 end;
 
 procedure TCTRLWallet.OnPrivateKeysChanged(Sender: TObject);
@@ -729,6 +793,7 @@ begin
     FAccountsGrid.RefreshSuspended := False;
     FOperationsGrid.RefreshSuspended := False;
   end;
+  UpdateOperationDetailsAction(Self);
 end;
 
 procedure TCTRLWallet.OnBalanceSummaryCompleted(Sender: TObject);
@@ -767,21 +832,23 @@ begin
 end;
 
 procedure TCTRLWallet.OnOperationSelected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
-var
-  row: longint;
-  v: variant;
-  ophash: String;
 begin
-  if ASelection.Page < 0 then exit;
-  row := ASelection.Row;
-  if (row >= 0) and (row < FOperationsGrid.RowCount) then begin
-    v := FOperationsGrid.Rows[row];
-    ophash := FOperationsGrid.Rows[row].OPHASH;
-    if TPCOperation.IsValidOperationHash(ophash) then begin
-      TUserInterface.ShowOperationInfoDialog(self, ophash);
-      FOperationsGrid.ClearSelection;
-    end;
-  end;
+  // Mouse, wheel and keyboard selection only change the available actions.
+  // Opening a modal here also clears selection while users are navigating.
+  UpdateOperationDetailsAction(Sender);
+end;
+
+procedure TCTRLWallet.UpdateOperationDetailsAction(Sender: TObject);
+var
+  LOperationHash: String;
+begin
+  if Assigned(FOperationDetailsAction) then
+    FOperationDetailsAction.Enabled := TryGetSelectedOperationHash(LOperationHash);
+end;
+
+procedure TCTRLWallet.OnOperationsGridFinishedUpdating(Sender: TObject);
+begin
+  UpdateOperationDetailsAction(Sender);
 end;
 
 procedure TCTRLWallet.cbAccountsChange(Sender: TObject);
@@ -896,6 +963,10 @@ var
 begin
   Result := False;
   AOperationHash := '';
+  if FStopping or TUserInterface.Stopping or FSynchronizing or
+    not Assigned(FOperationsGrid) then Exit;
+  if FOperationsGrid.IsUpdating or FOperationsGrid.LoadingVisible or
+    FOperationsGrid.RefreshSuspended then Exit;
   rows := FOperationsGrid.SelectedRows;
   if Length(rows) <> 1 then exit;
   value := rows[0].__KEY;
@@ -917,7 +988,7 @@ var
   operationHash: String;
 begin
   if TryGetSelectedOperationHash(operationHash) then
-    TUserInterface.ShowOperationInfoDialog(Self, operationHash);
+    ShowOperationDetails(operationHash);
 end;
 
 end.

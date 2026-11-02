@@ -14,7 +14,7 @@
     <DCC_UnitAlias>Generics.Collections=System.Generics.Collections;Generics.Defaults=System.Generics.Defaults;$(DCC_UnitAlias)</DCC_UnitAlias>
     <DCC_UnitSearchPath>..\..\..\..\core;..\..\..\..\gui-experimental;..\..\..\..\gui-experimental\core.utils;..\..\..\..\gui-experimental\wizards\wallet;..\..\..\..\gui-experimental\wizards\operations;..\..\..\..\gui-classic;..\..\..\..\libraries\sphere10;..\..\..\..\libraries\simplebaselib4pascal;..\..\..\..\libraries\hashlib4pascal;..\..\..\..\libraries\cryptolib4pascal;..\..\..\..\libraries\synapse;..\..\..\..\libraries\pascalcoin;..\..\..\..\libraries\paszlib;..\..\..\..\libraries\abstractmem;..\..\..\..\libraries\regex</DCC_UnitSearchPath>
     <DCC_IncludePath>..\..\..\..\core;..\..\..\..\libraries\generics.collections\inc;..\..\..\..\libraries\sphere10</DCC_IncludePath>
-    <DCC_UnitSearchPath>$(DCC_UnitSearchPath);..\..\..\..\libraries\gnugettext</DCC_UnitSearchPath>
+    <DCC_UnitSearchPath>$(DCC_UnitSearchPath);..\..\..\..\libraries\gnugettext;..\..\framework</DCC_UnitSearchPath>
     <DCC_ResourcePath>..\..\lib\grid-refresh\Delphi\$(Platform)\$(Config)\res;..\..\..\..;..\..\..\..\gui-experimental;..\..\..\..\gui-classic;..\..\..\..\gui-experimental\wizards\wallet;..\..\..\..\gui-experimental\wizards\operations</DCC_ResourcePath>
     <DCC_DcuOutput>..\..\lib\grid-refresh\Delphi\$(Platform)\$(Config)\dcu</DCC_DcuOutput>
     <DCC_ExeOutput>..\..\..\..</DCC_ExeOutput>
