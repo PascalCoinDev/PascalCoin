@@ -16,13 +16,13 @@ jobs:
 
     strategy:
       matrix:
-        operating-system: [windows-latest,ubuntu-latest,macos-latest]
+        operating-system: [windows-latest,ubuntu-latest,macos-15-intel]
 #        lazarus-versions: [stable, 2.2.2, 2.2.0, 2.0.12]
         lazarus-versions: [stable]
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
       with:
         submodules: false
 
@@ -39,18 +39,19 @@ jobs:
       run: lazbuild -B "src/pascalcoin_miner.lpi"
 
     - name: Build the Main Wallet Application (Windows/Linux)
-      if: ${{ matrix.operating-system != 'macos-latest' }}
+      if: ${{ runner.os != 'macOS' }}
       run: lazbuild -B "src/pascalcoin_wallet_classic.lpi"
 
     - name: Build the Main Wallet Application (macOS)
-      if: ${{ matrix.operating-system == 'macos-latest' }}
+      if: ${{ runner.os == 'macOS' }}
       run: lazbuild -B --ws=cocoa "src/pascalcoin_wallet_classic.lpi"
 
     - name: Upload binary (Windows)
       if: ${{ (matrix.operating-system == 'windows-latest')  &&  (matrix.lazarus-versions == 'stable') }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       with:
         name: PascalCoinWindows
+        if-no-files-found: error
         path: |
           src/pascalcoin_daemon.exe
           src/PascalCoinMiner.exe
@@ -58,19 +59,21 @@ jobs:
 
     - name: Upload binary (Ubuntu)
       if: ${{ (matrix.operating-system == 'ubuntu-latest')  &&  (matrix.lazarus-versions == 'stable') }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       with:
         name: PascalCoinLinux
+        if-no-files-found: error
         path: |
           src/pascalcoin_daemon
           src/PascalCoinMiner
           src/PascalCoinWalletLazarus
 
     - name: Upload binary (macOS)
-      if: ${{ (matrix.operating-system == 'macos-latest')  &&  (matrix.lazarus-versions == 'stable') }}
-      uses: actions/upload-artifact@v3
+      if: ${{ (runner.os == 'macOS')  &&  (matrix.lazarus-versions == 'stable') }}
+      uses: actions/upload-artifact@v7
       with:
         name: PascalCoinMacOS
+        if-no-files-found: error
         path: |
           src/pascalcoin_daemon
           src/PascalCoinMiner
@@ -82,17 +85,19 @@ jobs:
     name: Package and create GitHub Release
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Set output
       id: vars
       run: echo "tag=${GITHUB_REF#refs/*/}" >> ${GITHUB_OUTPUT}
 
     - name: Download the Release binary
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v7
 
     - name: List files
       run: |
@@ -114,7 +119,7 @@ jobs:
         tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.tar.gz PascalCoin* pascalcoin*
 
     - name: Create GitHub release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v3
       with:
         name: PascalCoin ${{ steps.vars.outputs.tag }}
         body_path: release-notes.md
