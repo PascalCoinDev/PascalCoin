@@ -179,6 +179,9 @@ Set `PASCAL_WALLET_OPERATION_MESSAGE_ONLY=1` to run the focused native dialog
 checks. The case opens the production confirmation and result helpers with a
 267-operation list and long lines, then verifies complete read-only text,
 scrolling, visible summaries/buttons and bounded layouts at 100% and 150% scale.
+The 13 cases include a 1024x720 allowed rectangle for the owned dialog at both
+scales, without changing the desktop. Native outer bounds include the window
+frame on both Delphi/VCL and Lazarus/LCL.
 It checks No, Enter, Escape, title-bar close and explicit Yes on the dialog
 helper; no operation is submitted or broadcast. Result windows close normally.
 Native captures are written beside the test log for both compiler targets.
@@ -189,6 +192,10 @@ inspect all six tabs at 100% and 150% font scale, and capture each tab. Assertio
 cover native group-box content bounds, caption/font fit, sibling overlap, footer
 buttons and the Delist tab's published-field binding. No wallet is loaded and
 Execute is never invoked; these are presentation checks, not transaction tests.
+Run the full presentation suite on a 1920x1080 or larger viewport. The fixed-size
+Advanced Operation dialog has a 1140x975 client area at 150%, before its native
+frame; a 1024x720 desktop cannot contain it. Geometry is logged before the
+work-area containment assertion.
 
 ## Send PASC presentation
 

@@ -2,7 +2,9 @@ unit UWalletAdvancedPresentationChecks;
 
 { Copyright © 2026 Herman Schoenfeld <https://sphere10.com>. MIT license.
   Presentation checks use the actual Advanced Operation controls without a node
-  or wallet. They never invoke Execute or construct a financial operation. }
+  or wallet. They never invoke Execute or construct a financial operation.
+  The fixed-size dialog at 150% needs a Full HD test viewport; a 1024x720
+  hosted desktop cannot contain its 1140x975 client area and native frame. }
 
 {$IFDEF FPC}{$mode delphi}{$ENDIF}
 
@@ -288,6 +290,11 @@ begin
   LForm.Show;
   Pump;
   GetWindowRect(LForm.Handle, LWindow);
+  Log(Format('GEOMETRY scale=%d ppi=%d client=%dx%d native=%d,%d,%d,%d workarea=%d,%d,%d,%d',
+    [ANumerator * 100 div ADenominator, LForm.PixelsPerInch,
+     LForm.ClientWidth, LForm.ClientHeight, LWindow.Left, LWindow.Top,
+     LWindow.Right, LWindow.Bottom, LWork.Left, LWork.Top, LWork.Right,
+     LWork.Bottom]));
   Require((LWindow.Left >= LWork.Left) and (LWindow.Top >= LWork.Top) and
     (LWindow.Right <= LWork.Right) and (LWindow.Bottom <= LWork.Bottom),
     'Advanced Operation window exceeds the native work area');

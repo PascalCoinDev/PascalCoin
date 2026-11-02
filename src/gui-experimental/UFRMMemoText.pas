@@ -101,8 +101,8 @@ procedure TFRMMemoText.InitMessage(AParent: TForm; const ATitle, APrompt,
   ADetails: String; AConfirm: Boolean);
 var
   LMonitor: TMonitor;
-  LWork: TRect;
-  LWidth, LHeight: Integer;
+  LWork, LWindow: TRect;
+  LWidth, LHeight, LFrameWidth, LFrameHeight: Integer;
 begin
   // A stable modal owner avoids LCL's pmNone handle recreation, which would
   // recreate the loaded memo with its complete text as an initial window caption.
@@ -150,16 +150,23 @@ begin
   else
     LMonitor := Screen.PrimaryMonitor;
   LWork := LMonitor.WorkareaRect;
-  // Bound the outer window, including its native frame, to this work area.
-  LWidth := Min(MulDiv(900, PixelsPerInch, 96), LWork.Right - LWork.Left);
-  LHeight := Min(MulDiv(620, PixelsPerInch, 96), LWork.Bottom - LWork.Top);
+  // VCL bounds include the native frame; LCL form bounds can exclude it. Measure
+  // the difference after handle creation so either toolkit fits the whole window.
+  HandleNeeded;
+  GetWindowRect(Handle, LWindow);
+  LFrameWidth := Max(0, LWindow.Right - LWindow.Left - Width);
+  LFrameHeight := Max(0, LWindow.Bottom - LWindow.Top - Height);
+  LWidth := Min(MulDiv(900, PixelsPerInch, 96),
+    Max(1, LWork.Right - LWork.Left - LFrameWidth));
+  LHeight := Min(MulDiv(620, PixelsPerInch, 96),
+    Max(1, LWork.Bottom - LWork.Top - LFrameHeight));
   Constraints.MinWidth := Min(MulDiv(480, PixelsPerInch, 96), LWidth);
   Constraints.MinHeight := Min(MulDiv(300, PixelsPerInch, 96), LHeight);
-  SetBounds(LWork.Left + (LWork.Right - LWork.Left - LWidth) div 2,
-    LWork.Top + (LWork.Bottom - LWork.Top - LHeight) div 2, LWidth, LHeight);
+  SetBounds(LWork.Left + (LWork.Right - LWork.Left - LWidth - LFrameWidth) div 2,
+    LWork.Top + (LWork.Bottom - LWork.Top - LHeight - LFrameHeight) div 2,
+    LWidth, LHeight);
   // LCL Win32 passes preloaded memo text to CreateWindowEx. Create the native
   // control empty, then load the complete list through its existing text API.
-  HandleNeeded;
   Memo.HandleNeeded;
   Memo.Lines.Text := ADetails;
   FMessageLayout := True;

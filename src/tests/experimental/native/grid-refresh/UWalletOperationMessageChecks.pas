@@ -39,7 +39,7 @@ type
     FAction: TMessageAction;
     FMode: TMessageMode;
     FDeadline: UInt64;
-    FProcessing, FActionSent, FScaled, FSmall, FCapture: Boolean;
+    FProcessing, FActionSent, FScaled, FSmall, FCapture, FConstrained: Boolean;
     FObservedCount: Integer;
     procedure Require(ACondition: Boolean; const AMessage: String);
     procedure Log(const AMessage: String);
@@ -50,7 +50,8 @@ type
     procedure CheckLayout(AForm: TFRMMemoText; AInitial: Boolean);
     procedure Capture(AForm: TFRMMemoText);
     procedure RunCase(const AName: String; AMode: TMessageMode;
-      AAction: TMessageAction; AScaled, ASmall, ACapture: Boolean);
+      AAction: TMessageAction; AScaled, ASmall, ACapture: Boolean;
+      AConstrained: Boolean = False);
     procedure SendAction(AForm: TFRMMemoText);
   protected
     procedure Notification(AComponent: TComponent; AOperation: TOperation); override;
@@ -214,6 +215,12 @@ begin
     (fsModal in AForm.FormState), 'dialog is not an actual visible modal window');
   GetWindowRect(AForm.Handle, LWindow);
   LWork := AForm.Monitor.WorkareaRect;
+  if FConstrained and not AInitial then
+  begin
+    // Restrict only this fixture's allowed rectangle, never the user's display.
+    LWork.Right := Min(LWork.Right, LWork.Left + 1024);
+    LWork.Bottom := Min(LWork.Bottom, LWork.Top + 720);
+  end;
   CheckContained(LWork, LWindow, 'dialog/workarea');
   LClient.TopLeft := AForm.ClientToScreen(Types.Point(0, 0));
   LClient.BottomRight := AForm.ClientToScreen(Types.Point(AForm.ClientWidth, AForm.ClientHeight));
@@ -476,8 +483,8 @@ procedure TOperationMessageChecks.TimerTick(Sender: TObject);
 var
   I: Integer;
   LForm: TFRMMemoText;
-  LWork: TRect;
-  LWidth, LHeight: Integer;
+  LWork, LWindow: TRect;
+  LWidth, LHeight, LFrameWidth, LFrameHeight: Integer;
 begin
   if FProcessing then
     Exit;
@@ -507,14 +514,28 @@ begin
       CheckLayout(LForm, True);
       FPhase := 'owned form scaling';
       LogHandles(LForm, 'before scaling');
+      GetWindowRect(LForm.Handle, LWindow);
+      // Measure before scaling: a small monitor may cap the native HWND while
+      // LCL still holds the larger pending logical size until its resize event.
+      LFrameWidth := Max(0, LWindow.Right - LWindow.Left - LForm.Width);
+      LFrameHeight := Max(0, LWindow.Bottom - LWindow.Top - LForm.Height);
       if FScaled then
         LForm.ScaleBy(3, 2);
       LogHandles(LForm, 'after scaling');
-      if FScaled or FSmall then
+      if FScaled or FSmall or FConstrained then
       begin
         LWork := LForm.Monitor.WorkareaRect;
-        LWidth := Min(LForm.Width, LWork.Right - LWork.Left);
-        LHeight := Min(LForm.Height, LWork.Bottom - LWork.Top);
+        if FConstrained then
+        begin
+          LWork.Right := Min(LWork.Right, LWork.Left + 1024);
+          LWork.Bottom := Min(LWork.Bottom, LWork.Top + 720);
+        end;
+        // A form's logical size is client-only in LCL, but outer-sized in VCL.
+        // Preserve the full native frame when resizing this owned test dialog.
+        LWidth := Min(LForm.Width,
+          Max(1, LWork.Right - LWork.Left - LFrameWidth));
+        LHeight := Min(LForm.Height,
+          Max(1, LWork.Bottom - LWork.Top - LFrameHeight));
         if FSmall then
         begin
           LWidth := Min(LWidth, 900);
@@ -522,8 +543,10 @@ begin
         end;
         // Scale only this owned form. The monitor/workarea and desktop stay intact.
         LogHandles(LForm, 'before owned bounds');
-        LForm.SetBounds(LWork.Left + (LWork.Right - LWork.Left - LWidth) div 2,
-          LWork.Top + (LWork.Bottom - LWork.Top - LHeight) div 2, LWidth, LHeight);
+        LForm.SetBounds(LWork.Left +
+          (LWork.Right - LWork.Left - LWidth - LFrameWidth) div 2,
+          LWork.Top + (LWork.Bottom - LWork.Top - LHeight - LFrameHeight) div 2,
+          LWidth, LHeight);
         // LCL posts OnResize through its ordinary delayed-event queue. Let that
         // layout finish while the observer guard prevents nested test actions.
         Application.ProcessMessages;
@@ -554,7 +577,8 @@ begin
 end;
 
 procedure TOperationMessageChecks.RunCase(const AName: String;
-  AMode: TMessageMode; AAction: TMessageAction; AScaled, ASmall, ACapture: Boolean);
+  AMode: TMessageMode; AAction: TMessageAction; AScaled, ASmall, ACapture: Boolean;
+  AConstrained: Boolean);
 var
   LResult: Boolean;
   LInput: String;
@@ -576,6 +600,7 @@ begin
   FScaled := AScaled;
   FSmall := ASmall;
   FCapture := ACapture;
+  FConstrained := AConstrained;
   FTitle := Application.Title + ' - ' + AName;
   FError := '';
   FActionSent := False;
@@ -633,11 +658,13 @@ begin
     RunCase('confirm-yes-100', mmConfirm, maYes, False, False, False);
     RunCase('confirm-yes-150', mmConfirm, maYes, True, False, True);
     RunCase('confirm-small-owned-150', mmConfirm, maNo, True, True, True);
+    RunCase('confirm-constrained-100', mmConfirm, maNo, False, False, True, True);
+    RunCase('confirm-constrained-150', mmConfirm, maNo, True, False, True, True);
     RunCase('result-close-100', mmResult, maNo, False, False, True);
     RunCase('result-enter-150', mmResult, maEnter, True, False, True);
     RunCase('legacy-input-cancel', mmInput, maClose, False, False, False);
     RunCase('legacy-readonly-close', mmLegacyReadOnly, maNo, False, False, False);
-    Log('PASS all 11 native operation-message cases');
+    Log('PASS all 13 native operation-message cases');
   except
     on E: Exception do
     begin
