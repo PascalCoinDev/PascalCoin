@@ -21,9 +21,18 @@ An initial unstable-header write failure must be retried before a different
 payload reaches storage, both with caching enabled and disabled; normal close
 must then leave a valid file containing both repaired payloads.
 
+Fourteen admission cases distinguish a valid checkpoint beyond the available
+local history or explicit restore limit from unreadable storage. Ahead legacy
+and AM checkpoints are logged and left intact while replay restores the exact
+eligible block count, tip and safebox hash. An eligible legacy fallback still
+receives secure inspection and loading. Unreadable headers/bodies, corrupt main
+files beside ahead checkpoints, and an ahead-only live AM file remain protected
+failures. An unused ahead legacy body is deliberately not scanned.
+
 The checks are registered in `ExperimentalWalletTests.lpr`. The same check body
 also runs in `CheckpointStorageProbe.lpr` and `CheckpointStorageProbe.dproj` for
-focused FPC and Delphi verification. The runner executes all 27 storage checks.
+focused FPC and Delphi verification. The runner executes all 43 storage checks,
+including progress and cancellation during legacy checkpoint inspection.
 Use a new output directory:
 
 ```powershell

@@ -73,7 +73,11 @@ try {
     if (-not (Test-Path -LiteralPath $log)) { throw 'Storage checks did not produce a result log.' }
     $text = [IO.File]::ReadAllText($log)
     Write-Output $text
-    if ($text -notmatch '(?m)^PASS 27\s*$' -or $text -match '(?m)^FAIL') { $status = 1 }
+    $caseSource = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'UCheckpointStorageChecks.pas'))
+    $caseEnum = [regex]::Match($caseSource, '(?s)TCheckpointStorageCheck\s*=\s*\((.*?)\);').Groups[1].Value
+    $expectedChecks = [regex]::Matches($caseEnum, '\bcsc\w+\b').Count
+    if ($expectedChecks -le 0) { throw 'Cannot identify the storage regression count.' }
+    if ($text -notmatch ('(?m)^PASS '+$expectedChecks+'\s*$') -or $text -match '(?m)^FAIL') { $status = 1 }
     $heap = "$log.heap.log"
     if ($status -eq 0 -and (-not (Test-Path -LiteralPath $heap) -or
             [IO.File]::ReadAllText($heap) -notmatch '(?m)^0 unfreed memory blocks')) {

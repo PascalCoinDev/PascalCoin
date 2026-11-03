@@ -4,6 +4,8 @@ unit UCheckpointStorageChecks;
   Exercises checkpoint publication, malformed-candidate recovery and the live
   file's failed-flush marker through real core storage. Every file belongs to a
   newly generated test directory; no existing wallet data is opened.
+  Ahead checkpoints must be skipped without suppressing evidence of corruption;
+  replay and explicit restore limits retain their exact confirmed state.
 
   Public types in this unit
   TCheckpointStorageCheck | Selects one independently repeatable storage check. }
@@ -24,7 +26,15 @@ type
     cscUncachedWriteException, cscUncachedShortWrite, cscUncachedFailedClose,
     cscUncachedPartialRetry, cscCachedFailedClose,
     cscHealthyMainBadLegacyBody, cscOlderLegacySurvivesBadNewerBody,
-    cscUnstableHeaderRetryBeforeLaterPayload);
+    cscUnstableHeaderRetryBeforeLaterPayload, cscLegacyRestoreValidationProgress,
+    cscLegacyRestoreCancellation, cscAheadLegacyReplaysLocalHistory,
+    cscAheadLegacyRespectsRestoreLimit, cscAheadAbstractReplaysLocalHistory,
+    cscAheadAbstractRespectsRestoreLimit, cscCorruptMainWithAheadLegacy,
+    cscCorruptMainWithAheadAbstract, cscInvalidLegacyHeaderOnly,
+    cscInvalidLegacyBodyOnly, cscMalformedLegacyBesideAheadLegacy,
+    cscMalformedLegacyBesideAheadAbstract, cscInvalidEligibleBodyBesideAhead,
+    cscAheadLiveAbstractOnly, cscEligibleLegacyBesideAhead,
+    cscAheadLegacyBodyNotInspected);
 
 function RunCheckpointStorageCheck(ACheck: TCheckpointStorageCheck; const ALogPath: String): Integer;
 function RunCheckpointStorageChecks(const ALogPath: String): Integer;
@@ -32,10 +42,21 @@ function RunCheckpointStorageChecks(const ALogPath: String): Integer;
 implementation
 
 uses Classes, SysUtils, TypInfo, UAccounts, UBlockChain, UNode, UFileStorage,
-  UPCAbstractMem, UPCDataTypes, UAbstractMem, UFileMem, UCacheMem, UCrypto, UConst, UBaseTypes;
+  UPCAbstractMem, UPCDataTypes, UAbstractMem, UFileMem, UCacheMem, UCrypto, UConst, UBaseTypes, ULog;
 
 type
   TCheckpointFailure = (cfNone, cfCreate, cfPartialWrite, cfFlush, cfValidation, cfPublish);
+
+  TAheadRestoreCase = (arcReplay, arcHeightLimit, arcCorruptMain, arcMalformedPeer,
+    arcInvalidHeaderOnly, arcInvalidBodyOnly, arcInvalidEligibleBody,
+    arcAheadLiveOnly, arcEligibleFallback, arcAheadBodyOnly);
+
+  TCheckpointAdmissionLog = class(TLog)
+  protected
+    procedure DoLog(ALogType: TLogType; const ASender, AText: String); override;
+  public
+    Text: String;
+  end;
 
   TShortCheckpointStream = class(TFileStream)
   public
@@ -73,6 +94,10 @@ type
     FOwnDirectory, FOwnNodeDirectory: Boolean;
     FCloseLogs: Integer;
     FCloseLogText: String;
+    FRestoreIntegrityCount: Integer;
+    FCancelLegacyRestore: Boolean;
+    FAdmissionIntegrityCount: Integer;
+    FAdmissionValidationBlocks: Cardinal;
     FKey: TECPrivateKey;
     FSource: TFailureCheckpointMem;
     procedure SeedFile(const AFileName: String; AType: Word);
@@ -82,6 +107,10 @@ type
     procedure CheckRestore(AMode: Integer);
     procedure CheckReplay;
     procedure CheckLegacyBodyRecovery(AHealthyMain: Boolean);
+    procedure CheckLegacyRestoreProgress(ACancel: Boolean);
+    procedure ObserveRestoreProgress(Sender: TObject; const AProgress: TProgressInfo);
+    procedure CheckAheadRecovery(AAbstractCheckpoint: Boolean; ACase: TAheadRestoreCase);
+    procedure ObserveAdmissionProgress(Sender: TObject; const AProgress: TProgressInfo);
     procedure CheckFailedFlush(AShortWrite: Boolean);
     procedure CheckUncachedWrite(AShortWrite: Boolean);
     procedure CheckUncachedClose;
@@ -100,6 +129,11 @@ type
 procedure Require(ACondition: Boolean; const AMessage: String);
 begin
   if not ACondition then raise Exception.Create('Checkpoint storage: '+AMessage);
+end;
+
+procedure TCheckpointAdmissionLog.DoLog(ALogType: TLogType; const ASender, AText: String);
+begin
+  if (ALogType=ltinfo) and (ASender='TPCBank') then Text := Text+AText+sLineBreak;
 end;
 
 function ReadBytes(const AFileName: String): TBytes;
@@ -669,6 +703,287 @@ begin
   end;
 end;
 
+procedure TCheckpointFixture.ObserveRestoreProgress(Sender: TObject; const AProgress: TProgressInfo);
+begin
+  if AProgress.Stage<>psCheckingSafeboxIntegrity then Exit;
+  Require((AProgress.CurrentPosition=3) and (AProgress.TotalCount=3) and
+    (AProgress.StartBlock=0) and (AProgress.EndBlock=2) and (AProgress.BlockCount=3),
+    'legacy validation reported incorrect block progress');
+  Inc(FRestoreIntegrityCount);
+  if FCancelLegacyRestore then raise EAbort.Create('Owned legacy restore cancellation');
+end;
+
+procedure TCheckpointFixture.CheckLegacyRestoreProgress(ACancel: Boolean);
+var LMain, LLegacy, LFixtureName, LError: String;
+  LBank: TPCBank;
+  LNode: TNode;
+  LBlocks, LLegacyStream: TFileStream;
+  LOperations: TPCOperationsComp;
+  LCount: Cardinal;
+  LPublishedCount, I: Integer;
+  LExpectedHash, LOriginalHash: TRawBytes;
+  LMainBefore, LLegacyBefore: TBytes;
+  LAborted, LRestored: Boolean;
+begin
+  Require(ForceDirectories(IncludeTrailingPathDelimiter(FDirectory)+'Data'),
+    'cannot create the owned legacy progress directory');
+  LMain := IncludeTrailingPathDelimiter(FDirectory)+'Data'+PathDelim+'safebox.am_safebox';
+  LLegacy := IncludeTrailingPathDelimiter(FDirectory)+'Data'+PathDelim+'recovery-progress.safebox';
+  LFixtureName := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)))+'mainnet-blocks-0-4.bin';
+  Require(FileExists(LFixtureName),'the public legacy progress block fixture is missing');
+  LBank := TPCBank.Create(nil);
+  try
+    LBank.StorageClass := TFileStorage;
+    LBlocks := TFileStream.Create(LFixtureName,fmOpenRead+fmShareDenyWrite);
+    try
+      LOperations := TPCOperationsComp.Create(LBank);
+      try
+        LBlocks.ReadBuffer(LCount,SizeOf(LCount));
+        Require(LCount=5,'the public legacy progress fixture count changed');
+        for I := 0 to 2 do begin
+          LError := '';
+          Require(LOperations.LoadBlockFromStream(LBlocks,LError),'legacy progress block decode failed: '+LError);
+          Require(LBank.AddNewBlockChainBlock(LOperations,0,LError),'legacy progress block did not validate: '+LError);
+          if I=0 then LBank.SafeBox.SaveCheckpointing(LMain);
+        end;
+        LExpectedHash := Copy(LBank.SafeBox.SafeBoxHash);
+        LLegacyStream := TFileStream.Create(LLegacy,fmCreate);
+        try
+          LBank.SafeBox.SaveSafeBoxToAStream(LLegacyStream,0,LBank.BlocksCount-1);
+        finally
+          LLegacyStream.Free;
+        end;
+      finally
+        LOperations.Free;
+      end;
+    finally
+      LBlocks.Free;
+    end;
+  finally
+    LBank.Free;
+  end;
+  LMainBefore := ReadBytes(LMain);
+  LLegacyBefore := ReadBytes(LLegacy);
+  LNode := TNode.Create(nil);
+  try
+    Require(TNode.Node=LNode,'the restore fixture is not using the canonical node');
+    LNode.Bank.StorageClass := TFileStorage;
+    // Install the intact one-block state before the newer legacy candidate is
+    // inspected. Cancellation must leave this same live bank and file intact.
+    Require(LNode.Bank.RestoreBank(0,'',nil),'cannot restore the original one-block safebox');
+    Require((LNode.Bank.BlocksCount=1) and (LNode.Bank.SafeBox.AccountsCount=5),
+      'the original safebox fixture has incorrect counts');
+    LOriginalHash := Copy(LNode.Bank.SafeBox.SafeBoxHash);
+    FRestoreIntegrityCount := 0;
+    FCancelLegacyRestore := ACancel;
+    LAborted := False;
+    LRestored := False;
+    try
+      LRestored := LNode.Bank.RestoreBank(-1,'',ObserveRestoreProgress);
+    except
+      on E: EAbort do begin
+        Require(E.Message='Owned legacy restore cancellation','restore replaced the original cancellation');
+        LAborted := True;
+      end;
+    end;
+    Require(not LNode.HasStorageFailure,'legacy progress cancellation latched a canonical storage failure');
+    if ACancel then begin
+      Require(LAborted and not LRestored,'legacy validation cancellation did not propagate EAbort');
+      Require(FRestoreIntegrityCount=1,'legacy validation continued after cancellation');
+      Require((LNode.Bank.BlocksCount=1) and (LNode.Bank.SafeBox.AccountsCount=5),
+        'cancelled legacy inspection displaced the live safebox');
+      Require(TBaseType.Equals(LOriginalHash,LNode.Bank.SafeBox.SafeBoxHash),
+        'cancelled legacy inspection changed the live safebox hash');
+    end else begin
+      Require(LRestored and not LAborted,'valid legacy restore did not complete');
+      // The tiny fixture always emits its final integrity event: one for the
+      // read-only candidate inspection and one for the eventual secure restore.
+      Require(FRestoreIntegrityCount=2,'legacy candidate inspection did not forward progress');
+      Require((LNode.Bank.BlocksCount=3) and (LNode.Bank.SafeBox.AccountsCount=15),
+        'legacy progress restore published incorrect counts');
+      Require(TBaseType.Equals(LExpectedHash,LNode.Bank.SafeBox.SafeBoxHash),
+        'legacy progress restore published a different safebox hash');
+    end;
+  finally
+    LNode.Free;
+  end;
+  Require(SameBytes(LLegacyBefore,ReadBytes(LLegacy)),'legacy progress modified its original checkpoint');
+  if ACancel then
+    Require(SameBytes(LMainBefore,ReadBytes(LMain)),'cancelled legacy restore modified the live file')
+  else
+    Require(TPCAbstractMem.AnalyzeFile(LMain,LPublishedCount) and (LPublishedCount=3),
+      'completed legacy restore did not publish a readable three-block safebox');
+end;
+
+procedure TCheckpointFixture.ObserveAdmissionProgress(Sender: TObject; const AProgress: TProgressInfo);
+begin
+  if AProgress.Stage<>psCheckingSafeboxIntegrity then Exit;
+  Require(FAdmissionValidationBlocks>0,'an ahead checkpoint reached secure body validation');
+  Require((AProgress.CurrentPosition=FAdmissionValidationBlocks) and
+    (AProgress.TotalCount=FAdmissionValidationBlocks),'eligible checkpoint validation reported the wrong range');
+  Inc(FAdmissionIntegrityCount);
+end;
+
+procedure TCheckpointFixture.CheckAheadRecovery(AAbstractCheckpoint: Boolean; ACase: TAheadRestoreCase);
+var LMain, LAhead, LOther, LFixtureName, LHistory, LError: String;
+  LBank: TPCBank;
+  LOperations: TPCOperationsComp;
+  LBlocks: TFileStream;
+  LLog: TCheckpointAdmissionLog;
+  LCount: Cardinal;
+  LExpectedHash, LTwoBlockHash, LThreeBlockHash, LFourBlockHash: TRawBytes;
+  LAheadBefore, LOtherBefore, LMainBefore, LHistoryBefore, LBad: TBytes;
+  LExpectedBlocks, LRestoreLimit, I: Integer;
+  LRaised, LExpectFailure, LHasAhead: Boolean;
+
+  procedure SaveLegacy(const AFileName: String; ARemoveBody: Boolean);
+  var LFull: TMemoryStream;
+    LFile: TFileStream;
+    LHeader: TPCSafeBoxHeader;
+    LHeaderSize: Int64;
+    LEndOffset: Cardinal;
+    J: Integer;
+  begin
+    LFull := TMemoryStream.Create;
+    try
+      LBank.SafeBox.SaveSafeBoxToAStream(LFull,0,LBank.BlocksCount-1);
+      LFull.Position := 0;
+      Require(TPCSafeBox.LoadSafeBoxStreamHeader(LFull,LHeader),'cannot read the owned legacy fixture header');
+      LHeaderSize := LFull.Position;
+      LFile := TFileStream.Create(AFileName,fmCreate);
+      try
+        LFull.Position := 0;
+        if not ARemoveBody then LFile.CopyFrom(LFull,LFull.Size)
+        else begin
+          // Leave a valid header/footer so only an eligible secure body pass
+          // can reject this candidate; an out-of-range body must never be read.
+          LFile.CopyFrom(LFull,LHeaderSize);
+          LEndOffset := (LHeader.blocksCount+1)*SizeOf(Cardinal);
+          for J := 0 to Integer(LHeader.blocksCount) do LFile.WriteBuffer(LEndOffset,SizeOf(LEndOffset));
+          TStreamOp.WriteAnsiString(LFile,LHeader.safeBoxHash);
+        end;
+      finally
+        LFile.Free;
+      end;
+    finally
+      LFull.Free;
+    end;
+  end;
+
+begin
+  Require(ForceDirectories(IncludeTrailingPathDelimiter(FDirectory)+'Data'),'cannot create the owned admission directory');
+  LMain := IncludeTrailingPathDelimiter(FDirectory)+'Data'+PathDelim+'safebox.am_safebox';
+  LAhead := IncludeTrailingPathDelimiter(FDirectory)+'Data'+PathDelim+'checkpoint930225';
+  if AAbstractCheckpoint then LAhead := LAhead+'.am_safebox' else LAhead := LAhead+'.safebox';
+  LOther := IncludeTrailingPathDelimiter(FDirectory)+'Data'+PathDelim+'eligible.safebox';
+  LHistory := IncludeTrailingPathDelimiter(FDirectory)+'Data'+PathDelim+'BlockChainStream.blocks';
+  LFixtureName := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)))+'mainnet-blocks-0-4.bin';
+  LRestoreLimit := 4;
+  if ACase=arcHeightLimit then LRestoreLimit := 1;
+  LExpectedBlocks := 3;
+  if ACase=arcReplay then LExpectedBlocks := 4;
+  if ACase=arcHeightLimit then LExpectedBlocks := 2;
+  LExpectFailure := ACase in [arcCorruptMain,arcMalformedPeer,arcInvalidHeaderOnly,
+    arcInvalidBodyOnly,arcInvalidEligibleBody,arcAheadLiveOnly];
+  LHasAhead := not (ACase in [arcInvalidHeaderOnly,arcInvalidBodyOnly,arcAheadLiveOnly]);
+  FAdmissionValidationBlocks := 0;
+  FAdmissionIntegrityCount := 0;
+  if ACase=arcEligibleFallback then FAdmissionValidationBlocks := 2;
+  LBank := TPCBank.Create(nil);
+  try
+    LBank.StorageClass := TFileStorage;
+    LBlocks := TFileStream.Create(LFixtureName,fmOpenRead+fmShareDenyWrite);
+    LOperations := TPCOperationsComp.Create(LBank);
+    try
+      LBlocks.ReadBuffer(LCount,SizeOf(LCount));
+      Require(LCount=5,'the public admission fixture count changed');
+      for I := 0 to 4 do begin
+        LError := '';
+        Require(LOperations.LoadBlockFromStream(LBlocks,LError),'admission fixture decode failed: '+LError);
+        Require(LBank.AddNewBlockChainBlock(LOperations,0,LError),'admission fixture validation failed: '+LError);
+        if I=1 then begin
+          LTwoBlockHash := Copy(LBank.SafeBox.SafeBoxHash);
+          if ACase in [arcEligibleFallback,arcInvalidBodyOnly,arcInvalidEligibleBody] then
+            SaveLegacy(LOther,ACase<>arcEligibleFallback);
+        end;
+        if I=2 then LThreeBlockHash := Copy(LBank.SafeBox.SafeBoxHash);
+        if I=3 then LFourBlockHash := Copy(LBank.SafeBox.SafeBoxHash);
+      end;
+      if LHasAhead then begin
+        if AAbstractCheckpoint then LBank.SafeBox.SaveCheckpointing(LAhead)
+        else SaveLegacy(LAhead,ACase=arcAheadBodyOnly);
+      end;
+      if ACase=arcAheadLiveOnly then LBank.SafeBox.SaveCheckpointing(LMain);
+      // Replay cases reproduce the exact one-block gap: five checkpoint blocks
+      // but only four local blocks. Other cases retain their independent limits.
+      if ACase=arcReplay then LBank.Storage.DeleteBlockChainBlocks(4)
+      else if ACase<>arcHeightLimit then LBank.Storage.DeleteBlockChainBlocks(3);
+    finally
+      LOperations.Free;
+      LBlocks.Free;
+    end;
+  finally
+    LBank.Free;
+  end;
+  if ACase<>arcAheadLiveOnly then begin
+    if FileExists(LMain) then Require(SysUtils.DeleteFile(LMain),'cannot retire the owned setup safebox');
+  end;
+  SetLength(LBad,64);
+  FillChar(LBad[0],Length(LBad),0);
+  if ACase=arcCorruptMain then WriteBytes(LMain,LBad);
+  if ACase in [arcMalformedPeer,arcInvalidHeaderOnly] then WriteBytes(LOther,LBad);
+  if LHasAhead then LAheadBefore := ReadBytes(LAhead);
+  if FileExists(LOther) then LOtherBefore := ReadBytes(LOther);
+  if FileExists(LMain) then LMainBefore := ReadBytes(LMain);
+  LHistoryBefore := ReadBytes(LHistory);
+  case LExpectedBlocks of
+    2: LExpectedHash := LTwoBlockHash;
+    4: LExpectedHash := LFourBlockHash;
+  else
+    LExpectedHash := LThreeBlockHash;
+  end;
+  LLog := TCheckpointAdmissionLog.Create(nil);
+  try
+    LBank := TPCBank.Create(nil);
+    try
+      LBank.StorageClass := TFileStorage;
+      LRaised := False;
+      try
+        LBank.DiskRestoreFromOperations(LRestoreLimit,ObserveAdmissionProgress);
+      except
+        on E: Exception do begin
+          Require(not (E is EAccessViolation),'admission failure became a cleanup access violation');
+          LRaised := True;
+          LError := E.Message;
+        end;
+      end;
+      if LExpectFailure then begin
+        Require(LRaised,'unreadable or ahead-only live storage was silently replaced');
+        Require(Pos('No readable safebox',LError)>0,'admission failed outside the protected storage boundary: '+LError);
+      end else begin
+        Require(not LRaised,'an ineligible checkpoint blocked replay: '+LError);
+        Require((LBank.BlocksCount=Cardinal(LExpectedBlocks)) and
+          (LBank.AccountsCount=Cardinal(LExpectedBlocks*5)),'replay did not stop at the exact eligible local height');
+        Require(LBank.LastOperationBlock.block=Cardinal(LExpectedBlocks-1),'replay has the wrong tip');
+        Require(TBaseType.Equals(LExpectedHash,LBank.SafeBox.SafeBoxHash),'replay produced a different confirmed safebox hash');
+        Require(Pos(LAhead,LLog.Text)>0,'the informational skip diagnostic omitted the checkpoint filename');
+        if ACase=arcEligibleFallback then
+          Require(FAdmissionIntegrityCount=2,'the eligible legacy fallback bypassed secure inspection or restore');
+      end;
+    finally
+      LBank.Free;
+    end;
+  finally
+    LLog.Free;
+  end;
+  if LHasAhead then Require(SameBytes(LAheadBefore,ReadBytes(LAhead)),'admission changed the skipped checkpoint');
+  if Length(LOtherBefore)>0 then Require(SameBytes(LOtherBefore,ReadBytes(LOther)),'admission changed another recovery source');
+  if Length(LMainBefore)>0 then Require(SameBytes(LMainBefore,ReadBytes(LMain)),'admission overwrote the original protected live safebox');
+  if LExpectFailure and (Length(LMainBefore)=0) then
+    Require(not FileExists(LMain),'failed admission published a new live safebox');
+  Require(SameBytes(LHistoryBefore,ReadBytes(LHistory)),'admission/replay changed the local block history');
+end;
+
 procedure TCheckpointFixture.CheckFailedFlush(AShortWrite: Boolean);
 var LMem: TFailureFileMem; LReopened: TFileMem; LZone: TAMZone;
   LExpected, LRead: array[0..127] of Byte; LPhysical: TBytes; LRaised, LResult: Boolean;
@@ -1049,6 +1364,22 @@ begin
     cscHealthyMainBadLegacyBody: CheckLegacyBodyRecovery(True);
     cscOlderLegacySurvivesBadNewerBody: CheckLegacyBodyRecovery(False);
     cscUnstableHeaderRetryBeforeLaterPayload: CheckUnstableHeaderRetry;
+    cscLegacyRestoreValidationProgress: CheckLegacyRestoreProgress(False);
+    cscLegacyRestoreCancellation: CheckLegacyRestoreProgress(True);
+    cscAheadLegacyReplaysLocalHistory: CheckAheadRecovery(False,arcReplay);
+    cscAheadLegacyRespectsRestoreLimit: CheckAheadRecovery(False,arcHeightLimit);
+    cscAheadAbstractReplaysLocalHistory: CheckAheadRecovery(True,arcReplay);
+    cscAheadAbstractRespectsRestoreLimit: CheckAheadRecovery(True,arcHeightLimit);
+    cscCorruptMainWithAheadLegacy: CheckAheadRecovery(False,arcCorruptMain);
+    cscCorruptMainWithAheadAbstract: CheckAheadRecovery(True,arcCorruptMain);
+    cscInvalidLegacyHeaderOnly: CheckAheadRecovery(False,arcInvalidHeaderOnly);
+    cscInvalidLegacyBodyOnly: CheckAheadRecovery(False,arcInvalidBodyOnly);
+    cscMalformedLegacyBesideAheadLegacy: CheckAheadRecovery(False,arcMalformedPeer);
+    cscMalformedLegacyBesideAheadAbstract: CheckAheadRecovery(True,arcMalformedPeer);
+    cscInvalidEligibleBodyBesideAhead: CheckAheadRecovery(False,arcInvalidEligibleBody);
+    cscAheadLiveAbstractOnly: CheckAheadRecovery(True,arcAheadLiveOnly);
+    cscEligibleLegacyBesideAhead: CheckAheadRecovery(False,arcEligibleFallback);
+    cscAheadLegacyBodyNotInspected: CheckAheadRecovery(False,arcAheadBodyOnly);
     cscSharingDenied: begin
       {$IFDEF MSWINDOWS}
       PrepareSource;

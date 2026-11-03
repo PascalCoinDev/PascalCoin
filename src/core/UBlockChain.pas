@@ -1522,12 +1522,18 @@ var
   fs: TStream;
   LBlocksCount: Cardinal;
   sbHeader, goodSbHeader: TPCSafeBoxHeader;
-  LHasCandidates, LHeaderValid: Boolean;
+  LHasUnreadableCandidates, LHeaderValid: Boolean;
   {$IFDEF USE_ABSTRACTMEM}
   LTempBlocksCount: Integer;
   LSafeboxFileName, LAbstractFileName: String;
   LReadOnlySafebox: TPCAbstractMem;
+  LLiveSafeboxAhead: Boolean;
   {$ENDIF}
+
+  procedure LogSkippedCheckpoint(const AFileName: String; ALastBlock: Int64);
+  begin
+    TLog.NewLog(ltInfo,ClassName,Format('Skipping safebox checkpoint %s: last block %d exceeds restore limit %d',[AFileName,ALastBlock,AMax_block]));
+  end;
 
   function LegacyBodyIsReadable(const AFileName: String; AExpectedBlocks: Cardinal): Boolean;
   var LProbe: TPCBank; LStream: TStream; LErrors: String;
@@ -1544,7 +1550,9 @@ var
           LStream := TBufferedStream.Create(LStream,64*1024,True,True,True);
           // A complete header is not a complete snapshot. Validate the body in
           // a separate memory bank before it can displace another good candidate.
-          Result := LProbe.LoadBankFromStream(LStream,True,Nil,Nil,Nil,LErrors);
+          // This can be the expensive pass: report progress and allow its EAbort
+          // to escape before selecting a candidate or changing the live bank.
+          Result := LProbe.LoadBankFromStream(LStream,True,Nil,Nil,ARestoreProgressNotify,LErrors);
           if Result and (LProbe.BlocksCount<>AExpectedBlocks) then begin
             Result := False;
             LErrors := 'Safebox body block count does not match its header';
@@ -1568,7 +1576,7 @@ var
 
 begin
   Result := False;
-  LHasCandidates := False;
+  LHasUnreadableCandidates := False;
   LBlocksCount := 0;
   LFilename := '';
   FBankLock.AcquireWriteLock;
@@ -1576,28 +1584,32 @@ begin
     try
     {$IFDEF USE_ABSTRACTMEM}
     LAbstractFileName := '';
+    LLiveSafeboxAhead := False;
     LSafeboxFileName := GetStorageFolder(AOrphan)+PathDelim+'safebox'+CT_Safebox_Extension;
-    LHasCandidates := FileExists(LSafeboxFileName);
     // Inspect every candidate read-only before opening any file for mutation.
     // One incomplete checkpoint must not prevent use of a healthy live file.
-    if TPCAbstractMem.AnalyzeFile(LSafeboxFileName,LTempBlocksCount) and
-      ((AMax_block<0) or (Int64(LTempBlocksCount)-1<=AMax_block)) then begin
-      LAbstractFileName := LSafeboxFileName;
-      LBlocksCount := LTempBlocksCount;
+    if FileExists(LSafeboxFileName) then begin
+      if TPCAbstractMem.AnalyzeFile(LSafeboxFileName,LTempBlocksCount) then begin
+        if (AMax_block<0) or (Int64(LTempBlocksCount)-1<=AMax_block) then begin
+          LAbstractFileName := LSafeboxFileName;
+          LBlocksCount := LTempBlocksCount;
+        end else LLiveSafeboxAhead := True;
+      end else LHasUnreadableCandidates := True;
     end;
     folder := GetStorageFolder(''); // Checkpoints are shared with orphan restores.
     if SysUtils.FindFirst(folder+PathDelim+'checkpoint*'+CT_Safebox_Extension,faAnyFile,sr)=0 then begin
       try
         repeat
           if (sr.Attr and faDirectory)=0 then begin
-            LHasCandidates := True;
             auxfn := folder+PathDelim+sr.Name;
-            if TPCAbstractMem.AnalyzeFile(auxfn,LTempBlocksCount) and
-              ((AMax_block<0) or (Int64(LTempBlocksCount)-1<=AMax_block)) and
-              ((LAbstractFileName='') or (LTempBlocksCount>LBlocksCount)) then begin
-              LAbstractFileName := auxfn;
-              LBlocksCount := LTempBlocksCount;
-            end;
+            if TPCAbstractMem.AnalyzeFile(auxfn,LTempBlocksCount) then begin
+              if (AMax_block>=0) and (Int64(LTempBlocksCount)-1>AMax_block) then
+                LogSkippedCheckpoint(auxfn,Int64(LTempBlocksCount)-1)
+              else if (LAbstractFileName='') or (LTempBlocksCount>LBlocksCount) then begin
+                LAbstractFileName := auxfn;
+                LBlocksCount := LTempBlocksCount;
+              end;
+            end else LHasUnreadableCandidates := True;
           end;
         until FindNext(sr)<>0;
       finally
@@ -1610,7 +1622,6 @@ begin
       try
         repeat
           if (sr.Attr and faDirectory)=0 then begin
-            LHasCandidates := True;
             auxfn := folder+PathDelim+sr.Name;
             LHeaderValid := False;
             try
@@ -1621,14 +1632,22 @@ begin
               on E: EOSError do
                 TLog.NewLog(ltError,ClassName,'Cannot inspect safebox '+auxfn+': '+E.Message);
             end;
-            if LHeaderValid and ((AMax_block<0) or (sbHeader.endBlock<=AMax_block)) and
-              (sbHeader.blocksCount>LBlocksCount) and (sbHeader.startBlock=0) and
-              (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1) then begin
+            if LHeaderValid then
+              LHeaderValid := (sbHeader.startBlock=0) and
+                (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1);
+            if not LHeaderValid then
+              LHasUnreadableCandidates := True
+            else if (AMax_block>=0) and (sbHeader.endBlock>AMax_block) then begin
+              // A complete header outside this restore range is not evidence of
+              // corruption. Preserve that unused checkpoint and replay local
+              // history, as before; its body is neither loaded nor trusted.
+              LogSkippedCheckpoint(auxfn,sbHeader.endBlock);
+            end else if sbHeader.blocksCount>LBlocksCount then begin
               if LegacyBodyIsReadable(auxfn,sbHeader.blocksCount) then begin
                 LFilename := auxfn;
                 LBlocksCount := sbHeader.blocksCount;
                 goodSbHeader := sbHeader;
-              end;
+              end else LHasUnreadableCandidates := True;
             end;
           end;
         until FindNext(sr)<>0;
@@ -1671,15 +1690,17 @@ begin
           TLog.NewLog(ltInfo,ClassName,'Recovered safebox from checkpoint '+LAbstractFileName);
         end;
         SafeBox.SetSafeboxFileName(LSafeboxFileName);
-      end else if LHasCandidates then begin
+      end else if LHasUnreadableCandidates or LLiveSafeboxAhead then begin
         // Never initialize over evidence of a failed write. Leave all originals
         // available for recovery instead of silently starting an empty chain.
+        // An ahead checkpoint must not conceal detected damage or cause an
+        // out-of-range live safebox to be reopened implicitly below.
         raise Exception.Create('No readable safebox or checkpoint in '+folder+'. Original files have been preserved.');
       end else begin
         SafeBox.SetSafeboxFileName(LSafeboxFileName);
       end;
       {$ELSE}
-      if LHasCandidates then
+      if LHasUnreadableCandidates then
         raise Exception.Create('No readable safebox in '+folder+'. Original files have been preserved.');
       {$ENDIF}
     end;

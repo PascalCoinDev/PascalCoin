@@ -40,6 +40,22 @@ type
     procedure HealthyMainSurvivesNewerLegacyHeaderWithInvalidBody;
     procedure OlderLegacySurvivesNewerHeaderWithInvalidBody;
     procedure FailedUnstableHeaderMustRetryBeforeLaterPayload;
+    procedure LegacyCandidateValidationReportsProgress;
+    procedure CancelledLegacyCandidatePreservesLiveStorage;
+    procedure AheadLegacyReplaysLocalHistory;
+    procedure AheadLegacyRespectsRestoreLimit;
+    procedure AheadAbstractReplaysLocalHistory;
+    procedure AheadAbstractRespectsRestoreLimit;
+    procedure CorruptMainWithAheadLegacy;
+    procedure CorruptMainWithAheadAbstract;
+    procedure InvalidLegacyHeaderOnly;
+    procedure InvalidLegacyBodyOnly;
+    procedure MalformedLegacyBesideAheadLegacy;
+    procedure MalformedLegacyBesideAheadAbstract;
+    procedure InvalidEligibleBodyBesideAhead;
+    procedure AheadLiveAbstractOnly;
+    procedure EligibleLegacyBesideAhead;
+    procedure AheadLegacyBodyNotInspected;
     {$IFDEF MSWINDOWS}
     procedure RealSharingFailurePreservesPreviousCheckpoint;
     {$ENDIF}
@@ -190,6 +206,86 @@ begin
   RunCheck(cscSharingDenied);
 end;
 {$ENDIF}
+
+procedure TCheckpointStorageTests.LegacyCandidateValidationReportsProgress;
+begin
+  RunCheck(cscLegacyRestoreValidationProgress);
+end;
+
+procedure TCheckpointStorageTests.CancelledLegacyCandidatePreservesLiveStorage;
+begin
+  RunCheck(cscLegacyRestoreCancellation);
+end;
+
+procedure TCheckpointStorageTests.AheadLegacyReplaysLocalHistory;
+begin
+  RunCheck(cscAheadLegacyReplaysLocalHistory);
+end;
+
+procedure TCheckpointStorageTests.AheadLegacyRespectsRestoreLimit;
+begin
+  RunCheck(cscAheadLegacyRespectsRestoreLimit);
+end;
+
+procedure TCheckpointStorageTests.AheadAbstractReplaysLocalHistory;
+begin
+  RunCheck(cscAheadAbstractReplaysLocalHistory);
+end;
+
+procedure TCheckpointStorageTests.AheadAbstractRespectsRestoreLimit;
+begin
+  RunCheck(cscAheadAbstractRespectsRestoreLimit);
+end;
+
+procedure TCheckpointStorageTests.CorruptMainWithAheadLegacy;
+begin
+  RunCheck(cscCorruptMainWithAheadLegacy);
+end;
+
+procedure TCheckpointStorageTests.CorruptMainWithAheadAbstract;
+begin
+  RunCheck(cscCorruptMainWithAheadAbstract);
+end;
+
+procedure TCheckpointStorageTests.InvalidLegacyHeaderOnly;
+begin
+  RunCheck(cscInvalidLegacyHeaderOnly);
+end;
+
+procedure TCheckpointStorageTests.InvalidLegacyBodyOnly;
+begin
+  RunCheck(cscInvalidLegacyBodyOnly);
+end;
+
+procedure TCheckpointStorageTests.MalformedLegacyBesideAheadLegacy;
+begin
+  RunCheck(cscMalformedLegacyBesideAheadLegacy);
+end;
+
+procedure TCheckpointStorageTests.MalformedLegacyBesideAheadAbstract;
+begin
+  RunCheck(cscMalformedLegacyBesideAheadAbstract);
+end;
+
+procedure TCheckpointStorageTests.InvalidEligibleBodyBesideAhead;
+begin
+  RunCheck(cscInvalidEligibleBodyBesideAhead);
+end;
+
+procedure TCheckpointStorageTests.AheadLiveAbstractOnly;
+begin
+  RunCheck(cscAheadLiveAbstractOnly);
+end;
+
+procedure TCheckpointStorageTests.EligibleLegacyBesideAhead;
+begin
+  RunCheck(cscEligibleLegacyBesideAhead);
+end;
+
+procedure TCheckpointStorageTests.AheadLegacyBodyNotInspected;
+begin
+  RunCheck(cscAheadLegacyBodyNotInspected);
+end;
 
 initialization
   RegisterTest(TCheckpointStorageTests);
