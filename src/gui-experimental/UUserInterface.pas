@@ -319,7 +319,7 @@ implementation
 uses
   {$IFNDEF FPC}System.SyncObjs,{$ENDIF}
   Generics.Collections, UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
-  UFileStorage, UTime, USettings, UCoreUtils, UMemory, UProgressDisplay,
+  UFileStorage, {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}UAbstractMemBlockchainStorage,{$ENDIF} UTime, USettings, UCoreUtils, UMemory, UProgressDisplay,
   UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale, UWIZDelistAccountFromSale, UWIZChangeAccountInfo, UWIZBuyAccount, UCoreObjects,
   UFRMRPCCalls, UFRMOperationsExplorer, UWalletLanguages;
 
@@ -577,10 +577,27 @@ end;
 procedure TUserInterface.TLoadingThread.ExecuteLoad;
 var
   LLockedMempool : TPCOperationsComp;
+  {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}
+  LIndexedStorage: TAbstractMemBlockchainStorage;
+  LAutoFlushCache: Boolean;
+  {$ENDIF}
 begin
   // Loading local files is independent of network readiness. An empty chain is a
   // valid first run; discovery and synchronization are reported after loading.
-  TUserInterface.FNode.InitSafeboxAndOperations($FFFFFFFF, OnProgressNotify);
+  {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}
+  LIndexedStorage := TAbstractMemBlockchainStorage(TUserInterface.FNode.Bank.Storage);
+  LAutoFlushCache := LIndexedStorage.AutoFlushCache;
+  // Match Classic: legacy blocks imported into the index during replay must
+  // not flush that index after every update. Restore the policy on every exit.
+  LIndexedStorage.AutoFlushCache := False;
+  try
+  {$ENDIF}
+    TUserInterface.FNode.InitSafeboxAndOperations($FFFFFFFF, OnProgressNotify);
+  {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}
+  finally
+    LIndexedStorage.AutoFlushCache := LAutoFlushCache;
+  end;
+  {$ENDIF}
   CheckCancelled;
   // Final mempool work can wait for the pending-buffer saver. Keep that wait
   // on the owned loader, rather than blocking the UI in the Loaded callback.
@@ -752,9 +769,14 @@ begin
     TWallet.Keys.SafeBox := FNode.Bank.SafeBox;
 
     // Initialise Database
+    // Use Classic's configured indexed reader, including its legacy-file
+    // fallback, rather than leaving Experimental on the older raw-file path.
+    {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}
+    FNode.Bank.StorageClass := TAbstractMemBlockchainStorageSecondary;
+    {$ELSE}
     FNode.Bank.StorageClass := TFileStorage;
-    // TPCBank supplies the configured Data folder to the file storage backend.
-    TFileStorage(FNode.Bank.Storage).Initialize;
+    {$ENDIF}
+    FNode.Bank.Storage.Initialize;
 
     // Reading database
     State := uisLoading;

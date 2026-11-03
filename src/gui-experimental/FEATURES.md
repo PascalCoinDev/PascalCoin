@@ -43,7 +43,7 @@ points; it does not require the two interfaces to have identical layouts.
 | Wallet lock/unlock, password, public/private export, backup/restore | Private Keys dialog and lock toolbar button |
 | Language choice | Banner and Options; existing installed catalogs, applied on restart |
 | Protocol, block, peer, mining and synchronization status | The banner shows exceptional node status in white, bold 16-point text aligned left after the logo/version, leaving normal online status blank; the Delphi synchronization details use buffered solid backgrounds to avoid blank erase frames, and keep detailed progress through traffic notifications; synchronization view and footer share cached committed counts/timestamps, and secondary statistics retain their last complete result while core work is busy |
-| Existing-chain startup and saved pending operations | Cancellable background restore with separate decoding, validation, application and finalizing phases; bold white progress below the logo |
+| Existing-chain startup and saved pending operations | Cancellable background restore through Classic's configured indexed reader and legacy-file fallback, with automatic index flushing deferred during replay; separate decoding, validation, application and finalizing phases, with bold white progress below the logo |
 | Application and tray identity | PascalCoin icon assigned to the application, main window and system tray |
 | Grid loading feedback | Shared LCL/VCL bordered overlay with Sphere10's rounded-spoke loading circle; retained rows and a disabled grid during node synchronization |
 | Balance-cell rendering | Pending state is captured in the row snapshot; painting does not query safebox/mempool or acquire core locks |

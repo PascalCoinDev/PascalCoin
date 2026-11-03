@@ -22,7 +22,8 @@ function CheckSyncWriterIndependence(AMain: TFRMMainForm): String;
 implementation
 
 uses Windows, SysUtils, Classes, Forms, SyncObjs, UCommon, UUserInterface, UNode,
-  UThread, UBlockChain, UCTRLSyncronization;
+  UThread, UBlockChain, UCTRLSyncronization,
+  {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}UAbstractMemBlockchainStorage{$ELSE}UFileStorage{$ENDIF};
 
 type
   TGatedSync = class(TCTRLSyncronization)
@@ -105,6 +106,16 @@ function CheckSyncFirstDisplay(AMain: TFRMMainForm): String;
 var LStarted, LDeadline: UInt64; LAverage: String; S: TNodeSynchronizationStatus;
 begin
   Require(AMain.Mode = wmWallet, 'requires the hidden synchronization view');
+  // Exercise the actual startup configuration, not a replacement test reader.
+  {$IFDEF USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE}
+  Require(TUserInterface.Node.Bank.Storage is TAbstractMemBlockchainStorageSecondary,
+    'experimental startup did not select Classic''s configured indexed reader');
+  Require(TAbstractMemBlockchainStorage(TUserInterface.Node.Bank.Storage).AutoFlushCache,
+    'startup left automatic index flushing disabled after loading');
+  {$ELSE}
+  Require(TUserInterface.Node.Bank.Storage is TFileStorage,
+    'startup did not retain the configured raw-file fallback');
+  {$ENDIF}
   {$IFDEF USE_ABSTRACTMEM}
   Require(TUserInterface.Node.Bank.SafeBox.PCAbstractMem.AccountCache.MaxRegisters = 250000,
     'experimental startup did not apply its bounded account-cache budget');
