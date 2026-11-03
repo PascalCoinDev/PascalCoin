@@ -18,6 +18,7 @@ type
 
 procedure CheckVisualGridPaging(AScenario: TGridPagingScenario; ALog: TStrings = nil);
 procedure CheckVisualGridFooter(AGrid: TVisualGrid; APpi: Integer; ALog: TStrings = nil);
+procedure CheckVisualGridFooterCompaction(ALog: TStrings = nil);
 procedure ChooseVisualGridPageMode(AGrid: TVisualGrid; AIndex: Integer; AKeyboard: Boolean = False);
 
 implementation
@@ -56,8 +57,11 @@ type
     function PageCountLabel: TLabel;
     function FooterControls: TArray<TControl>;
     function Total: Integer;
+    function TotalLabel: TLabel;
     function Pages: Integer;
     function Capacity: Integer;
+    function LayoutPending: Boolean;
+    procedure SetFooterMetadata(ATotal, APages: Integer);
     procedure ChooseMode(AIndex: Integer);
     procedure Search(const AText: String);
   end;
@@ -266,12 +270,32 @@ begin
 end;
 
 procedure PumpFor(AMilliseconds: Cardinal);
-var LUntil: UInt64;
+var
+  LUntil: UInt64;
+  {$IF defined(FPC) and defined(MSWINDOWS)}
+  LMessage: TMsg;
+  LDrained: Integer;
+  {$ENDIF}
 begin
   LUntil := GetTickCount64 + AMilliseconds;
   repeat
     CheckSynchronize(0);
     Application.ProcessMessages;
+    {$IF defined(FPC) and defined(MSWINDOWS)}
+    // LCL's manual new-input gate can skip queued timers after a native menu.
+    // Drain this test thread's messages, retaining quit and the existing budget.
+    LDrained := 0;
+    while (LDrained < 256) and PeekMessage(LMessage,0,0,0,PM_REMOVE) do begin
+      if LMessage.message = WM_QUIT then begin
+        PostQuitMessage(Integer(LMessage.wParam));
+        Exit;
+      end;
+      TranslateMessage(LMessage);
+      DispatchMessageW(LMessage);
+      Inc(LDrained);
+      if GetTickCount64 >= LUntil then Break;
+    end;
+    {$ENDIF}
     Sleep(1);
   until GetTickCount64 >= LUntil;
 end;
@@ -282,9 +306,11 @@ begin
   LUntil := GetTickCount64 + 5000;
   repeat
     PumpFor(25);
-    if not AGrid.IsUpdating and not AGrid.RefreshThrottle.Waiting then begin
+    // Data can finish before the deferred native viewport reflow. Keep the
+    // existing deadline and judge capacity only after that layout task retires.
+    if not AGrid.IsUpdating and not AGrid.RefreshThrottle.Waiting and not TPagingGrid(AGrid).LayoutPending then begin
       PumpFor(100);
-      if not AGrid.IsUpdating and not AGrid.RefreshThrottle.Waiting then Exit;
+      if not AGrid.IsUpdating and not AGrid.RefreshThrottle.Waiting and not TPagingGrid(AGrid).LayoutPending then Exit;
     end;
   until GetTickCount64 >= LUntil;
   raise Exception.Create('Native paging did not settle before its bounded deadline');
@@ -391,6 +417,23 @@ begin
   Result := FTotalDataCount;
 end;
 
+function TPagingGrid.TotalLabel: TLabel;
+begin
+  Result := FAllRecordsCountLabel;
+end;
+
+procedure TPagingGrid.SetFooterMetadata(ATotal, APages: Integer);
+begin
+  // Exercise native footer measurements without allocating a six-digit dataset.
+  FTotalDataCount := ATotal;
+  FPageCount := APages;
+  FPageIndex := 0;
+  FAllRecordsCountLabel.Caption := Format('Total: %d',[ATotal]);
+  FPageCountLabel.Caption := Format('/%d',[APages]);
+  FPageIndexEdit.Text := '1';
+  RefreshPageIndexAndGridInterface;
+end;
+
 function TPagingGrid.Pages: Integer;
 begin
   Result := FPageCount;
@@ -399,6 +442,11 @@ end;
 function TPagingGrid.Capacity: Integer;
 begin
   Result := ClientRowCount;
+end;
+
+function TPagingGrid.LayoutPending: Boolean;
+begin
+  Result := FDelayedBoundsChangeTimer.Enabled;
 end;
 
 procedure TPagingGrid.ChooseMode(AIndex: Integer);
@@ -563,6 +611,71 @@ procedure CheckVisualGridFooter(AGrid: TVisualGrid; APpi: Integer; ALog: TString
 begin
   CheckFooterGeometry(TPagingGrid(AGrid),APpi,(AGrid.Width*96+APpi div 2) div APpi,ALog);
 end;
+
+procedure CheckVisualGridFooterCompaction(ALog: TStrings);
+const
+  LPpis: array[0..2] of Integer = (96,120,144);
+  LWidths: array[0..3] of Integer = (320,343,240,900);
+  LModes: array[0..2] of TVisualGridPageMode = (vpmAuto,vpmManual,vpmSingle);
+var
+  LForm: TForm;
+  LGrid: TPagingGrid;
+  LPpiIndex, LWidthIndex, LModeIndex, LPpi: Integer;
+  LTotal, LNavigation: TRect;
+  LCheckpoint: String;
+begin
+  for LPpiIndex := Low(LPpis) to High(LPpis) do begin
+    LPpi := LPpis[LPpiIndex];
+    LForm := TForm.CreateNew(nil);
+    try
+      LForm.Font.Name := 'Tahoma';
+      LForm.Font.Height := -11;
+      LForm.ClientWidth := 343;
+      LForm.ClientHeight := 330;
+      LGrid := TPagingGrid.Create(LForm);
+      LGrid.Parent := LForm;
+      LGrid.Align := alClient;
+      LGrid.CanSearch := False;
+      LGrid.Options := [vgoAutoHidePaging];
+      LGrid.RefreshSuspended := True;
+      if LPpi <> 96 then begin
+        {$IFDEF FPC}LForm.ScaleBy(LPpi,96);{$ELSE}LForm.ScaleForPPI(LPpi);{$ENDIF}
+      end;
+      LForm.Show;
+      PumpFor(100);
+      for LWidthIndex := Low(LWidths) to High(LWidths) do begin
+        LForm.ClientWidth := (LWidths[LWidthIndex]*LPpi+48) div 96;
+        for LModeIndex := Low(LModes) to High(LModes) do begin
+          LGrid.PageMode := LModes[LModeIndex];
+          LGrid.SetFooterMetadata(186108,26587);
+          PumpFor(100);
+          LGrid.SetFooterMetadata(186108,26587);
+          CheckFooterGeometry(LGrid,LPpi,LWidths[LWidthIndex],ALog);
+          LCheckpoint := Format('large total PPI=%d width=%d mode=%d',
+            [LPpi,LWidths[LWidthIndex],Ord(LModes[LModeIndex])]);
+          LTotal := NativeBounds(LGrid.TotalLabel);
+          if LModes[LModeIndex] = vpmSingle then
+            LNavigation := NativeBounds(LGrid.ModeControl)
+          else
+            LNavigation := NativeBounds(LGrid.FirstButton);
+          if (LModes[LModeIndex] = vpmSingle) or
+            (LWidths[LWidthIndex] = 900) or
+            ((LModes[LModeIndex] = vpmAuto) and (LWidths[LWidthIndex] >= 320)) then
+            Require(Abs((LTotal.Top+LTotal.Bottom)-(LNavigation.Top+LNavigation.Bottom)) <= 2,
+              LCheckpoint+': compact footer should keep total and navigation centered on one row');
+          if (LModes[LModeIndex] <> vpmSingle) and (LWidths[LWidthIndex] = 240) then
+            Require(LTotal.Bottom <= LNavigation.Top,
+              LCheckpoint+': footer must wrap cleanly when compact controls cannot fit');
+          if Assigned(ALog) then
+            ALog.Add('PASS '+LCheckpoint);
+        end;
+      end;
+    finally
+      LForm.Free;
+    end;
+  end;
+end;
+
 procedure CheckFooterHostedFirstShow(ALog: TStrings);
 const
   InitialPpis: array[0..2] of Integer = (96,120,144);

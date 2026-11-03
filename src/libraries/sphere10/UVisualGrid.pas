@@ -3182,12 +3182,18 @@ begin
     Max(0,FPageIndexEdit.Width-FPageIndexEdit.ClientWidth)+Scale96ToFont(8);
   LPageWidth := Max(Scale96ToFont(56),LRequiredPageWidth);
   LCountWidth := Max(FPageCountLabel.Width,Scale96ToFont(18));
+  LLeftWidth := LTotalWidth;
+  if LManual then begin
+    if LLeftWidth > 0 then Inc(LLeftWidth,2*LMargin);
+    Inc(LLeftWidth,LManualWidth);
+  end;
   LGroupWidth := LModeWidth;
   if LNavigation then
     Inc(LGroupWidth,LModeGap+4*LButtonWidth+LPageWidth+LCountWidth+5*LGap);
-  if LNavigation and (LGroupWidth > LAvailable) then begin
-    // Compact the navigation before moving other footer content to another
-    // row. The icon button belongs to this right-anchored native control group.
+  if LNavigation and ((LGroupWidth > LAvailable) or
+    (LLeftWidth+LGroupWidth+3*LMargin > LFooterSize.cx)) then begin
+    // Try compact navigation beside the total and manual fields before wrapping
+    // the footer. A pager can fit alone while forcing a six-digit total above it.
     LGap := Scale96ToFont(2);
     LButtonWidth := Max(Scale96ToFont(21),LButtonMinimum);
     // Compact spacing must still display the largest valid page number,
@@ -3216,11 +3222,6 @@ begin
   end;
   LGroupHeight := LY+LGroupRowHeight;
   LRowHeight := Max(Scale96ToFont(40),LGroupRowHeight+Scale96ToFont(14));
-  LLeftWidth := LTotalWidth;
-  if LManual then begin
-    if LLeftWidth > 0 then Inc(LLeftWidth,2*LMargin);
-    Inc(LLeftWidth,LManualWidth);
-  end;
   LInline := LLeftWidth+LGroupWidth+3*LMargin <= LFooterSize.cx;
   LManualBelow := LManual and (LLeftWidth > LAvailable);
   LTopHeight := FAllRecordsCountLabel.Height;

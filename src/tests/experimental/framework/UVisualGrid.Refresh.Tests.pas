@@ -37,6 +37,7 @@ type
     procedure SynchronousSourceCanBeAssignedBeforeParenting;
     procedure SingleLoadsTheWholeUnknownAndGrowingResult;
     procedure DropdownModesRememberManualSizeAndFitAutomaticRows;
+    procedure LargeTotalsCompactBeforeWrapping;
     procedure SingleSearchAndSortUseTheWholeResult;
     procedure SelectorRemainsReachableForEmptyAndOnePageResults;
     procedure SuspendedModesResumeOnlyTheLatestIntent;
@@ -221,6 +222,11 @@ end;
 procedure TVisualGridPagingTests.DropdownModesRememberManualSizeAndFitAutomaticRows;
 begin
   CheckVisualGridPaging(psModeTransitions);
+end;
+
+procedure TVisualGridPagingTests.LargeTotalsCompactBeforeWrapping;
+begin
+  CheckVisualGridFooterCompaction;
 end;
 
 procedure TVisualGridPagingTests.SingleSearchAndSortUseTheWholeResult;
