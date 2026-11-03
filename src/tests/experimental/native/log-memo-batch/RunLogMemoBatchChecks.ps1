@@ -39,7 +39,9 @@ $arguments+=Join-Path $PSScriptRoot ($programName+'.lpr')
 $arguments|Set-Content -LiteralPath (Join-Path $output 'compiler-arguments.txt')
 & $compiler @arguments *> (Join-Path $output 'build.log')
 if($LASTEXITCODE-ne0){Get-Content -LiteralPath (Join-Path $output 'build.log') -Tail 40;throw 'Native memo probe did not compile.'}
-Copy-Item -LiteralPath (Join-Path $source 'libcrypto-1_1-x64.dll') -Destination $output
+# Use the tracked runtime so these probes also run from a clean checkout.
+$crypto=Join-Path (Split-Path -Parent $source) 'windows-dll/libcrypto-1_1-x64.dll'
+Copy-Item -LiteralPath $crypto -Destination $output
 $broker=Join-Path $output 'LogMemoBatchBroker.exe'
 & $compiler '-MDelphi' '-O2' ('-FU'+(Join-Path $output 'broker-units')) ('-o'+$broker) (Join-Path $PSScriptRoot 'LogMemoBatchBroker.lpr') *> (Join-Path $output 'broker-build.log')
 if($LASTEXITCODE-ne0){throw 'Native memo probe broker did not compile.'}
