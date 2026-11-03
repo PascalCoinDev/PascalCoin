@@ -80,6 +80,8 @@ $registeredUnits | Sort-Object Unit | ConvertTo-Json | Set-Content -LiteralPath 
 
 $phases = @(
     @{ Name = 'unit'; Script = 'RunExperimentalWalletTests.ps1'; Lazarus = $true },
+    @{ Name = 'log-memo-batch'; Script = 'native/log-memo-batch/RunLogMemoBatchChecks.ps1'; Lazarus = $true },
+    @{ Name = 'classic-log-memo-batch'; Script = 'native/log-memo-batch/RunLogMemoBatchChecks.ps1'; Lazarus = $true; Switch = '-Classic' },
     @{ Name = 'grid-integration'; Script = 'RunWalletGridRefreshTests.ps1'; Lazarus = $true },
     @{ Name = 'grid-native'; Script = 'RunWalletGridRefreshTests.ps1'; Lazarus = $true; Switch = '-Demo'; ExtraSwitch = '-AllDemoCases' },
     @{ Name = 'network-toggle'; Script = 'RunWalletGridRefreshTests.ps1'; Lazarus = $true; Switch = '-NetworkOff' },
@@ -97,7 +99,7 @@ $phases = @(
 $coverage = @{
     RegisteredFixtureUnits = @($registeredUnits | Sort-Object Unit)
     NativePhases = @($phases | Where-Object Name -ne 'unit' | ForEach-Object { $_.Name })
-    SharedHelpersInUnitFixtures = @('UAccountCachePolicyChecks', 'UChangeAccountInfoReplayChecks', 'UCheckpointStorageChecks', 'UAbstractMemStorageFailureChecks', 'UCoreLockMigrationChecks', 'UStreams.Checks', 'UBufferedAdoptionChecks',
+    SharedHelpersInUnitFixtures = @('UAccountCachePolicyChecks', 'UChangeAccountInfoReplayChecks', 'UCheckpointStorageChecks', 'UAbstractMemStorageFailureChecks', 'UCoreLockMigrationChecks', 'ULogGuiHandoffChecks', 'UStreams.Checks', 'UBufferedAdoptionChecks',
         'UDownloadLifetimeChecks', 'ULegacyConnectionLifetimeChecks', 'UMempoolSanitizeChecks',
         'UOperationReadHashChecks', 'UOrderedCardinalChecks',
         'UPendingCatchupChecks', 'UPendingSaveChecks', 'UStoredHistoryChecks')

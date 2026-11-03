@@ -230,10 +230,15 @@ type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Test_ShowDiagnosticTool(Sender: TObject);
   private
+    FLogBatchLines, FLogEntryLines: TStringList;
+    FLogBatchActive, FLogBatchChanged, FLogBatchTerminated: Boolean;
     FLastNodesCacheUpdatedTS : TDateTime;
     FBackgroundPanel : TPanel;
     FBackgroundLabel : TLabel;
     FMinersBlocksFound: Integer;
+    procedure OnLogBatchBegin(Sender: TObject);
+    procedure OnLogBatchEnd(Sender: TObject);
+    procedure SplitLogLines(const AText: String; ALines: TStrings);
     procedure SetMinersBlocksFound(const Value: Integer);
     Procedure CheckIsReady;
     Procedure FinishedLoadingApp;
@@ -323,7 +328,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UProgressDisplay, UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
+Uses {$IFDEF FPC}WSControls,{$ENDIF} UProgressDisplay, UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
 {$IFDEF Use_OpenSSL}
   UOpenSSL,
 {$ENDIF}
@@ -1356,7 +1361,18 @@ begin
   for i := 0 to StatusBar.Panels.Count - 1 do begin
     StatusBar.Panels[i].Text := '';
   end;
+  // GNUgettext's proxy form duplicates managed-record finalization. Follow
+  // Classic's explicit ownership and free these lists after its logger stops.
+  FLogBatchLines := TStringList.Create;
+  try
+    FLogEntryLines := TStringList.Create;
+  except
+    FreeAndNil(FLogBatchLines);
+    raise;
+  end;
   FLog := TLog.Create(Self);
+  FLog.OnNewLogBatchBegin := OnLogBatchBegin;
+  FLog.OnNewLogBatchEnd := OnLogBatchEnd;
   FLog.OnNewLog := OnNewLog;
   FLog.SaveTypes := [];
   If Not ForceDirectories(TNode.GetPascalCoinDataFolder) then raise Exception.Create('Cannot create dir: '+TNode.GetPascalCoinDataFolder);
@@ -1512,6 +1528,8 @@ begin
   //
   step := 'Assigning nil events';
   FLog.OnNewLog :=Nil;
+  FLog.OnNewLogBatchBegin := Nil;
+  FLog.OnNewLogBatchEnd := Nil;
   FNodeNotifyEvents.OnSynchronizationChanged := Nil;
   FNodeNotifyEvents.Node := Nil;
   FOperationsAccountGrid.Node := Nil;
@@ -1562,6 +1580,8 @@ begin
   End;
   TLog.NewLog(ltinfo,Classname,'Destroying form - END');
   FreeAndNil(FLog);
+  FreeAndNil(FLogEntryLines);
+  FreeAndNil(FLogBatchLines);
   Sleep(100);
 end;
 
@@ -2222,22 +2242,107 @@ begin
   end;
 end;
 
+procedure TFRMWallet.OnLogBatchBegin(Sender: TObject);
+var LText: String;
+begin
+  // BeginUpdate suppresses painting, but native memo Add/Delete still shape
+  // every edit and can stall the UI. Build the batch away from the control.
+  FLogBatchChanged := False;
+  LText := memoLogs.Lines.Text;
+  FLogBatchTerminated := (LText='') or (Copy(LText,Length(LText)-Length(sLineBreak)+1,Length(sLineBreak))=sLineBreak);
+  SplitLogLines(LText,FLogBatchLines);
+  FLogBatchActive := True;
+end;
+
+procedure TFRMWallet.OnLogBatchEnd(Sender: TObject);
+var LText: String;
+begin
+  FLogBatchActive := False;
+  try
+    if FLogBatchChanged then begin
+      // Publish once. Lines.Text would normalize bare CR/LF that native Add
+      // preserves, so use the raw widget text and retain the append caret.
+      LText := FLogBatchLines.Text;
+      if not FLogBatchTerminated then SetLength(LText,Length(LText)-Length(sLineBreak));
+      {$IFDEF FPC}
+      memoLogs.HandleNeeded;
+      TWSWinControlClass(memoLogs.WidgetSetClass).SetText(memoLogs,LText);
+      memoLogs.Perform(CM_TEXTCHANGED,0,0);
+      {$ELSE}
+      memoLogs.Text := LText;
+      {$ENDIF}
+      memoLogs.SelStart := memoLogs.GetTextLen;
+    end;
+  finally
+    FLogBatchChanged := False;
+    FLogBatchLines.Clear;
+    FLogEntryLines.Clear;
+  end;
+end;
+
 procedure TFRMWallet.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : TThreadID; const sender,logtext: String);
 Var s : AnsiString;
+  LText: String;
+  LLines: TStrings;
 begin
   if (logtype=ltdebug) And (Not cbShowDebugLogs.Checked) then exit;
   if ThreadID=MainThreadID then s := ' MAIN:' else s:=' TID:';
-  if MemoLogs.Lines.Count>300 then begin
+  if FLogBatchActive then begin
+    LLines := FLogBatchLines;
+    FLogBatchChanged := True;
+  end else LLines := memoLogs.Lines;
+  if LLines.Count>300 then begin
     // Limit max lines in logs...
-    memoLogs.Lines.BeginUpdate;
+    LLines.BeginUpdate;
     try
-      while memoLogs.Lines.Count>250 do memoLogs.Lines.Delete(0);
+      while LLines.Count>250 do LLines.Delete(0);
     finally
-      memoLogs.Lines.EndUpdate;
+      LLines.EndUpdate;
     end;
   end;
-  memoLogs.Lines.Add(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(PtrInt(ThreadID),8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
+  LText := formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(PtrInt(ThreadID),8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext;
+  if FLogBatchActive then begin
+    // Match the native physical-line count before applying retention again.
+    {$IFDEF FPC}
+    LText := LText+sLineBreak;
+    {$ELSE}
+    // VCL preserves an unterminated user-edited tail when appending; LCL
+    // always appends a separator. Keep each original native rule unchanged.
+    if FLogBatchTerminated then LText := LText+sLineBreak;
+    {$ENDIF}
+    FLogBatchTerminated := Copy(LText,Length(LText)-Length(sLineBreak)+1,Length(sLineBreak))=sLineBreak;
+    SplitLogLines(LText,FLogEntryLines);
+    FLogBatchLines.AddStrings(FLogEntryLines);
+  end else LLines.Add(LText);
   //
+end;
+
+procedure TFRMWallet.SplitLogLines(const AText: String; ALines: TStrings);
+var I, LStart, LLength, LBreakLength: Integer;
+  LBreak: String;
+  LMatches: Boolean;
+begin
+  // Only full native separators count: Windows keeps a bare CR or LF as
+  // part of a line, and the retained text must preserve those log bytes.
+  ALines.Clear;
+  LBreak := sLineBreak;
+  LBreakLength := Length(LBreak);
+  LLength := Length(AText);
+  LStart := 1;
+  I := 1;
+  while I<=LLength do begin
+    LMatches := AText[I]=LBreak[1];
+    if LMatches and (LBreakLength>1) then begin
+      if I<LLength then LMatches := AText[I+1]=LBreak[2]
+      else LMatches := False;
+    end;
+    if LMatches then begin
+      ALines.Add(Copy(AText,LStart,I-LStart));
+      Inc(I,LBreakLength);
+      LStart := I;
+    end else Inc(I);
+  end;
+  if LStart<=LLength then ALines.Add(Copy(AText,LStart,LLength-LStart+1));
 end;
 
 procedure TFRMWallet.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: String);

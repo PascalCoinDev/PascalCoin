@@ -14,7 +14,7 @@ uses
   UBufferedAdoptionTests,
   UWalletStartupTests, UPendingRestoreTests, UPendingCleanupTests, UOperationPreparationTests, UChangeInfoBatchTests, UOperationWizardTests,
   UWalletRestoreTests, UWalletViewTests, UWalletAccountEnumerationTests, UWalletHistoryTests,
-  UWalletSnapshotTests, UWalletMempoolReadSafetyTests, UWalletProgressDisplayTests, UThreadConcurrencyTests, UCoreLockMigrationTests,
+  UWalletSnapshotTests, UWalletMempoolReadSafetyTests, UWalletProgressDisplayTests, UThreadConcurrencyTests, UCoreLockMigrationTests, ULogGuiHandoffTests,
   UNodeSynchronizationTests,
   UChangeAccountInfoReplayTests,
   UBlockSanitizeTests,
