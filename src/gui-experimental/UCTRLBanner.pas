@@ -85,6 +85,8 @@ begin
   // VCL's label default depends on the current Windows theme.
   lblClientVersion.Transparent := True;
   {$ENDIF}
+  // The DFM retains the LFM logo's full alpha colours. A 1-bit mask conversion
+  // clears low-alpha RGB and creates dark fringes when Windows blends the icon.
   {$ifdef TESTNET}
   imLogo.SetImageListPicture(ilLogoImages, 1);
   {$else}
