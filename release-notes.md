@@ -1,23 +1,28 @@
-# PascalCoin 5.9
+# PascalCoin 5.9.1
 
-Classic and experimental wallets are separate applications. Both are included in
-all Windows, Linux and Intel macOS release archives and can be kept side by side.
+This patch updates application locking in the classic and experimental wallets,
+node, daemon and reference miner, and corrects legacy checkpoint loading and recovery.
 
-- Add the experimental wallet with native Delphi/VCL and Lazarus/FPC support.
-- Import [Sphere 10 Pascal Framework](https://github.com/HermanSchoenfeld/PascalFramework) for caching, concurrency, scopes, grids and wizards.
-- Add bulk-fetch caching, read/write locks, cleanup scopes and Single/Auto/Manual grid paging.
-- Complete operation wizards, advanced operations and RAW/multioperation signing, including batch-change approval and optional fee payers.
-- Run account/history queries, filters, totals and type statistics on cancellable workers.
-- Update synchronization and status from node events; refresh account pages immediately and combine operations queries after 250 ms of silence.
-- Fix peer reconnection, safebox recovery, pending restore/saving and cooperative shutdown.
-- Save validated checkpoints atomically, recover readable snapshots and preserve incomplete-write markers on storage failure.
-- Pause the node after persistence errors until restart, display the first cause in both wallets and retire background index workers safely.
-- Reuse mining keys and improve native layout, icons, loading feedback and operation dialogs.
-- Keep paging controls visible in Release builds, reflow large operation fields and open details through explicit actions.
-- Align banner status and Details controls across native scaling, and release key-selector objects safely at shutdown.
-- Build and package both wallets on Windows, Linux and macOS; run the Windows wallet regressions and portable core/framework lock tests in CI.
-- Add Delphi/FPC screenshots and credit Herman Schoenfeld for the experimental GUI while preserving Albert Molina's original attribution.
-- Align application and executable versions at 5.9.
+- Use `TReadWriteLock` for node, network, storage, mining and wallet guards.
+- Allow concurrent readers on proven read-only paths and retain recursive writes for mutable storage, streams, caches and callbacks.
+- Preserve timed lock acquisition, connection ownership and cooperative shutdown.
+- Balance operation-component ownership before freeing its lock.
+- Preserve the original storage error during failed safebox replacement and constructor cleanup.
+- Report progress and honor cancellation during legacy checkpoint inspection.
+- Restore skip-and-replay for checkpoints ahead of local history while retaining unreadable-storage protection.
+- Buffer legacy checkpoint reads with the framework's bounded stream decorator and optional ownership.
+- Configure read buffering and stream-length caching independently; both default on, with explicit unread-data flushing before disabling read buffering.
+- Buffer pending-operation input, serialized block headers and optional RandomHash input with their existing sharing rules.
+- Keep log producers independent of GUI rendering and batch native log updates in both wallets.
+- Align experimental startup with Classic's configured indexed reader, legacy-file fallback and deferred index flushing.
+- Fit compact grid navigation beside large totals before wrapping the footer.
+- Correct Delphi banner alpha edges and improve Network Details label spacing in Delphi and Lazarus.
+- Add regression tests for actual recursive owners, exclusion, wakeups and timeout conversion.
+- Update runtime and executable versions to 5.9.1.
+
+Operation validation retains its existing rules. The experimental wallet adopts
+Classic's existing blockchain index and cache policy. Both wallets remain
+separate applications in each platform package.
 
 ## Applications
 
@@ -35,5 +40,5 @@ GTK2 runtime libraries.
 On Linux, launch the executables from the extracted folder so the bundled runtime
 can be found.
 
-See [Build 5.9](https://github.com/PascalCoin/PascalCoin/blob/5.9/CHANGELOG.md#build-59---2026-10-28)
+See [Build 5.9.1](https://github.com/PascalCoin/PascalCoin/blob/5.9.1/CHANGELOG.md#build-591)
 for the complete change list.

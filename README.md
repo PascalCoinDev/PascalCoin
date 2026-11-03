@@ -36,17 +36,17 @@ balance redactions.*
 
 ## Downloads
 
-[PascalCoin 5.9](https://github.com/PascalCoin/PascalCoin/releases/tag/5.9)
+[PascalCoin 5.9.1](https://github.com/PascalCoin/PascalCoin/releases/tag/5.9.1)
 packages contain all four applications:
 
 | Platform | Package |
 |---|---|
-| Windows x64 | [PascalCoin-5.9-x86_64-win64.zip](https://github.com/PascalCoin/PascalCoin/releases/download/5.9/PascalCoin-5.9-x86_64-win64.zip) |
-| Linux x64 | [PascalCoin-5.9-x86_64-linux.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9/PascalCoin-5.9-x86_64-linux.tar.gz) |
-| macOS Intel | [PascalCoin-5.9-x86_64-darwin.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9/PascalCoin-5.9-x86_64-darwin.tar.gz) |
+| Windows x64 | [PascalCoin-5.9.1-x86_64-win64.zip](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.1/PascalCoin-5.9.1-x86_64-win64.zip) |
+| Linux x64 | [PascalCoin-5.9.1-x86_64-linux.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.1/PascalCoin-5.9.1-x86_64-linux.tar.gz) |
+| macOS Intel | [PascalCoin-5.9.1-x86_64-darwin.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.1/PascalCoin-5.9.1-x86_64-darwin.tar.gz) |
 
 Verify packages against the release's
-[SHA256SUMS](https://github.com/PascalCoin/PascalCoin/releases/download/5.9/SHA256SUMS).
+[SHA256SUMS](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.1/SHA256SUMS).
 [All releases](https://github.com/PascalCoin/PascalCoin/releases) include earlier
 mainnet and testnet builds; choose the intended network.
 
@@ -62,6 +62,17 @@ be kept side by side. Extract the complete package and retain `locale`, miner
 resources, runtime libraries and license notices alongside the executables.
 Windows and Linux packages bundle OpenSSL 1.1; macOS uses CryptoLib4Pascal.
 Linux GUI builds require GTK2 and should be launched from the extracted folder.
+
+## Read/write locking
+
+Application guards use the core `TReadWriteLock` to allow multiple concurrent
+readers or one exclusive writer. Read-only status and configuration access can
+share ownership. File cursors, lazy caches, mutable lists and re-entrant callbacks
+retain recursive write ownership. Lock names and bounded acquisition support
+core diagnostics; low-level admission uses a separate primitive.
+
+See [Build 5.9.1](CHANGELOG.md#build-591) for the patch changes. The screenshots
+above show the 5.9 interface; the patch retains the same wallet applications.
 
 ## Wallet features
 
@@ -92,6 +103,11 @@ resumes after received blocks and pending reconciliation finish. Footer and node
 status share committed block counts and timestamps, while secondary statistics
 retain their last complete results. Native Close cancels and joins owned workers;
 pending operations are saved through an atomic file replacement.
+
+Both wallets select the same configured blockchain reader. The default indexed
+reader also accepts legacy `BlockChainStream.blocks` files; startup defers its
+automatic index flushing during replay, as Classic does. Builds without
+`USE_ABSTRACTMEM_BLOCKCHAIN_STORAGE` retain the raw-file reader.
 
 See the [wallet guide](src/gui-experimental/README.md) and
 [Build 5.9 changes](CHANGELOG.md#build-59---2026-10-28) for implementation details,
@@ -174,8 +190,25 @@ and [IDE command options](https://docwiki.embarcadero.com/RADStudio/Alexandria/e
 
 The wallet incorporates
 [Sphere 10 Pascal Framework](https://github.com/HermanSchoenfeld/PascalFramework)
-for caching, concurrency, scoped resources, collections, paged grids and wizards.
+for caching, concurrency, scoped resources, buffered streams, collections, paged grids and wizards.
 Its imported sources are in `src/libraries/sphere10`.
+Legacy checkpoint reads use `UStreams.TBufferedStream` with a fixed 64 KiB
+read-ahead buffer and stream-length caching for files opened with writes denied.
+The shared decorator's `EnableReadBuffering` and `EnableStreamLengthCaching`
+flags default to `True`; `EnableBuffering`/`DisableBuffering` switch both. Disabling
+read buffering frees the byte buffer and forwards reads/writes directly; length
+caching works independently, including when read buffering is off. Unread bytes
+must first be consumed or explicitly rewound with `FlushUnreadData` before read
+buffering can be disabled. Checkpoint reads retain
+both options because they read small fields from fixed files. Validation,
+recovery selection and atomic publication remain unchanged.
+
+Pending-operation loading uses 64 KiB read-ahead with length caching disabled.
+The file-based blockchain backend combines the three serialized header fields
+with a header-sized read buffer and keeps bulk block copies direct. The optional
+external RandomHash table loader also uses 64 KiB read-ahead without length
+caching, preserving its existing shared-file access. That loader remains skipped
+when `ASSUME_VALID_POW_OLD_PROTOCOLS` is defined.
 
 ## Test
 

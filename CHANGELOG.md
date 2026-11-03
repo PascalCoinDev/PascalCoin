@@ -7,6 +7,25 @@
 - Implementation of PIP-0044 (Induplicatable NFT) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0044.md
 - Improvements on downloading Safebox (fresh installation)
 
+## Build 5.9.1
+- Use the core `TReadWriteLock` for application guards across node, networking, storage, mining and wallet data sources.
+- Allow concurrent access on proven read-only paths; retain recursive write ownership for mutable streams, caches, callbacks and operation sequencing.
+- Keep low-level admission primitives independent of logging and preserve timed-acquisition limits.
+- Balance operation-component lock ownership before destruction.
+- Preserve the original storage error during failed safebox replacement and constructor cleanup.
+- Report progress and honor cancellation during legacy checkpoint inspection.
+- Skip checkpoints ahead of local history and replay available blocks; retain failure protection for unreadable storage.
+- Add the framework's reusable read-ahead stream decorator and buffer legacy checkpoint reads.
+- Enable its optional length-cache flag for fixed checkpoint files, avoiding repeated size queries.
+- Keep read buffering and stream-length caching independently configurable, with explicit unread-data flushing before read buffering is disabled.
+- Buffer pending-operation input, serialized block headers and optional RandomHash input without changing their file-sharing or validation rules.
+- Deliver GUI log batches outside the producer queue lock and update native log controls once per batch in both wallets.
+- Use Classic's configured indexed blockchain reader and startup index-flushing policy in the experimental wallet, retaining legacy-file fallback.
+- Keep large totals beside compact grid navigation when they fit, with clean wrapping on narrower footers.
+- Restore the banner logo's alpha edges in Delphi and add top spacing to the experimental wallet's Network Details in Delphi and Lazarus.
+- Add actual-owner regressions for recursive list/operation leases, exclusion, timed wakeups and unsigned timeouts.
+- Align application, miner and executable versions at 5.9.1.
+
 ## Build 5.9 - 2026-10-28
 - Import [Sphere 10 Pascal Framework](https://github.com/HermanSchoenfeld/PascalFramework) for caching, concurrency and scoped resources.
 - Add per-key and bulk-fetch caching with expiration, invalidation, eviction and synchronized access.

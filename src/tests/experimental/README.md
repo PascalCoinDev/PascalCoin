@@ -34,15 +34,22 @@ application state lasts for the process. A registration manifest fails if a
 fixture unit is absent from both unit runners. `test-coverage.json` records the
 native phases and helpers already covered by the unit fixtures.
 
-The general suite passed **751 tests** on 2 November 2026 with zero errors,
-failures or unfreed blocks. This includes the common/collection fixtures and
-the previously unregistered box and comparer cases. The dedicated controller
-fixture supplies one additional FPCUnit case in its own process.
-The thirteen native demo groups passed, along with all nine pending-protocol
-groups and both independent Python vectors. Startup passed four controlled
-modes and both normal-executable modes against the optimized 5.9 Release wallet.
+The general runner registers **944 tests** for shared utilities, application-lock
+ownership, storage recovery, buffered streams, logger handoff and wallet behavior.
+The isolated controller runs one composite integration case in a separate process.
+The [logger handoff regression](native/log-gui-handoff/README.md) registers six
+shared assertions through `ULogGuiHandoffTests`, with parallel native Delphi/FPC
+probes.
+The [native log-memo regressions](native/log-memo-batch/README.md) exercise the
+real Experimental and Classic log handlers with logging enabled. Their separate
+runner phases check batched native text publication, filtering and retained
+multiline text. Each owns an isolated UI process; Classic's network and startup
+loader remain disabled for its focused log checks.
+The complete runner has sixteen phases, including both log-memo checks, all
+thirteen native grid demo groups, Classic filtering/shutdown and network/storage
+lifecycle checks. Unit-only or focused probe runs do not execute every phase.
 
-The subsequent storage regressions add 27 failure/recovery cases and extend node
+The storage regressions cover 43 failure/recovery cases and extend node
 lifecycle coverage to 17 cases. Both focused groups pass in actual Delphi and
 FPC; 19 progress/error formatter tests also pass in FPC. The storage fixtures
 cover partial writes, publication failures, legacy checkpoint fallback and
@@ -294,6 +301,7 @@ full-wallet runtime coverage.
 | `startup/UPendingRestoreTests.pas` | Eight cases: typed saved-operation decoding stages/counts, caller-thread delivery, cooperative cancellation, retry, preserved source bytes and notification handlers, empty/truncated streams and legacy storage virtual dispatch |
 | `startup/UPendingCleanupTests.pas` | Bulk cleanup, coherent pending persistence, byte-identical buffered saving, checked core digest vectors, typed operation-stage sequencing and stage-based cancellation |
 | `core/UThreadConcurrencyTests.pas` | 31 behavioral cases for the independently adapted core lock: concurrent reads, writer exclusion, promotion, recursion, timeouts, ownership and cleanup |
+| `core/UCoreLockMigrationTests.pas` | Twelve actual-owner cases for recursive application leases, exclusion, timeout conversion and safe lock destruction |
 | `core/UNodeSynchronizationTests.pas` | Eight cases: selected targets, real work across disconnects, retired request generations, cached committed summaries, notification order and recovery after a subscriber exception |
 | `core/UChangeAccountInfoReplayTests.pas` | Four signed-operation equivalence cases for the existing signer/target account reuse path, including distinct accounts and rejection |
 | `core/UBlockSanitizeTests.pas` | Nine replay/index cases: unchanged retention, rejected operations, duplicate references/hashes, high unsigned references, zero-fee limits, exceptions, registry ownership and block/operation protocol signature-cache boundaries |
@@ -410,3 +418,45 @@ summary publication and a subscriber exception. Physical work remains
 synchronizing until it finishes, independently of network availability. These
 core checks complement the actual-wallet/data-source and buffered transport
 checks; they do not replace them.
+
+## Core application-lock migration
+
+`UCoreLockMigrationTests` registers twelve additional actual-owner checks through
+`UCoreLockMigrationChecks`, shared with native Delphi validation. They exercise
+named recursion policies, mutable thread-list leases and counts, writer exclusion,
+timed wakeups, unsigned timeout conversion, and operation-component destruction.
+The complete unit runner includes this fixture. Portable primitive lock coverage
+continues through `ThreadingTests.lpr`; it is separate from these application-owner
+checks.
+
+The account-cache policy fixture includes four additional safebox cleanup cases.
+Actual exclusive-file handles force replacement/construction failure; both direct
+and scoped cleanup must preserve the original exception and locked-file bytes.
+The existing native core aggregate runs all seven cache/cleanup cases as well.
+
+Legacy checkpoint tests verify progress during candidate inspection and final
+restore. Cancellation during inspection must preserve the current bank and all
+source files, propagate `EAbort` and leave the node's storage-error state clear.
+Both cases use real validated legacy files through the existing checkpoint runner.
+
+## Buffered streams
+
+`framework/UStreams.Tests.pas` registers the same 101 stream contracts as
+PascalFramework. Its shared `UStreams.Checks.pas` covers ownership, bounded
+read-ahead, forward-only inputs, logical positions, seeking, immediate writes,
+resizing and failure recovery. Checkpoint recovery tests also exercise the
+owning decorators used by both legacy restore passes.
+Read buffering and stream-length caching are enabled for these fixed files and
+default to `True` on the decorator. Shared tests cover all four independent flag
+combinations, direct-mode length caching, explicit unread-data flushing, rejected-disable atomicity and
+invalidation after writes/resizing or mode changes.
+
+`startup/UBufferedAdoptionTests.pas` registers eleven actual-core adoption checks.
+The shared helper in `native/buffered-adoption` verifies pending package
+round-trips, cancellation/retry, atomic replacement, history save/read/delete/
+reopen, the 1,000-header boundary, read-only malformed files and RandomHash table
+outcomes, including pending protocol 5 and 6. Its separate Delphi/FPC probes use
+the same checks. The normal build
+preserves the existing RandomHash early return; a separate private test build
+exercises that optional loader without changing shipping configuration. See
+[the focused runner](native/buffered-adoption/README.md).
