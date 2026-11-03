@@ -30,7 +30,12 @@ begin
       CheckDefaultAccountCacheLimit;
       CheckAccountCacheLimitSurvivesMemoryReload;
       CheckAccountCacheLimitSurvivesFileReloadAndClear;
-      LLog.Add('PASS account cache policy: 3'); LLog.SaveToFile(ALogFile);
+      CheckFailedSafeboxReplacementPreservesFinallyException;
+      CheckFailedSafeboxReplacementPreservesDisposalException;
+      CheckFailedSafeboxConstructionPreservesException;
+      CheckNormalSafeboxClearRetainsItsExistingSemantics;
+      LLog.Add('PASS account cache policy and cleanup: 7');
+      LLog.SaveToFile(ALogFile);
       CheckChangeInfoSelfTarget;
       CheckChangeInfoDistinctTarget;
       CheckChangeInfoRepeatedAndRollback;
@@ -48,7 +53,7 @@ begin
       if RunPendingCatchupChecks(ALogFile+'.catchup')<>0 then
         raise Exception.Create('Pending catch-up acceptance failed; see scenario logs');
       LLog.Add('PASS pending catch-up: 10'); LLog.SaveToFile(ALogFile);
-      LLog.Add('PASS total: 53');
+      LLog.Add('PASS total: 57');
       Result:=0;
     except on E: Exception do LLog.Add('FAIL '+E.ClassName+': '+E.Message); end;
     LLog.SaveToFile(ALogFile);

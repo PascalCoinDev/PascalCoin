@@ -14,6 +14,10 @@ type
     procedure CoreDefaultRemains50000;
     procedure ConfiguredLimitSurvivesMemoryReplacement;
     procedure FileReplacementAndClearRetainPolicyWithoutStaleRecords;
+    procedure FailedReplacementFinallyPreservesOriginalOpenError;
+    procedure FailedReplacementDisposalPreservesOriginalOpenError;
+    procedure FailedConstructorPreservesOriginalOpenError;
+    procedure NormalClearPreservesSemanticsAndReleasesSnapshots;
   end;
 
 implementation
@@ -33,6 +37,26 @@ end;
 procedure TAccountCachePolicyTests.FileReplacementAndClearRetainPolicyWithoutStaleRecords;
 begin
   CheckAccountCacheLimitSurvivesFileReloadAndClear;
+end;
+
+procedure TAccountCachePolicyTests.FailedReplacementFinallyPreservesOriginalOpenError;
+begin
+  CheckFailedSafeboxReplacementPreservesFinallyException;
+end;
+
+procedure TAccountCachePolicyTests.FailedReplacementDisposalPreservesOriginalOpenError;
+begin
+  CheckFailedSafeboxReplacementPreservesDisposalException;
+end;
+
+procedure TAccountCachePolicyTests.FailedConstructorPreservesOriginalOpenError;
+begin
+  CheckFailedSafeboxConstructionPreservesException;
+end;
+
+procedure TAccountCachePolicyTests.NormalClearPreservesSemanticsAndReleasesSnapshots;
+begin
+  CheckNormalSafeboxClearRetainsItsExistingSemantics;
 end;
 
 initialization

@@ -255,6 +255,7 @@ Type
     FTotalBalance: Int64;
     FSafeBoxHash : TRawBytes;
     FLock: TReadWriteLock; // Thread safe
+    FConstructionComplete: Boolean;
     FWorkSum : UInt64;
     FCurrentProtocol: Integer;
     // Snapshots utility new on V3
@@ -278,6 +279,7 @@ Type
     function GetAggregatedHashrate: TBigNum;
     function GetOrderedAccountKeysList: TSafeboxPubKeysAndAccounts;
     function GetAccount(AAccountNumber : Integer; var AAccount : TAccount) : Boolean;
+    procedure ReleaseSnapshots;
   protected
     FTotalFee: Int64;
     Procedure UpdateAccount(account_number : Cardinal; const newAccountInfo: TAccountInfo; const newName : TRawBytes; newType : Word;
@@ -2859,12 +2861,30 @@ begin
   end;
 end;
 
+procedure TPCSafeBox.ReleaseSnapshots;
+var i: Integer;
+  Psnapshot: PSafeboxSnapshot;
+begin
+  if not Assigned(FSnapshots) then Exit;
+  for i := 0 to FSnapshots.Count-1 do begin
+    Psnapshot := (Fsnapshots[i]);
+    FreeAndNil(Psnapshot^.oldBlocks);
+    FreeAndNil(Psnapshot^.newBlocks);
+    FreeAndNil(Psnapshot^.namesAdded);
+    FreeAndNil(Psnapshot^.namesDeleted);
+    FreeAndNil(Psnapshot^.oldBufferBlocksHash);
+    FreeAndNil(Psnapshot^.oldAggregatedHashrate);
+    Psnapshot^.oldSafeBoxHash := Nil;
+    Dispose(Psnapshot);
+  end;
+  FSnapshots.Clear;
+end;
+
 procedure TPCSafeBox.Clear;
 Var i : Integer;
   {$IFnDEF USE_ABSTRACTMEM}
   P : PBlockAccount;
   {$ENDIF}
-  Psnapshot : PSafeboxSnapshot;
 begin
   StartThreadSafe;
   Try
@@ -2882,18 +2902,7 @@ begin
     AggregatedHashrate.Value := 0;
     FOrderedByName.Clear;
     {$ENDIF}
-    for i := 0 to FSnapshots.Count-1 do begin
-      Psnapshot := (Fsnapshots[i]);
-      FreeAndNil(Psnapshot^.oldBlocks);
-      FreeAndNil(Psnapshot^.newBlocks);
-      FreeAndNil(Psnapshot^.namesAdded);
-      FreeAndNil(Psnapshot^.namesDeleted);
-      FreeAndNil(Psnapshot^.oldBufferBlocksHash);
-      FreeAndNil(Psnapshot^.oldAggregatedHashrate);
-      Psnapshot^.oldSafeBoxHash := Nil;
-      Dispose(Psnapshot);
-    end;
-    FSnapshots.Clear;
+    ReleaseSnapshots;
 
     For i:=0 to FListOfOrderedAccountKeysList.count-1 do begin
       TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).ClearAccounts(False);
@@ -3056,15 +3065,24 @@ begin
   {$ENDIF}
   BufferBlocksHash.SafeBoxHashCalcType := sbh_Single_Sha256;
   Clear;
+  FConstructionComplete := True;
 end;
 
 destructor TPCSafeBox.Destroy;
 Var i : Integer;
 begin
-  Clear;
-  for i := 0 to FListOfOrderedAccountKeysList.Count - 1 do begin
-    TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).FAccountList := Nil;
-  end;
+  // A failed backend constructor leaves FPCAbstractMem nil after replacement.
+  // Cleanup must not calculate its hash and replace the original I/O exception
+  // with an access violation. Partial safebox construction needs the same path.
+  if FConstructionComplete
+    {$IFDEF USE_ABSTRACTMEM}and Assigned(FPCAbstractMem){$ENDIF} then
+    Clear
+  else
+    ReleaseSnapshots;
+  if Assigned(FListOfOrderedAccountKeysList) then
+    for i := 0 to FListOfOrderedAccountKeysList.Count - 1 do begin
+      TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).FAccountList := Nil;
+    end;
   {$IFDEF USE_ABSTRACTMEM}
   FreeAndNil(FPCAbstractMem);
   {$ELSE}
