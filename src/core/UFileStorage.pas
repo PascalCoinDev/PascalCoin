@@ -75,7 +75,7 @@ Type
 
 implementation
 
-Uses ULog, SysUtils, UBaseTypes,
+Uses ULog, SysUtils, UBaseTypes, UStreams,
   {$IFDEF USE_ABSTRACTMEM}
   UPCAbstractMem,
   {$ENDIF}
@@ -347,6 +347,7 @@ Const CT_SafeboxsToStore = 10;
 function TFileStorage.GetBlockHeaderFirstBytePosition(Stream : TStream; Block: Cardinal; CanInitialize : Boolean; var iBlockHeaders : Integer; var BlockHeaderFirstBlock: Cardinal): Boolean;
 var iPos,start, nCurrBlock : Cardinal;
   bh : TBlockHeader;
+  LHeaderInput : TBufferedStream;
   null_buff : Array[1..(CT_GroupBlockSize * CT_SizeOfBlockHeader)] of Byte;
 begin
   Result := false;
@@ -356,76 +357,89 @@ begin
   end;
   iPos := (Block-FStreamFirstBlockNumber) DIV CT_GroupBlockSize;
   if iPos>High(FBlockHeadersFirstBytePosition) then Begin
-    if Length(FBlockHeadersFirstBytePosition)>0 then begin
-      start := High(FBlockHeadersFirstBytePosition);
-    end else begin
-      If CanInitialize then begin
-        // Initialize and start at 0
-        SetLength(FBlockHeadersFirstBytePosition,1);
-        FBlockHeadersFirstBytePosition[0] := 0;
-        start := 0;
-      end else exit;
-    end;
-    while (start<iPos) do begin
-      // Read last start position
-      if (Stream.Size<(FBlockHeadersFirstBytePosition[start] + GetBlockHeaderFixedSize)) then begin
-        // This position not exists...
-        If (CanInitialize) then begin
-          GrowStreamUntilPos(Stream,FBlockHeadersFirstBytePosition[start],false);
-          // Save BlockHeader values (initialized to 0)
-          FillChar(null_buff,length(null_buff),0);
-          Stream.WriteBuffer(null_buff,length(null_buff));
-        end else begin
-          // This is a Fatal error due must find previos block!
-          TLog.NewLog(ltError,Classname,Format('Stream size %d is lower than BlockHeader[%d] position %d + BlockHeaderSize %d',
-            [Stream.size,start,FBlockHeadersFirstBytePosition[start],GetBlockHeaderFixedSize]));
-          exit;
-        end;
+    // Each serialized header is three small fields. Read exactly one header
+    // ahead; file length stays dynamic because this backend can grow or truncate.
+    LHeaderInput := TBufferedStream.Create(Stream,SizeOf(bh.BlockNumber)+SizeOf(bh.StreamBlockRelStartPos)+SizeOf(bh.BlockSize),False,False,True);
+    try
+      Stream := LHeaderInput;
+      if Length(FBlockHeadersFirstBytePosition)>0 then begin
+        start := High(FBlockHeadersFirstBytePosition);
+      end else begin
+        If CanInitialize then begin
+          // Initialize and start at 0
+          SetLength(FBlockHeadersFirstBytePosition,1);
+          FBlockHeadersFirstBytePosition[0] := 0;
+          start := 0;
+        end else exit;
       end;
-      Stream.Position := FBlockHeadersFirstBytePosition[start] + GetBlockHeaderFixedSize - CT_SizeOfBlockHeader;
-      // Read last saved Header
-      nCurrBlock := FStreamFirstBlockNumber + ((start+1) * CT_GroupBlockSize) - 1;
-      Repeat
-        Stream.Read(bh.BlockNumber,SizeOf(bh.BlockNumber));
-        Stream.Read(bh.StreamBlockRelStartPos,SizeOf(bh.StreamBlockRelStartPos));
-        Stream.Read(bh.BlockSize,sizeof(bh.BlockSize));
-        If (bh.BlockNumber<>nCurrBlock) then begin
-          if (bh.BlockNumber<>0) Or (bh.StreamBlockRelStartPos<>0) Or (bh.BlockSize<>0) then begin
-            TLog.NewLog(ltError,ClassName,Format('Fatal error. Found a Tblockheader with no 0 values searching for block:%d at nCurrBlock:%d - Number:%d RelStartPos:%d Size:%d',[block,nCurrBlock,bh.BlockNumber,bh.StreamBlockRelStartPos,bh.BlockSize]));
+      while (start<iPos) do begin
+        // Read last start position
+        if (Stream.Size<(FBlockHeadersFirstBytePosition[start] + GetBlockHeaderFixedSize)) then begin
+          // This position not exists...
+          If (CanInitialize) then begin
+            GrowStreamUntilPos(Stream,FBlockHeadersFirstBytePosition[start],false);
+            // Save BlockHeader values (initialized to 0)
+            FillChar(null_buff,length(null_buff),0);
+            Stream.WriteBuffer(null_buff,length(null_buff));
+          end else begin
+            // This is a Fatal error due must find previos block!
+            TLog.NewLog(ltError,Classname,Format('Stream size %d is lower than BlockHeader[%d] position %d + BlockHeaderSize %d',
+              [Stream.size,start,FBlockHeadersFirstBytePosition[start],GetBlockHeaderFixedSize]));
             exit;
           end;
-          if ((start=0) And (nCurrBlock>FStreamFirstBlockNumber))
-             Or
-             ((start>0) And (nCurrBlock>(FStreamFirstBlockNumber + ((start) * CT_GroupBlockSize)))) then begin
-            dec(nCurrBlock);
-            // Positioning for new read:
-            Stream.Seek(Int64(CT_SizeOfBlockHeader)*(-2),soFromCurrent);
-          end else begin
-            break; // End of blockheader!
-          end;
         end;
-      until (bh.BlockNumber>0);
-      // Positioning!
-      Stream.Position := FBlockHeadersFirstBytePosition[start] + GetBlockHeaderFixedSize;
-      //
-      SetLength(FBlockHeadersFirstBytePosition,length(FBlockHeadersFirstBytePosition)+1);
-      if bh.BlockNumber>0 then begin
-        FBlockHeadersFirstBytePosition[High(FBlockHeadersFirstBytePosition)] := Stream.Position + bh.StreamBlockRelStartPos + bh.BlockSize;
-      end else begin
-        // Not found a block, starting at last pos
-        FBlockHeadersFirstBytePosition[High(FBlockHeadersFirstBytePosition)] := Stream.Position;
-      end;
-      inc(start);
+        Stream.Position := FBlockHeadersFirstBytePosition[start] + GetBlockHeaderFixedSize - CT_SizeOfBlockHeader;
+        // Read last saved Header
+        nCurrBlock := FStreamFirstBlockNumber + ((start+1) * CT_GroupBlockSize) - 1;
+        Repeat
+          Stream.Read(bh.BlockNumber,SizeOf(bh.BlockNumber));
+          Stream.Read(bh.StreamBlockRelStartPos,SizeOf(bh.StreamBlockRelStartPos));
+          Stream.Read(bh.BlockSize,sizeof(bh.BlockSize));
+          If (bh.BlockNumber<>nCurrBlock) then begin
+            if (bh.BlockNumber<>0) Or (bh.StreamBlockRelStartPos<>0) Or (bh.BlockSize<>0) then begin
+              TLog.NewLog(ltError,ClassName,Format('Fatal error. Found a Tblockheader with no 0 values searching for block:%d at nCurrBlock:%d - Number:%d RelStartPos:%d Size:%d',[block,nCurrBlock,bh.BlockNumber,bh.StreamBlockRelStartPos,bh.BlockSize]));
+              exit;
+            end;
+            if ((start=0) And (nCurrBlock>FStreamFirstBlockNumber))
+               Or
+               ((start>0) And (nCurrBlock>(FStreamFirstBlockNumber + ((start) * CT_GroupBlockSize)))) then begin
+              dec(nCurrBlock);
+              // Positioning for new read:
+              Stream.Seek(Int64(CT_SizeOfBlockHeader)*(-2),soFromCurrent);
+            end else begin
+              break; // End of blockheader!
+            end;
+          end;
+        until (bh.BlockNumber>0);
+        // Positioning!
+        Stream.Position := FBlockHeadersFirstBytePosition[start] + GetBlockHeaderFixedSize;
+        //
+        SetLength(FBlockHeadersFirstBytePosition,length(FBlockHeadersFirstBytePosition)+1);
+        if bh.BlockNumber>0 then begin
+          FBlockHeadersFirstBytePosition[High(FBlockHeadersFirstBytePosition)] := Stream.Position + bh.StreamBlockRelStartPos + bh.BlockSize;
+        end else begin
+          // Not found a block, starting at last pos
+          FBlockHeadersFirstBytePosition[High(FBlockHeadersFirstBytePosition)] := Stream.Position;
+        end;
+        inc(start);
 
-      // Check if blockheader size is ok:
-      if (CanInitialize) And (Stream.Size<(FBlockHeadersFirstBytePosition[start] + GetBlockHeaderFixedSize)) then begin
-        Stream.Position := FBlockHeadersFirstBytePosition[start];
-        TLog.NewLog(ltInfo,ClassName,Format('Increasing size for blockheader %d at pos:%d (current stream pos %d size %d) to position:%d',
-          [start,FBlockHeadersFirstBytePosition[start],Stream.Position,Stream.Size,
-          FBlockHeadersFirstBytePosition[start]+GetBlockHeaderFixedSize]));
-        GrowStreamUntilPos(Stream,FBlockHeadersFirstBytePosition[start]+GetBlockHeaderFixedSize,true);
-      end;
+        // Check if blockheader size is ok:
+        if (CanInitialize) And (Stream.Size<(FBlockHeadersFirstBytePosition[start] + GetBlockHeaderFixedSize)) then begin
+          Stream.Position := FBlockHeadersFirstBytePosition[start];
+          TLog.NewLog(ltInfo,ClassName,Format('Increasing size for blockheader %d at pos:%d (current stream pos %d size %d) to position:%d',
+            [start,FBlockHeadersFirstBytePosition[start],Stream.Position,Stream.Size,
+            FBlockHeadersFirstBytePosition[start]+GetBlockHeaderFixedSize]));
+          GrowStreamUntilPos(Stream,FBlockHeadersFirstBytePosition[start]+GetBlockHeaderFixedSize,true);
+        end;
 
+      end;
+    finally
+      try
+        // Return any unread header bytes before the caller uses the raw file.
+        LHeaderInput.FlushUnreadData;
+      finally
+        LHeaderInput.Free;
+      end;
     end;
   End;
   iBlockHeaders := iPos;
@@ -490,6 +504,7 @@ function TFileStorage.LockBlockChainStream: TFileStream;
       while (iPos + GetBlockHeaderFixedSize < Stream.Size) do begin
         Stream.Position := iPos;
         mem.Size := 0;
+        // This whole header group already has a bulk buffer; keep file I/O direct.
         mem.CopyFrom(Stream,GetBlockHeaderFixedSize);
         // Analize it:
         mem.Position := 0;
@@ -655,6 +670,7 @@ begin
   // Reading Block
   _ops := TMemoryStream.Create;
   try
+    // Header readers have flushed their borrowed view; copy payload bytes directly.
     _ops.CopyFrom(Stream,_BlockSizeC);
     _ops.Position := 0;
     If Not Operations.LoadBlockFromStorage(_ops,errors) then begin
@@ -736,14 +752,12 @@ begin
   end;
 end;
 
-function TFileStorage.StreamReadBlockHeader(Stream: TStream;
-  iBlockHeaders : Integer; BlockHeaderFirstBlock, Block: Cardinal;
-  CanSearchBackward : Boolean;
-  var BlockHeader: TBlockHeader): Boolean;
+function TFileStorage.StreamReadBlockHeader(Stream: TStream; iBlockHeaders : Integer; BlockHeaderFirstBlock, Block: Cardinal; CanSearchBackward : Boolean; var BlockHeader: TBlockHeader): Boolean;
 Var iBlock : Cardinal;
   _iBlockHeaders : Integer;
   _StreamBlockHeaderStartPos: Int64;
   _BlockHeaderFirstBlock : Cardinal;
+  LHeaderInput : TBufferedStream;
 begin
   Result := false;
   BlockHeader := CT_TBlockHeader_NUL;
@@ -758,34 +772,47 @@ begin
   iBlock := Block;
   _iBlockHeaders:=iBlockHeaders;
   _BlockHeaderFirstBlock:=BlockHeaderFirstBlock;
-  // Reading block header
-  Repeat
-    _StreamBlockHeaderStartPos:=FBlockHeadersFirstBytePosition[_iBlockHeaders];
-    Stream.Position := _StreamBlockHeaderStartPos + (CT_SizeOfBlockHeader*(iBlock-_BlockHeaderFirstBlock));
-    If Stream.Read(BlockHeader.BlockNumber,sizeof(BlockHeader.BlockNumber))<sizeof(BlockHeader.BlockNumber) then exit;
-    If Stream.Read(BlockHeader.StreamBlockRelStartPos,sizeof(BlockHeader.StreamBlockRelStartPos))<sizeof(BlockHeader.StreamBlockRelStartPos) then exit;
-    If Stream.Read(BlockHeader.BlockSize,sizeof(BlockHeader.BlockSize))<sizeof(BlockHeader.BlockSize) then exit;
-    Result := (BlockHeader.BlockNumber = iBlock);
-    If (Not Result) And (CanSearchBackward) then begin
-      If (iBlock>_BlockHeaderFirstBlock) then dec(iBlock)
-      else begin
-        // Search on previous header...
-        If (iBlockHeaders>0) then begin
-          dec(_iBlockHeaders);
-          dec(_BlockHeaderFirstBlock,CT_GroupBlockSize);
-        end else begin
-          break;
+  // Coalesce the 4/8/4-byte fields without allocating a block-sized buffer.
+  // Borrow the existing locked file; its mutable length must never be cached.
+  LHeaderInput := TBufferedStream.Create(Stream,SizeOf(BlockHeader.BlockNumber)+SizeOf(BlockHeader.StreamBlockRelStartPos)+SizeOf(BlockHeader.BlockSize),False,False,True);
+  try
+    Stream := LHeaderInput;
+    // Reading block header
+    Repeat
+      _StreamBlockHeaderStartPos:=FBlockHeadersFirstBytePosition[_iBlockHeaders];
+      Stream.Position := _StreamBlockHeaderStartPos + (CT_SizeOfBlockHeader*(iBlock-_BlockHeaderFirstBlock));
+      If Stream.Read(BlockHeader.BlockNumber,sizeof(BlockHeader.BlockNumber))<sizeof(BlockHeader.BlockNumber) then exit;
+      If Stream.Read(BlockHeader.StreamBlockRelStartPos,sizeof(BlockHeader.StreamBlockRelStartPos))<sizeof(BlockHeader.StreamBlockRelStartPos) then exit;
+      If Stream.Read(BlockHeader.BlockSize,sizeof(BlockHeader.BlockSize))<sizeof(BlockHeader.BlockSize) then exit;
+      Result := (BlockHeader.BlockNumber = iBlock);
+      If (Not Result) And (CanSearchBackward) then begin
+        If (iBlock>_BlockHeaderFirstBlock) then dec(iBlock)
+        else begin
+          // Search on previous header...
+          If (iBlockHeaders>0) then begin
+            dec(_iBlockHeaders);
+            dec(_BlockHeaderFirstBlock,CT_GroupBlockSize);
+          end else begin
+            break;
+          end;
         end;
       end;
+    Until Result Or (Not CanSearchBackward);
+    // Positioning
+    Stream.Position := FBlockHeadersFirstBytePosition[iBlockHeaders] + (CT_SizeOfBlockHeader*(Block+1-BlockHeaderFirstBlock));
+    If Result then begin // For Backward searching...
+      BlockHeader.BlockNumber:=Block;
+      If (_iBlockHeaders<>iBlockHeaders) then begin
+        BlockHeader.BlockSize:=0;
+        BlockHeader.StreamBlockRelStartPos:=0;
+      end;
     end;
-  Until Result Or (Not CanSearchBackward);
-  // Positioning
-  Stream.Position := FBlockHeadersFirstBytePosition[iBlockHeaders] + (CT_SizeOfBlockHeader*(Block+1-BlockHeaderFirstBlock));
-  If Result then begin // For Backward searching...
-    BlockHeader.BlockNumber:=Block;
-    If (_iBlockHeaders<>iBlockHeaders) then begin
-      BlockHeader.BlockSize:=0;
-      BlockHeader.StreamBlockRelStartPos:=0;
+  finally
+    try
+      // No read-ahead cursor may escape to the caller's direct payload copy.
+      LHeaderInput.FlushUnreadData;
+    finally
+      LHeaderInput.Free;
     end;
   end;
 end;

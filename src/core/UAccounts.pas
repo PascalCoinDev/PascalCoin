@@ -521,7 +521,7 @@ Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 implementation
 
 uses
-  ULog, {$IFnDEF USE_ABSTRACTMEM} UAccountKeyStorage,{$ENDIF} math, UCommon, UPCOperationsBlockValidator, UPCTemporalFileStream, UEncoding;
+  ULog, {$IFnDEF USE_ABSTRACTMEM} UAccountKeyStorage,{$ENDIF} math, UCommon, UPCOperationsBlockValidator, UPCTemporalFileStream, UEncoding, UStreams;
 
 
 {$IFDEF FPC}
@@ -825,11 +825,9 @@ begin
   inc(Result, Int64(Int64(ABlockCount MOD CT_NewLineRewardDecrease) * LCurrReward));
 end;
 
-class function TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(
-  const AHardcodedFileName: String;
-  const AHardcodedSha256Value: TRawBytes): Boolean;
+class function TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(const AHardcodedFileName: String; const AHardcodedSha256Value: TRawBytes): Boolean;
 var LTmp : TPCHardcodedRandomHashTable;
-  LFileStream : TFileStream;
+  LFileStream : TStream;
   LInternalHardcodedSha256 : TRawBytes;
 begin
   Result := False;
@@ -846,6 +844,10 @@ begin
   try
     LFileStream := TFileStream.Create(AHardcodedFileName,fmOpenRead+fmShareDenyNone);
     try
+      // Combine small table-field reads. Shared access permits external changes,
+      // so keep length caching off and retain the existing file-sharing mode.
+      // Ownership transfers only after the decorator is constructed successfully.
+      LFileStream := TBufferedStream.Create(LFileStream,64*1024,True,False,True);
       if LTmp.LoadFromStream(LFileStream,LInternalHardcodedSha256) then begin
         if TBaseType.Equals(LInternalHardcodedSha256, AHardcodedSha256Value) then begin
           if Not Assigned(_INTERNAL_PascalCoinProtocol) then begin

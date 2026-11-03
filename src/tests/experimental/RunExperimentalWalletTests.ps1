@@ -45,7 +45,7 @@ $sourcePaths = @('core', 'gui-experimental', 'gui-experimental\core.utils',
     'libraries\pascalcoin', 'libraries\paszlib', 'libraries\abstractmem', 'libraries\regex',
     'libraries\gnugettext')
 foreach ($path in $sourcePaths) { $arguments += "-Fu$repository\src\$path" }
-foreach ($path in @('startup', 'operations', 'ui', 'framework', 'core', 'native\mempool-lock', 'native\block-throughput', 'native\network-lifetime', 'native\ordered-cardinal', 'native\stored-history', 'native\storage-recovery', 'native\abstractmem-storage')) { $arguments += "-Fu$PSScriptRoot\$path" }
+foreach ($path in @('startup', 'operations', 'ui', 'framework', 'core', 'native\mempool-lock', 'native\block-throughput', 'native\network-lifetime', 'native\ordered-cardinal', 'native\stored-history', 'native\storage-recovery', 'native\abstractmem-storage', 'native\buffered-adoption')) { $arguments += "-Fu$PSScriptRoot\$path" }
 $arguments += "-Fu$repository\src\tests"
 $arguments += "$PSScriptRoot\ExperimentalWalletTests.lpr"
 $arguments | Set-Content -LiteralPath (Join-Path $outputDirectory 'compiler-arguments.txt')

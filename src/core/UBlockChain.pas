@@ -491,10 +491,10 @@ Type
   private
     FBank : TPCBank;
     FReadOnly: Boolean;
-    FPendingBufferOperationsStream : TFileStream;
+    FPendingBufferOperationsStream : TStream;
     FPendingLoadProgressNotify : TProgressNotify;
     procedure SetBank(const Value: TPCBank);
-    Function GetPendingBufferOperationsStream : TFileStream;
+    Function GetPendingBufferOperationsStream : TStream;
   protected
     FIsMovingBlockchain : Boolean;
     FStorageFilename: String;
@@ -615,7 +615,7 @@ uses
   UPCOperationsSignatureValidator,
   UPCOperationsBlockValidator,
   UAbstractMemBlockchainStorage, UFileMem, UAbstractMem, {$IFNDEF USE_ABSTRACTMEM}UPCAbstractMem,{$ENDIF}
-  UNode;
+  UNode, UStreams;
 
 { TPCOperationsStorage }
 
@@ -1519,7 +1519,7 @@ function TPCBank.RestoreBank(AMax_block: Int64; AOrphan: String; ARestoreProgres
 var
   sr: TSearchRec;
   folder, LFilename, auxfn, errors: String;
-  fs: TFileStream;
+  fs: TStream;
   LBlocksCount: Cardinal;
   sbHeader, goodSbHeader: TPCSafeBoxHeader;
   LHasCandidates, LHeaderValid: Boolean;
@@ -1530,7 +1530,7 @@ var
   {$ENDIF}
 
   function LegacyBodyIsReadable(const AFileName: String; AExpectedBlocks: Cardinal): Boolean;
-  var LProbe: TPCBank; LStream: TFileStream; LErrors: String;
+  var LProbe: TPCBank; LStream: TStream; LErrors: String;
   begin
     Result := False;
     LProbe := TPCBank.Create(Nil);
@@ -1538,6 +1538,10 @@ var
       try
         LStream := TFileStream.Create(AFileName,fmOpenRead+fmShareDenyWrite);
         try
+          // Read small serialized fields from bounded read-ahead storage. The
+          // wrapper adopts the file only after its construction succeeds.
+          // Writes are denied for this file, so its length can be cached safely.
+          LStream := TBufferedStream.Create(LStream,64*1024,True,True,True);
           // A complete header is not a complete snapshot. Validate the body in
           // a separate memory bank before it can displace another good candidate.
           Result := LProbe.LoadBankFromStream(LStream,True,Nil,Nil,Nil,LErrors);
@@ -1640,6 +1644,8 @@ begin
       {$ENDIF}
       fs := TFileStream.Create(LFilename,fmOpenRead+fmShareDenyWrite);
       try
+        // Buffer small serialized fields; denied writes keep the cached length valid.
+        fs := TBufferedStream.Create(fs,64*1024,True,True,True);
         if not LoadBankFromStream(fs,True,Nil,Nil,ARestoreProgressNotify,errors) then
           raise Exception.Create('Cannot restore safebox '+LFilename+': '+errors);
       finally
@@ -3953,7 +3959,7 @@ begin
 end;
 
 procedure TStorage.DoLoadPendingBufferOperations(OperationsHashTree: TOperationsHashTree);
-Var fs : TFileStream;
+Var fs : TStream;
   errors : String;
   n : Integer;
   LCurrentProtocol : Word;
@@ -4065,7 +4071,7 @@ begin
   end else Result := DoGetBlockOperations(ABlock,AOpBlockStartIndex,AMaxOperations,AOperationBlock,AOperationsCount,AVolume,AOperationsResumeList);
 end;
 
-function TStorage.GetPendingBufferOperationsStream: TFileStream;
+function TStorage.GetPendingBufferOperationsStream: TStream;
 Var fs : TFileStream;
   fn : TFileName;
   fm : Word;
@@ -4076,8 +4082,14 @@ begin
     else fm := fmCreate+fmShareExclusive;
     Try
       FPendingBufferOperationsStream := TFileStream.Create(fn,fm);
+      // Pending packages contain many small serialized fields. Own the retained
+      // file through read-ahead, but query its mutable length directly. Atomic
+      // saves still close this owner before publishing the replacement file.
+      FPendingBufferOperationsStream := TBufferedStream.Create(FPendingBufferOperationsStream,64*1024,True,False,True);
     Except
       On E:Exception do begin
+        // A failed decorator construction leaves ownership with the raw file.
+        FreeAndNil(FPendingBufferOperationsStream);
         TLog.NewLog(ltError,ClassName,'Error opening PendingBufferOperationsStream '+fn+' ('+E.ClassName+'):'+ E.Message);
         Raise;
       end;

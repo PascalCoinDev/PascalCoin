@@ -11,6 +11,7 @@ uses
   // Heap tracing must precede POSIX thread-variable relocation.
   heaptrc, {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Forms, SysUtils, fpcunit, testregistry, plaintestreport,
+  UBufferedAdoptionTests,
   UWalletStartupTests, UPendingRestoreTests, UPendingCleanupTests, UOperationPreparationTests, UChangeInfoBatchTests, UOperationWizardTests,
   UWalletRestoreTests, UWalletViewTests, UWalletAccountEnumerationTests, UWalletHistoryTests,
   UWalletSnapshotTests, UWalletMempoolReadSafetyTests, UWalletProgressDisplayTests, UThreadConcurrencyTests, UCoreLockMigrationTests,
@@ -30,7 +31,7 @@ uses
   UWalletLanguageTests, UWalletParityTests, UWalletInfoTests,
   UCache.Tests, UWizard.Tests, UCommon.Data.Tests, UCommon.UI.Tests, UVisualGrid.Tests,
   UVisualGrid.Refresh.Tests, UFramework.UI.Integration.Tests, UMemory.Tests, UConcurrency.Tests,
-  UScope.Tests, UReadWriteScope.Tests, UCommon.Tests, UCommon.Collections.Tests,
+  UScope.Tests, UReadWriteScope.Tests, UCommon.Tests, UCommon.Collections.Tests, UStreams.Tests,
   UMemory, UCommon;
 
 type
