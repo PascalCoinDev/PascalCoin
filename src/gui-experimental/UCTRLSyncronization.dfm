@@ -45535,7 +45535,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblTotalBlocksLabel: TLabel
         Left = 74
         Height = 15
-        Top = 16
+        Top = 24
         Width = 66
         Alignment = taRightJustify
         Caption = 'Total Blocks:'
@@ -45544,7 +45544,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblTotalBlocksValue: TLabel
         Left = 154
         Height = 15
-        Top = 16
+        Top = 24
         Width = 18
         Caption = '000'
         ParentColor = False
@@ -45552,7 +45552,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblBlockAgeLabel: TLabel
         Left = 84
         Height = 15
-        Top = 40
+        Top = 48
         Width = 56
         Alignment = taRightJustify
         Caption = 'Block Age:'
@@ -45561,7 +45561,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblBlockAgeValue: TLabel
         Left = 154
         Height = 15
-        Top = 40
+        Top = 48
         Width = 87
         Caption = '000 seconds ago'
         ParentColor = False
@@ -45569,7 +45569,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblPendingOperationsLabel: TLabel
         Left = 32
         Height = 15
-        Top = 64
+        Top = 72
         Width = 108
         Alignment = taRightJustify
         Caption = 'Pending Operations:'
@@ -45578,7 +45578,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblPendingOperationsValue: TLabel
         Left = 154
         Height = 15
-        Top = 64
+        Top = 72
         Width = 18
         Caption = '000'
         ParentColor = False
@@ -45586,7 +45586,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblTotalAccountsValue: TLabel
         Left = 153
         Height = 15
-        Top = 88
+        Top = 96
         Width = 18
         Caption = '000'
         ParentColor = False
@@ -45594,7 +45594,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblProtocolVersion: TLabel
         Left = 154
         Height = 15
-        Top = 112
+        Top = 120
         Width = 18
         Caption = '000'
         ParentColor = False
@@ -45602,7 +45602,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblNetProtocolVersion: TLabel
         Left = 154
         Height = 15
-        Top = 136
+        Top = 144
         Width = 18
         Caption = '000'
         ParentColor = False
@@ -45610,7 +45610,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblCurrentDifficultyCaption2: TLabel
         Left = 32
         Height = 15
-        Top = 136
+        Top = 144
         Width = 108
         Alignment = taRightJustify
         Caption = 'Net Protocol Version'
@@ -45619,7 +45619,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblCurrentDifficultyCaption1: TLabel
         Left = 54
         Height = 15
-        Top = 112
+        Top = 120
         Width = 86
         Alignment = taRightJustify
         Caption = 'Protocol Version'
@@ -45628,7 +45628,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblTotalAccountsLabel: TLabel
         Left = 58
         Height = 15
-        Top = 88
+        Top = 96
         Width = 82
         Alignment = taRightJustify
         Caption = 'Total Accounts:'
@@ -45637,7 +45637,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblMiningStatusCaption: TLabel
         Left = 270
         Height = 15
-        Top = 16
+        Top = 24
         Width = 73
         Alignment = taRightJustify
         Caption = 'Miner Clients:'
@@ -45646,7 +45646,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblMinersClientsValue: TLabel
         Left = 357
         Height = 15
-        Top = 16
+        Top = 24
         Width = 18
         Caption = '000'
         ParentColor = False
@@ -45654,7 +45654,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblBlockTargetValue: TLabel
         Left = 357
         Height = 15
-        Top = 40
+        Top = 48
         Width = 18
         Caption = '000'
         ParentColor = False
@@ -45662,7 +45662,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblBlockTargetLabel: TLabel
         Left = 275
         Height = 15
-        Top = 40
+        Top = 48
         Width = 68
         Alignment = taRightJustify
         Caption = 'Block Target:'
@@ -45671,7 +45671,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object Label16: TLabel
         Left = 277
         Height = 13
-        Top = 64
+        Top = 72
         Width = 66
         Alignment = taRightJustify
         Caption = 'Blocks Found:'
@@ -45685,7 +45685,7 @@ object CTRLSyncronization: TCTRLSyncronization
         Left = 357
         Height = 13
         Hint = 'Blocks found while Miner is running...'
-        Top = 64
+        Top = 72
         Width = 18
         Caption = '000'
         Font.Color = clWindowText
@@ -45699,7 +45699,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblTimeAverage: TLabel
         Left = 357
         Height = 15
-        Top = 88
+        Top = 96
         Width = 18
         Caption = '000'
         ParentColor = False
@@ -45707,7 +45707,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object Label4: TLabel
         Left = 270
         Height = 15
-        Top = 88
+        Top = 96
         Width = 74
         Alignment = taRightJustify
         Caption = 'Time average:'
@@ -45716,7 +45716,7 @@ object CTRLSyncronization: TCTRLSyncronization
       object lblTimeAverageAux: TLabel
         Left = 357
         Height = 13
-        Top = 112
+        Top = 120
         Width = 18
         Caption = '000'
         Font.Color = clGray
@@ -45729,7 +45729,7 @@ object CTRLSyncronization: TCTRLSyncronization
         Cursor = crHandPoint
         Left = 32
         Height = 120
-        Top = 176
+        Top = 184
         Width = 651
         Anchors = [akTop, akLeft, akRight, akBottom]
         AutoSize = False
