@@ -366,7 +366,7 @@ var LOpData : TOpData;
   LTargetRequiresPurchase : Boolean;
 begin
   Result := False;
-  ASender.Node.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent operations
+  ASender.Node.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent operations
   try
 
   if Not TPascalCoinJSONComp.CaptureMempoolAccount(AInputParams,'sender',ASender.Node,LSender,AErrorDesc) then begin
@@ -436,7 +436,7 @@ begin
   end;
 
   finally
-    ASender.Node.OperationSequenceLock.Release;
+    ASender.Node.OperationSequenceLock.ReleaseWriteLock;
   end;
 end;
 

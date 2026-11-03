@@ -28,7 +28,7 @@ interface
 {$I ..\..\config.inc}
 
 uses Classes, SysUtils, SyncObjs, Generics.Collections, UAccounts, UPCDataTypes,
-  UCommon, UCommon.Data, UDataSources, UCache, UMemory, UBaseTypes;
+  UCommon, UCommon.Data, UDataSources, UCache, UMemory, UBaseTypes, UThread;
 
 type
   TAccountSelectorFilter = record
@@ -70,7 +70,7 @@ type
     TSnapshotCache = TActionCache<String,TQuerySnapshot>;
   private
     FSafeBox: TPCSafeBox;
-    FConfigLock, FQueryLock: TCriticalSection;
+    FConfigLock, FQueryLock: UThread.TReadWriteLock;
     FFilter, FBuildingFilter: TAccountSelectorFilter;
     FBuildingChain: TAccountSelectorChain;
     FGeneration: UInt64;
@@ -130,8 +130,8 @@ end;
 constructor TAccountSelectorDataSource.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  FConfigLock := TCriticalSection.Create;
-  FQueryLock := TCriticalSection.Create;
+  FConfigLock := UThread.TReadWriteLock.Create('AccountSelector.ConfigLock',UThread.lrpSupportsRecursion);
+  FQueryLock := UThread.TReadWriteLock.Create('AccountSelector.QueryLock',UThread.lrpSupportsRecursion);
   FGeneration := 1;
   FCache := TSnapshotCache.Create(Self,
     TCacheValueFetcher<String,TQuerySnapshot>.FromObjectFunction(FetchSnapshot),
@@ -151,7 +151,7 @@ end;
 procedure TAccountSelectorDataSource.Configure(ASafeBox: TPCSafeBox; const AFilter: TAccountSelectorFilter);
 begin
   // Configuration never waits for the cache or a provider's storage/query lock.
-  FConfigLock.Acquire;
+  FConfigLock.AcquireWriteLock;
   try
     FSafeBox := ASafeBox;
     FFilter := AFilter;
@@ -161,7 +161,7 @@ begin
     Inc(FGeneration);
     FSummaryReady := False;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseWriteLock;
   end;
   // The optional inherited generic-query cache has its own logical revision.
   // Invalidating it is atomic and does not wait for an active provider/cache.
@@ -170,13 +170,13 @@ end;
 
 procedure TAccountSelectorDataSource.ReadConfiguration(out AFilter: TAccountSelectorFilter; out AGeneration: UInt64; out ASafeBox: TPCSafeBox);
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireReadLock;
   try
     AFilter := FFilter;
     AGeneration := FGeneration;
     ASafeBox := FSafeBox;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseReadLock;
   end;
 end;
 
@@ -289,7 +289,7 @@ end;
 
 procedure TAccountSelectorDataSource.PublishSnapshot(ASnapshot: TQuerySnapshot; AGeneration: UInt64);
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireWriteLock;
   try
     if AGeneration = FGeneration then begin
       FSummary := ASnapshot.Total;
@@ -298,7 +298,7 @@ begin
       FSummaryReady := True;
     end;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseWriteLock;
   end;
 end;
 
@@ -379,7 +379,8 @@ begin
   if Length(AParams.Filter) > 0 then Exit(inherited FetchPage(AParams,ADataTable));
   EnterLock;
   try
-  FQueryLock.Acquire;
+  // Query work updates shared provider/cache state, including on fetch paths.
+  FQueryLock.AcquireWriteLock;
   try
     LAttempt := 0;
     repeat
@@ -431,7 +432,7 @@ begin
       end;
     until LComplete;
   finally
-    FQueryLock.Release;
+    FQueryLock.ReleaseWriteLock;
   end;
   finally
     ReleaseLock;
@@ -447,7 +448,8 @@ begin
   // selected query without first materializing and rereading Variant rows.
   EnterLock;
   try
-  FQueryLock.Acquire;
+  // Query work updates shared provider/cache state, including on fetch paths.
+  FQueryLock.AcquireWriteLock;
   try
     LAttempt := 0;
     LOriginalCount := AContainer.Count;
@@ -481,7 +483,7 @@ begin
       end;
     until LComplete;
   finally
-    FQueryLock.Release;
+    FQueryLock.ReleaseWriteLock;
   end;
   finally
     ReleaseLock;
@@ -490,25 +492,25 @@ end;
 
 function TAccountSelectorDataSource.TryGetSummary(out ATotal: TAccountSelectorTotal): Boolean;
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireReadLock;
   try
     ATotal := FSummary;
     Result := FSummaryReady;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseReadLock;
   end;
 end;
 
 function TAccountSelectorDataSource.PublishedAccountIndex(AAccount: Cardinal): Integer;
 var LNumbers: TArray<Cardinal>; LImplicit: Boolean; LCount,L,H,M: Integer;
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireReadLock;
   try
     LNumbers := FPublishedNumbers;
     LImplicit := FPublishedImplicitAll;
     LCount := FSummary.Accounts;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseReadLock;
   end;
   Result := -1;
   if LImplicit then begin
@@ -529,11 +531,11 @@ var LRows: TArray<TAccount>; LCurrent: TAccountSelectorChain;
   LSafeBox: TPCSafeBox;
   LStart,I,K,J,LType,LAttempt: Integer; LComplete: Boolean;
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireReadLock;
   try
     LSafeBox := FSafeBox;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseReadLock;
   end;
   LAttempt := 0;
   repeat

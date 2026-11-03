@@ -105,10 +105,10 @@ Type
   private
     FNodeLog : TLog;
     FLockMempool : TReadWriteLock;
-    FOperationSequenceLock : TPCCriticalSection;
+    FOperationSequenceLock : TReadWriteLock;
     FNotifyList : TList<TNodeNotifyEvents>;
-    FNotifyLock: TPCCriticalSection;
-    FSynchronizationLock: TPCCriticalSection;
+    FNotifyLock: TReadWriteLock;
+    FSynchronizationLock: TReadWriteLock;
     FSynchronizationStatus: TNodeSynchronizationStatus;
     FSynchronizationPeers: TDictionary<TObject, Cardinal>;
     FSynchronizationGeneration: UInt64;
@@ -229,7 +229,7 @@ Type
     Procedure DisableNewBlocks;
     Procedure EnableNewBlocks;
     Property NodeLogFilename : String read GetNodeLogFilename write SetNodeLogFilename;
-    Property OperationSequenceLock : TPCCriticalSection read FOperationSequenceLock;
+    Property OperationSequenceLock : TReadWriteLock read FOperationSequenceLock;
     function TryLockNode(MaxWaitMilliseconds : Cardinal) : Boolean;
     procedure UnlockNode;
     //
@@ -761,12 +761,12 @@ begin
     end;
   end;
   // Notify it!
-  FNotifyLock.Acquire;
+  FNotifyLock.AcquireWriteLock;
   try
     for i := 0 to FNotifyList.Count-1 do
       FNotifyList[i].NotifyOperationsChanged;
   finally
-    FNotifyLock.Release;
+    FNotifyLock.ReleaseWriteLock;
   end;
 end;
 
@@ -795,9 +795,11 @@ begin
   FDisabledsNewBlocksCount := 0;
   // Block application reenters through bank callbacks and signature reuse.
   FLockMempool := TReadWriteLock.Create(lrpSupportsRecursion);
-  FOperationSequenceLock := TPCCriticalSection.Create('TNode_OperationSequenceLock');
-  FNotifyLock := TPCCriticalSection.Create('TNode_NotifyLock');
-  FSynchronizationLock := TPCCriticalSection.Create('TNode_SynchronizationLock');
+  // RPC reservation/submission and notifier mutations preserve recursive writes.
+  FOperationSequenceLock := TReadWriteLock.Create('TNode_OperationSequenceLock',lrpSupportsRecursion);
+  FNotifyLock := TReadWriteLock.Create('TNode_NotifyLock',lrpSupportsRecursion);
+  // Small coherent snapshots share reads; state publication owns write mode.
+  FSynchronizationLock := TReadWriteLock.Create('TNode_SynchronizationLock',lrpSupportsRecursion);
   FSynchronizationPeers := TDictionary<TObject, Cardinal>.Create;
   FSynchronizationScopes := TDictionary<TThreadID, TList<UInt64>>.Create;
   FSynchronizationGeneration := 1;
@@ -1298,7 +1300,7 @@ procedure TNode.BeginBlockChainUpdate;
 var LScopes: TList<UInt64>;
   LGeneration: UInt64;
 begin
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireWriteLock;
   try
     if not FSynchronizationScopes.TryGetValue(TThread.CurrentThread.ThreadID,LScopes) then begin
       LScopes := TList<UInt64>.Create;
@@ -1314,7 +1316,7 @@ begin
     Inc(FSynchronizationStatus.ActiveTransfers);
     RecalculateSynchronizationStatus;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseWriteLock;
   end;
   NotifySynchronizationChanged;
 end;
@@ -1322,7 +1324,7 @@ end;
 procedure TNode.EndBlockChainUpdate;
 var LScopes: TList<UInt64>;
 begin
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireWriteLock;
   try
     if not FSynchronizationScopes.TryGetValue(TThread.CurrentThread.ThreadID,LScopes) or
       (LScopes.Count=0) then
@@ -1335,7 +1337,7 @@ begin
     Dec(FSynchronizationStatus.ActiveTransfers);
     RecalculateSynchronizationStatus;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseWriteLock;
   end;
   NotifySynchronizationChanged;
   // Completion is an event, not a UI timer or synchronous UI callback. The
@@ -1365,11 +1367,11 @@ end;
 function TNode.GetSynchronizationStatus: TNodeSynchronizationStatus;
 begin
   // Only a coherent record copy. Never acquire mempool/Bank/SafeBox here.
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireReadLock;
   try
     Result := FSynchronizationStatus;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseReadLock;
   end;
 end;
 
@@ -1447,7 +1449,7 @@ begin
   LFailure.ErrorClass := AError.ClassName;
   LFailure.ErrorMessage := AError.Message;
   LChanged := False;
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireWriteLock;
   try
     if Not FSynchronizationStatus.StorageFailure.HasFailure then begin
       FSynchronizationStatus.StorageFailure := LFailure;
@@ -1456,7 +1458,7 @@ begin
       LChanged := True;
     end;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseWriteLock;
   end;
   // This publishes existing notifier flags only. A bank/network producer never
   // calls GUI subscribers or acquires the node writer while reporting failure.
@@ -1465,11 +1467,11 @@ end;
 
 function TNode.HasStorageFailure: Boolean;
 begin
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireReadLock;
   try
     Result := FSynchronizationStatus.StorageFailure.HasFailure;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseReadLock;
   end;
 end;
 
@@ -1508,19 +1510,21 @@ end;
 procedure TNode.NotifySynchronizationChanged;
 var i: Integer;
 begin
-  // Producer work is bounded flag publication, not a call into a UI listener.
-  FNotifyLock.Acquire;
+  // Registry membership is stable during this read. Each listener publishes
+  // its synchronization flag atomically; message queues and other flags still
+  // require write ownership in their respective notification paths.
+  FNotifyLock.AcquireReadLock;
   try
     for i := 0 to FNotifyList.Count-1 do
       FNotifyList[i].NotifySynchronizationChanged;
   finally
-    FNotifyLock.Release;
+    FNotifyLock.ReleaseReadLock;
   end;
 end;
 
 procedure TNode.SetSynchronizationNetworkActive(AActive: Boolean);
 begin
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireWriteLock;
   try
     FSynchronizationStatus.NetworkActive := AActive;
     if not AActive then begin
@@ -1529,7 +1533,7 @@ begin
     end;
     RecalculateSynchronizationStatus;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseWriteLock;
   end;
   NotifySynchronizationChanged;
   WakeMempoolMaintenance;
@@ -1539,7 +1543,7 @@ procedure TNode.SetSynchronizationPeerConnected(APeer: TObject; AConnected: Bool
 var LHadPeers: Boolean;
 begin
   if not Assigned(APeer) then Exit;
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireWriteLock;
   try
     LHadPeers := FSynchronizationPeers.Count>0;
     if not AConnected then FSynchronizationPeers.Remove(APeer)
@@ -1550,7 +1554,7 @@ begin
       RetireSynchronizationSession;
     RecalculateSynchronizationStatus;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseWriteLock;
   end;
   NotifySynchronizationChanged;
   WakeMempoolMaintenance;
@@ -1558,7 +1562,7 @@ end;
 
 procedure TNode.SetSynchronizationTarget(APeer: TObject; ATargetBlockCount: Cardinal);
 begin
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireWriteLock;
   try
     // A selected target is meaningful only for a currently connected peer.
     // Reconnecting must not revive a discarded session's remote height.
@@ -1567,7 +1571,7 @@ begin
       FSynchronizationPeers[APeer] := ATargetBlockCount;
     RecalculateSynchronizationStatus;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseWriteLock;
   end;
   NotifySynchronizationChanged;
   WakeMempoolMaintenance;
@@ -1576,7 +1580,7 @@ end;
 procedure TNode.UpdateSynchronizationPeerTarget(APeer: TObject; ATargetBlockCount: Cardinal);
 var LPrevious: Cardinal;
 begin
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireWriteLock;
   try
     // HELLO/new-block advertisements update an already selected download peer;
     // arbitrary advertised heights do not select a synchronization target.
@@ -1585,7 +1589,7 @@ begin
       FSynchronizationPeers[APeer] := ATargetBlockCount;
     RecalculateSynchronizationStatus;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseWriteLock;
   end;
   NotifySynchronizationChanged;
   WakeMempoolMaintenance;
@@ -1593,12 +1597,12 @@ end;
 
 procedure TNode.SetSynchronizationProgress(const AProgress: TProgressInfo);
 begin
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireWriteLock;
   try
     if FSynchronizationStatus.State=nssSynchronizing then
       FSynchronizationStatus.Progress := AProgress;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseWriteLock;
   end;
   NotifySynchronizationChanged;
 end;
@@ -1620,7 +1624,7 @@ begin
     LBlock.compact_target := LLastBlock.compact_target;
   end;
   LCount := FMemPoolOperationsComp.Count;
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireWriteLock;
   try
     LChanged := not FSynchronizationStatus.HasMempoolSummary or
       (FSynchronizationStatus.LocalBlockCount<>LBlock.block) or
@@ -1636,7 +1640,7 @@ begin
     FSynchronizationStatus.ProtocolVersion := LLastBlock.protocol_version;
     RecalculateSynchronizationStatus;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseWriteLock;
   end;
   if LChanged then NotifySynchronizationChanged;
 end;
@@ -1656,7 +1660,7 @@ begin
   // main thread, and a selected target ahead must not replay after every batch.
   // Reject ordinary per-block wakeups before entering the writer queue. The
   // same predicate is checked again after admission to cover a new producer.
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireReadLock;
   try
     LCanReconcile := not FSynchronizationStatus.StorageFailure.HasFailure and
       not FSynchronizationStatus.PendingOperationsAvailable and
@@ -1665,7 +1669,7 @@ begin
        (FSynchronizationStatus.PeerCount=0) or
        (FSynchronizationStatus.TargetBlockCount<=FSynchronizationStatus.LocalBlockCount));
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseReadLock;
   end;
   if not LCanReconcile then Exit;
   LResends := Nil;
@@ -1673,7 +1677,7 @@ begin
   FLockMempool.AcquireWriteLock;
   try
     if not FMempoolNeedsReconciliation then Exit;
-    FSynchronizationLock.Acquire;
+    FSynchronizationLock.AcquireReadLock;
     try
       LCanReconcile := not FSynchronizationStatus.StorageFailure.HasFailure and
         (FSynchronizationStatus.ActiveTransfers=0) and
@@ -1681,7 +1685,7 @@ begin
          (FSynchronizationStatus.PeerCount=0) or
          (FSynchronizationStatus.TargetBlockCount<=FSynchronizationStatus.LocalBlockCount));
     finally
-      FSynchronizationLock.Release;
+      FSynchronizationLock.ReleaseReadLock;
     end;
     if not LCanReconcile then Exit;
     LPreviousHash := FMemPoolOperationsComp.OperationsHashTree.HashTree;
@@ -1693,12 +1697,12 @@ begin
       CollectPendingResends(LResends);
       FResendPendingOperations := False;
     end;
-    FSynchronizationLock.Acquire;
+    FSynchronizationLock.AcquireWriteLock;
     try
       FMempoolNeedsReconciliation := False;
       RecalculateSynchronizationStatus;
     finally
-      FSynchronizationLock.Release;
+      FSynchronizationLock.ReleaseWriteLock;
     end;
     if not TBaseType.Equals(LPreviousHash,FMemPoolOperationsComp.OperationsHashTree.HashTree) then
       FSaveMempoolOperationsThread.Touch;
@@ -1710,12 +1714,12 @@ begin
   // producer can dirty it again, in which case observers retain their queries.
   NotifySynchronizationChanged;
   NotifyBlocksChanged;
-  FNotifyLock.Acquire;
+  FNotifyLock.AcquireWriteLock;
   try
     for I := 0 to FNotifyList.Count-1 do
       FNotifyList[I].NotifyOperationsChanged;
   finally
-    FNotifyLock.Release;
+    FNotifyLock.ReleaseWriteLock;
   end;
   if Assigned(LResends) then BroadcastPendingResends(LResends);
   finally
@@ -1797,24 +1801,24 @@ end;
 
 function TNode.CanRequestBlockChainData: Boolean;
 begin
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireReadLock;
   try
     Result := not FSynchronizationStatus.StorageFailure.HasFailure and
       FSynchronizationStatus.NetworkActive and IsCurrentSynchronizationScope;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseReadLock;
   end;
 end;
 
 procedure TNode.NotifyBlocksChanged;
 Var i : Integer;
 begin
-  FNotifyLock.Acquire;
+  FNotifyLock.AcquireWriteLock;
   try
     for i := 0 to FNotifyList.Count-1 do
       FNotifyList[i].NotifyBlocksChanged;
   finally
-    FNotifyLock.Release;
+    FNotifyLock.ReleaseWriteLock;
   end;
 end;
 
@@ -1997,14 +2001,14 @@ end;
 procedure TNode.NotifyNetClientMessage(Sender: TNetConnection; const TheMessage: String);
 Var i : Integer;
 begin
-  FNotifyLock.Acquire;
+  FNotifyLock.AcquireWriteLock;
   try
     for i := 0 to FNotifyList.Count-1 do begin
       if Assigned( FNotifyList[i].OnNodeMessageEvent) then
         FNotifyList[i].FMessages.AddObject(TheMessage,Sender);
     end;
   finally
-    FNotifyLock.Release;
+    FNotifyLock.ReleaseWriteLock;
   end;
 end;
 
@@ -2138,11 +2142,11 @@ end;
 
 function TNode.PendingOperationsAvailable: Boolean;
 begin
-  FSynchronizationLock.Acquire;
+  FSynchronizationLock.AcquireReadLock;
   try
     Result := FSynchronizationStatus.PendingOperationsAvailable;
   finally
-    FSynchronizationLock.Release;
+    FSynchronizationLock.ReleaseReadLock;
   end;
 end;
 
@@ -2220,7 +2224,7 @@ begin
   FLockMempool.AcquireWriteLock;
   try
     LLockedMempool := FMemPoolOperationsComp;
-    FSynchronizationLock.Acquire;
+    FSynchronizationLock.AcquireWriteLock;
     try
       LDefer := not FSynchronizationStatus.PendingOperationsAvailable;
       if LDefer and (LLockedMempool.Count>0) then begin
@@ -2228,7 +2232,7 @@ begin
         RecalculateSynchronizationStatus;
       end;
     finally
-      FSynchronizationLock.Release;
+      FSynchronizationLock.ReleaseWriteLock;
     end;
     if not LDefer or (LLockedMempool.Count=0) then begin
       LPreviousPendingHash := LLockedMempool.OperationsHashTree.HashTree;
@@ -2421,21 +2425,21 @@ begin
   if FNode=Value then exit;
   if Assigned(FNode) then begin
     FNode.RemoveFreeNotification(Self);
-    FNode.FNotifyLock.Acquire;
+    FNode.FNotifyLock.AcquireWriteLock;
     try
       FNode.FNotifyList.Remove(Self);
     finally
-      FNode.FNotifyLock.Release;
+      FNode.FNotifyLock.ReleaseWriteLock;
     end;
   end;
   FNode := Value;
   if Assigned(FNode) then begin
     FNode.FreeNotification(Self);
-    FNode.FNotifyLock.Acquire;
+    FNode.FNotifyLock.AcquireWriteLock;
     try
       FNode.FNotifyList.Add(Self);
     finally
-      FNode.FNotifyLock.Release;
+      FNode.FNotifyLock.ReleaseWriteLock;
     end;
     NotifySynchronizationChanged;
   end;

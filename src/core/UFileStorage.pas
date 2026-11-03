@@ -41,7 +41,7 @@ Type
 
   TFileStorage = Class(TStorage)
   private
-    FStorageLock : TPCCriticalSection;
+    FStorageLock : TReadWriteLock;
     FBlockChainStream : TFileStream;
     FStreamFirstBlockNumber : Int64;
     FStreamLastBlockNumber : Int64;
@@ -178,7 +178,7 @@ begin
   SetLength(FBlockHeadersFirstBytePosition,0);
   FStreamFirstBlockNumber := 0;
   FStreamLastBlockNumber := -1;
-  FStorageLock := TPCCriticalSection.Create('TFileStorage_StorageLock');
+  FStorageLock := TReadWriteLock.Create('TFileStorage_StorageLock',lrpSupportsRecursion);
 end;
 
 destructor TFileStorage.Destroy;
@@ -573,7 +573,9 @@ Var fn : TFileName;
   bh : TBlockHeader;
   errors : String;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FStorageLock);
+  // Even a load mutates this shared stream's Position and can initialize its
+  // header cache. Keep the complete borrowed-stream lease exclusive.
+  TPCThread.ProtectAcquireWriteLock(Self,FStorageLock);
   Try
     if Not Assigned(FBlockChainStream) then begin
       if FStorageFilename<>'' then begin
@@ -600,7 +602,7 @@ begin
       end;
     end;
   Except
-    FStorageLock.Release;
+    FStorageLock.ReleaseWriteLock;
     Raise;
   End;
   Result := FBlockChainStream;
@@ -790,7 +792,7 @@ end;
 
 procedure TFileStorage.UnlockBlockChainStream;
 begin
-  FStorageLock.Release;
+  FStorageLock.ReleaseWriteLock;
 end;
 
 end.

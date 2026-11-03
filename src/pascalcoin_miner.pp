@@ -24,7 +24,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  Classes, SysUtils, CustApp, crt, SyncObjs,
+  Classes, SysUtils, CustApp, crt,
   UBlockChain, UPoolMinerThreads, UGPUMining,
   UPoolMining, ULog, UThread, UAccounts, UCrypto,
   UConst, UTime, UNode, UNetProtocol, USha256,
@@ -46,7 +46,8 @@ type
   protected
     FOutputAsLogs : Boolean;
     FWindow32X1,FWindow32Y1,FWindow32X2,FWindow32Y2: DWord;
-    FLock : TCriticalSection;
+    // Log rendering re-enters WriteLine while holding the console writer.
+    FLock : TReadWriteLock;
     FPoolMinerThread : TPoolMinerThread;
     FDeviceThreads : TList;
     FAppStartTime : TDateTime;
@@ -149,7 +150,7 @@ end;
 procedure TPascalMinerApp.WriteLine(nline: Integer; txt: String);
 Var i : Integer;
 begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   try
     if FOutputAsLogs then begin
       WriteLn(Format('%s %s',[FormatDateTime('hh:nn:ss.zzz',Now()),txt]));
@@ -167,7 +168,7 @@ begin
       write(txt);
     end;
   finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   end;
 end;
 
@@ -177,7 +178,7 @@ var msg : String;
   i,nline : Integer;
 begin
   If logtype=ltdebug then exit;
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   try
     msg := formatdatetime('hh:nn:ss',now)+' '+CT_LogType[logtype]+' '+logtext;
     // TODO - test logtype is properly casted/stored/retrieved/accessed.
@@ -195,7 +196,7 @@ begin
       for i:=1 to CT_MaxLogs do FLastLogs.Delete(0);
     end;
   Finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   end;
 end;
 
@@ -428,7 +429,7 @@ begin
     end;
 
   FLastLogs := TStringList.Create;
-  FLock := TCriticalSection.Create;
+  FLock := TReadWriteLock.Create('TPascalMinerApp.Console',lrpSupportsRecursion);
   Try
     // quick check parameters
     ErrorMsg:=CheckOptions('hp:d:s::c:n::t:u::x::l::', 'help platform: device: server: cpu: minername: testmode: user: pwd: logfile: logall: outputlogs:');

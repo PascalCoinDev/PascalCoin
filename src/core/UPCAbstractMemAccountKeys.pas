@@ -7,7 +7,7 @@ interface
 {$ENDIF}
 
 uses Classes, SysUtils,
-  SyncObjs,
+  UThread,
   UAbstractMem, UFileMem, UAbstractMemTList,
   UAbstractBTree, UAbstractAVLTree,
   UPCDataTypes, UBaseTypes, UAVLCache, UAbstractMemBTree, UOrderedList,
@@ -62,7 +62,7 @@ type
 
   TPCAbstractMemAccountKeys = Class(TAVLAbstractTree<TAbstractMemAccountKeyNode>)
   private
-    FAccountKeysLock : TCriticalSection;
+    FAccountKeysLock : TReadWriteLock;
     FAbstractMem : TAbstractMem;
     FPointerToRootPosition : TAbstractMemPosition;
     FRootPosition : TAbstractMemPosition;
@@ -235,7 +235,7 @@ end;
 
 constructor TPCAbstractMemAccountKeys.Create(AAbstractMem: TAbstractMem; APointerToRootPosition : TAbstractMemPosition; AUseCacheOnAbstractMemLists : Boolean);
 begin
-  FAccountKeysLock := TCriticalSection.Create;
+  FAccountKeysLock := TReadWriteLock.Create('TPCAbstractMemAccountKeys.AccountKeys',lrpSupportsRecursion);
   FAbstractMem := AAbstractMem;
   FPointerToRootPosition := APointerToRootPosition;
   FRootPosition := 0;
@@ -270,7 +270,9 @@ var Lautk : TAccountsUsingThisKey;
   i : TAbstractMemPosition;
 begin
   AList.Clear;
-  FAccountKeysLock.Acquire;
+  // The nested lookup fills the key cache. It must recurse as a writer even
+  // though this outer method presents an account-list read to its caller.
+  FAccountKeysLock.AcquireWriteLock;
   try
   Lautk := GetAccountsUsingThisKey(AAccountKey);
   if Assigned(Lautk) then begin
@@ -281,7 +283,7 @@ begin
     end;
   end;
   finally
-    FAccountKeysLock.Release;
+    FAccountKeysLock.ReleaseWriteLock;
   end;
 end;
 
@@ -292,7 +294,7 @@ var LNode : TAbstractMemAccountKeyNode;
   LP : TAccountKeyByPosition;
 begin
   Result := TAccountsUsingThisKey_BlackHole.GetInstance;
-  FAccountKeysLock.Acquire;
+  FAccountKeysLock.AcquireWriteLock;
   try
   LNode.Clear;
   LNode.accountKey := AAccountKey;
@@ -313,7 +315,7 @@ begin
   end;
   Result := LP.accountsUsingThisKey;
   finally
-    FAccountKeysLock.Release;
+    FAccountKeysLock.ReleaseWriteLock;
   end;
 end;
 
@@ -327,7 +329,7 @@ var LNode : TAbstractMemAccountKeyNode;
   LP, LPFound : TAccountKeyByPosition;
   LAccZone : TAMZone;
 begin
-  FAccountKeysLock.Acquire;
+  FAccountKeysLock.AcquireWriteLock;
   try
   LP.Clear;
   LP.position := APosition;
@@ -346,7 +348,7 @@ begin
     FAccountKeyByPositionCache.Add(LP); // Add to cache!
   end;
   finally
-    FAccountKeysLock.Release;
+    FAccountKeysLock.ReleaseWriteLock;
   end;
 end;
 
@@ -369,7 +371,7 @@ var LNode : TAbstractMemAccountKeyNode;
   Lacckutk : TAccountsUsingThisKey;
   LAccKeyByPos  : TAccountKeyByPosition;
 begin
-  FAccountKeysLock.Acquire;
+  FAccountKeysLock.AcquireWriteLock;
   try
   LNode.Clear;
   LNode.accountKey := AAccountKey;
@@ -412,7 +414,7 @@ begin
 
   Result := LNode.myPosition;
   finally
-    FAccountKeysLock.Release;
+    FAccountKeysLock.ReleaseWriteLock;
   end;
 end;
 
@@ -424,7 +426,7 @@ var LNode : TAbstractMemAccountKeyNode;
   Lacckutk : TAccountsUsingThisKey;
   LAccKeyByPos : TAccountKeyByPosition;
 begin
-  FAccountKeysLock.Acquire;
+  FAccountKeysLock.AcquireWriteLock;
   try
   LNode.Clear;
   LNode.accountKey := AAccountKey;
@@ -454,7 +456,7 @@ begin
     LAccKeyByPos.accountsUsingThisKey.Delete( AAccountNumber );
   end;
   finally
-    FAccountKeysLock.Release;
+    FAccountKeysLock.ReleaseWriteLock;
   end;
 end;
 

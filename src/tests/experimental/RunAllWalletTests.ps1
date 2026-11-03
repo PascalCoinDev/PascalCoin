@@ -97,7 +97,7 @@ $phases = @(
 $coverage = @{
     RegisteredFixtureUnits = @($registeredUnits | Sort-Object Unit)
     NativePhases = @($phases | Where-Object Name -ne 'unit' | ForEach-Object { $_.Name })
-    SharedHelpersInUnitFixtures = @('UAccountCachePolicyChecks', 'UChangeAccountInfoReplayChecks', 'UCheckpointStorageChecks', 'UAbstractMemStorageFailureChecks',
+    SharedHelpersInUnitFixtures = @('UAccountCachePolicyChecks', 'UChangeAccountInfoReplayChecks', 'UCheckpointStorageChecks', 'UAbstractMemStorageFailureChecks', 'UCoreLockMigrationChecks',
         'UDownloadLifetimeChecks', 'ULegacyConnectionLifetimeChecks', 'UMempoolSanitizeChecks',
         'UOperationReadHashChecks', 'UOrderedCardinalChecks',
         'UPendingCatchupChecks', 'UPendingSaveChecks', 'UStoredHistoryChecks')

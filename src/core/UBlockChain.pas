@@ -390,7 +390,7 @@ Type
     FIsOnlyOperationBlock: Boolean;
     FStreamPoW : TMemoryStream;
     FDisableds : Integer;
-    FOperationsLock : TPCCriticalSection;
+    FOperationsLock : TReadWriteLock;
     FPreviousUpdatedBlocks : TAccountPreviousBlockInfo; // New Protocol V3 struct to store previous updated blocks
     FHasValidOperationBlockInfo : Boolean;
     function GetOperation(index: Integer): TPCOperation;
@@ -552,7 +552,7 @@ Type
     FLastOperationBlock: TOperationBlock;
     FIsRestoringFromFile: Boolean;
     FOnLog: TPCBankLog;
-    FBankLock: TPCCriticalSection;
+    FBankLock: TReadWriteLock;
     FNotifyList : TList<TPCBankNotify>;
     FStorageClass: TStorageClass;
     FOrphan: TOrphan;
@@ -826,7 +826,7 @@ end;
 function TPCBank.AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var errors: String): Boolean;
 var i: Integer; LPersistenceFailed: Boolean;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
   Try
     Result := False;
     errors := '';
@@ -901,7 +901,7 @@ begin
       Operations.Unlock;
     End;
   Finally
-    FBankLock.Release;
+    FBankLock.ReleaseWriteLock;
   End;
   if Result then begin
     for i := 0 to FNotifyList.Count - 1 do begin
@@ -945,7 +945,9 @@ begin
   inherited;
   FStorage := Nil;
   FStorageClass := Nil;
-  FBankLock := TPCCriticalSection.Create('TPCBank_BANKLOCK');
+  // Load/commit paths can call other bank operations while holding this lease.
+  // Preserve recursive write ownership across those existing callbacks.
+  FBankLock := TReadWriteLock.Create('TPCBank_BANKLOCK',lrpSupportsRecursion);
   FIsRestoringFromFile := False;
   FOnLog := Nil;
   FSafeBox := TPCSafeBox.Create;
@@ -999,7 +1001,7 @@ begin
   end;
   tc := TPlatform.GetTickCount;
   LStartProcessTC := tc;
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
   try
     FIsRestoringFromFile := true;
     try
@@ -1113,7 +1115,7 @@ begin
     SafeBox.PCAbstractMem.FlushCache;
     {$ENDIF}
   finally
-    FBankLock.Release;
+    FBankLock.ReleaseWriteLock;
   end;
 end;
 
@@ -1202,7 +1204,7 @@ begin
   { Will update current Bank state based on Safebox state
     Used when commiting a Safebox or rolling back }
   Try
-    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+    TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
     try
       FLastBlockCache.Clear(True);
       FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
@@ -1219,7 +1221,7 @@ begin
       end;
       TLog.NewLog(ltinfo,ClassName,Format('Updated Bank with Safebox values. Current block:%d ',[FLastOperationBlock.block]));
     finally
-      FBankLock.Release;
+      FBankLock.ReleaseWriteLock;
     end;
   finally
     for i := 0 to FNotifyList.Count - 1 do begin
@@ -1397,7 +1399,7 @@ begin
       LMemStream.Free;
     end;
     Result := True;
-    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+    TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
     try
       If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.GetBlockInfo(SafeBox.BlocksCount-1)
       else begin
@@ -1405,7 +1407,7 @@ begin
         FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash
       end;
     finally
-      FBankLock.Release;
+      FBankLock.ReleaseWriteLock;
     end;
     for i := 0 to FNotifyList.Count - 1 do begin
       TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
@@ -1435,7 +1437,7 @@ begin
       Result := auxSB.LoadSafeBoxFromStream(Stream,true,checkSafeboxHash,progressNotify,previousCheckedSafebox,LastReadBlock,errors);
       If Not Result then Exit;
     end;
-    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+    TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
     try
       If Assigned(auxSB) then begin
         SafeBox.CopyFrom(auxSB);
@@ -1453,7 +1455,7 @@ begin
         FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash
       end;
     finally
-      FBankLock.Release;
+      FBankLock.ReleaseWriteLock;
     end;
     for i := 0 to FNotifyList.Count - 1 do begin
       TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
@@ -1465,7 +1467,7 @@ end;
 
 function TPCBank.LoadOperations(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
   try
     if (Block>0) AND (Block=FLastBlockCache.OperationBlock.block) then begin
       // Same as cache, sending cache
@@ -1475,7 +1477,7 @@ begin
       Result := Storage.LoadBlockChainBlock(Operations,Block);
     end;
   finally
-    FBankLock.Release;
+    FBankLock.ReleaseWriteLock;
   end;
 end;
 
@@ -1565,7 +1567,7 @@ begin
   LHasCandidates := False;
   LBlocksCount := 0;
   LFilename := '';
-  FBankLock.Acquire;
+  FBankLock.AcquireWriteLock;
   try
     try
     {$IFDEF USE_ABSTRACTMEM}
@@ -1686,7 +1688,7 @@ begin
       end;
     end;
   finally
-    FBankLock.Release;
+    FBankLock.ReleaseWriteLock;
   end;
 end;
 
@@ -1980,7 +1982,7 @@ end;
 
 constructor TPCOperationsComp.Create(ABank: TPCBank);
 begin
-  FOperationsLock := TPCCriticalSection.Create('TPCOperationsComp_OPERATIONSLOCK');
+  FOperationsLock := TReadWriteLock.Create('TPCOperationsComp_OPERATIONSLOCK',lrpSupportsRecursion);
   FDisableds := 0;
   FStreamPoW := TMemoryStream.Create;
   FStreamPoW.Position := 0;
@@ -1998,7 +2000,7 @@ end;
 
 destructor TPCOperationsComp.Destroy;
 begin
-  FOperationsLock.Acquire;
+  FOperationsLock.AcquireWriteLock;
   try
     Clear(true);
     FreeAndNil(FOperationsHashTree);
@@ -2008,6 +2010,9 @@ begin
     FreeAndNil(FStreamPoW);
     FreeAndNil(FPreviousUpdatedBlocks);
   finally
+    // Clear and its callbacks may reacquire this owner. Balance our outer
+    // write before disposing the lock; disposal never releases live ownership.
+    FOperationsLock.ReleaseWriteLock;
     FreeAndNil(FOperationsLock);
   end;
   inherited;
@@ -2679,12 +2684,14 @@ end;
 
 procedure TPCOperationsComp.Lock;
 begin
-  FOperationsLock.Acquire;
+  // Callers borrow mutable operations and signature/cache state under this
+  // public lease, so it remains recursive write ownership on every path.
+  FOperationsLock.AcquireWriteLock;
 end;
 
 procedure TPCOperationsComp.Unlock;
 begin
-  FOperationsLock.Release;
+  FOperationsLock.ReleaseWriteLock;
 end;
 
 { TPCBankNotify }

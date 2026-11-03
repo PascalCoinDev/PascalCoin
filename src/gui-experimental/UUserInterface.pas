@@ -105,7 +105,7 @@ type
 
     private
       // Root-form
-      class var FUILock : TPCCriticalSection;
+      class var FUILock : UThread.TReadWriteLock;
       // Subforms
       class var FAccountExplorer : TFRMAccountExplorer;
       class var FPendingOperationForm : TFRMPendingOperations;
@@ -636,7 +636,7 @@ begin
     TCrypto.InitCrypto;
 
     // Create UI lock
-    FUILock := TPCCriticalSection.Create('TUserInterface.UILock');
+    FUILock := UThread.TReadWriteLock.Create('TUserInterface.UILock',UThread.lrpSupportsRecursion);
 
     // Initialise field defaults
     FStarted := false;
@@ -962,7 +962,8 @@ end;
 
 class procedure TUserInterface.OnSubFormDestroyed(Sender: TObject);
 begin
-  FUILock.Acquire;
+  // Form creation/destruction callbacks may re-enter this recursive writer.
+  FUILock.AcquireWriteLock;
   try
     if Sender = FAccountExplorer then
       FAccountExplorer := nil // form free's on close
@@ -981,7 +982,7 @@ begin
     else
       raise Exception.Create('Internal Error: [NotifySubFormDestroyed] encountered an unknown sub-form instance');
   finally
-    FUILock.Release;
+    FUILock.ReleaseWriteLock;
   end;
 end;
 
@@ -1698,7 +1699,7 @@ end;
 
 class procedure TUserInterface.ShowAccountExplorer;
 begin
-  FUILock.Acquire;
+  FUILock.AcquireWriteLock;
   try
     if not Assigned(FAccountExplorer) then begin
        FAccountExplorer := TFRMAccountExplorer.Create(FMainForm);
@@ -1708,13 +1709,13 @@ begin
       FAccountExplorer.Refresh;
     FAccountExplorer.Show;
   finally
-    FUILock.Release;
+    FUILock.ReleaseWriteLock;
   end;
 end;
 
 class procedure TUserInterface.ShowBlockExplorer;
 begin
-  FUILock.Acquire;
+  FUILock.AcquireWriteLock;
   try
     if not Assigned(FBlockExplorerForm) then begin
        FBlockExplorerForm := TFRMBlockExplorer.Create(FMainForm);
@@ -1723,13 +1724,13 @@ begin
     end;
     FBlockExplorerForm.Show;
   finally
-    FUILock.Release;
+    FUILock.ReleaseWriteLock;
   end;
 end;
 
 class procedure TUserInterface.ShowOperationsExplorer;
 begin
-  FUILock.Acquire;
+  FUILock.AcquireWriteLock;
   try
     if not Assigned(FOperationsExplorerForm) then begin
       FOperationsExplorerForm := TFRMOperationExplorer.Create(FMainForm);
@@ -1738,13 +1739,13 @@ begin
     end;
     FOperationsExplorerForm.Show;
   finally
-    FUILock.Release;
+    FUILock.ReleaseWriteLock;
   end;
 end;
 
 class procedure TUserInterface.ShowPendingOperations;
 begin
-  FUILock.Acquire;
+  FUILock.AcquireWriteLock;
   try
     if not Assigned(FPendingOperationForm) then begin
       FPendingOperationForm := TFRMPendingOperations.Create(FMainForm);
@@ -1753,13 +1754,13 @@ begin
     end;
     FPendingOperationForm.Show;
   finally
-    FUILock.Release;
+    FUILock.ReleaseWriteLock;
   end;
 end;
 
 class procedure TUserInterface.ShowMessagesForm;
 begin
-  FUILock.Acquire;
+  FUILock.AcquireWriteLock;
   try
     if not Assigned(FMessagesForm) then begin
        FMessagesForm := TFRMMessages.Create(FMainForm);
@@ -1768,13 +1769,13 @@ begin
     FMessagesForm.MarkRead;
     FMessagesForm.Show;
   finally
-    FUILock.Release;
+    FUILock.ReleaseWriteLock;
   end;
 end;
 
 class procedure TUserInterface.ShowNodesForm;
 begin
-  FUILock.Acquire;
+  FUILock.AcquireWriteLock;
   try
     if not Assigned(FNodesForm) then begin
        FNodesForm := TFRMNodes.Create(FMainForm);
@@ -1783,14 +1784,14 @@ begin
     end;
     FNodesForm.Show;
   finally
-    FUILock.Release;
+    FUILock.ReleaseWriteLock;
   end;
 end;
 
 class procedure TUserInterface.ShowLogsForm;
 begin
   if not TSettings.ShowLogs then Exit;
-  FUILock.Acquire;
+  FUILock.AcquireWriteLock;
   try
     if not Assigned(FLogsForm) then begin
        FLogsForm := TFRMLogs.Create(FMainForm);
@@ -1798,7 +1799,7 @@ begin
     end;
     FLogsForm.Show;
   finally
-    FUILock.Release;
+    FUILock.ReleaseWriteLock;
   end;
 end;
 

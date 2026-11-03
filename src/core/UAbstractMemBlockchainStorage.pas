@@ -56,8 +56,8 @@ type
   TAbstractMemBlockchainStorage = Class(TStorage)
   private
     FFileMem : TFileMem;
-    FStorageLock : TCriticalSection;
-    FWriteFailureLock : TCriticalSection;
+    FStorageLock : TReadWriteLock;
+    FWriteFailureLock : TReadWriteLock;
     FWriteFailure : String;
     FAutoFlushCache: Boolean;
     FUseMultithread: Boolean;
@@ -383,22 +383,24 @@ end;
 
 function TAbstractMemBlockchainStorage.HasWriteFailure: Boolean;
 begin
-  FWriteFailureLock.Acquire;
+  // Failure readers copy only immutable published state. First publication is
+  // exclusive and reports to the node only after releasing this short guard.
+  FWriteFailureLock.AcquireReadLock;
   try
     Result := FWriteFailure<>'';
   finally
-    FWriteFailureLock.Release;
+    FWriteFailureLock.ReleaseReadLock;
   end;
 end;
 
 procedure TAbstractMemBlockchainStorage.CheckWriteFailure;
 var LFailure: String;
 begin
-  FWriteFailureLock.Acquire;
+  FWriteFailureLock.AcquireReadLock;
   try
     LFailure := FWriteFailure;
   finally
-    FWriteFailureLock.Release;
+    FWriteFailureLock.ReleaseReadLock;
   end;
   if LFailure<>'' then
     raise EWriteError.Create('AbstractMem blockchain storage requires restart: '+LFailure);
@@ -408,12 +410,12 @@ procedure TAbstractMemBlockchainStorage.ReportWriteFailure(AError: Exception);
 var LFirst: Boolean; LFileName: String;
 begin
   if not IsBackendWriteFailure(AError) then Exit;
-  FWriteFailureLock.Acquire;
+  FWriteFailureLock.AcquireWriteLock;
   try
     LFirst := FWriteFailure='';
     if LFirst then FWriteFailure := AError.ClassName+': '+AError.Message;
   finally
-    FWriteFailureLock.Release;
+    FWriteFailureLock.ReleaseWriteLock;
   end;
   // Never stop or join a worker from its own error callback. The node copies
   // this error and publishes notifier flags; normal ownership retires workers.
@@ -811,8 +813,10 @@ begin
   FOperationsRawData_By_Block_OpBlock_Index := Nil;
   FAffectedAccounts_By_Account_Block_OpBlock := Nil;
   FAutoFlushCache := True;
-  FStorageLock := TCriticalSection.Create;
-  FWriteFailureLock := TCriticalSection.Create;
+  // Storage operations may recursively load/save and move shared file cursors;
+  // these application leases retain write ownership even on apparent reads.
+  FStorageLock := TReadWriteLock.Create('TAbstractMemBlockchainStorage.Storage',lrpSupportsRecursion);
+  FWriteFailureLock := TReadWriteLock.Create('TAbstractMemBlockchainStorage.WriteFailure',lrpSupportsRecursion);
   FPendingToSave := Nil;
 end;
 
@@ -924,25 +928,25 @@ end;
 
 procedure TAbstractMemBlockchainStorage.DoDeleteBlockChainBlocks(StartingDeleteBlock: Cardinal);
 begin
-  FStorageLock.Acquire;
+  FStorageLock.AcquireWriteLock;
   try
     while DeleteBlockChainBlockExt(StartingDeleteBlock,Orphan) do inc(StartingDeleteBlock);
     FinalizedUpdating;
   finally
-    FStorageLock.Release;
+    FStorageLock.ReleaseWriteLock;
   end;
 end;
 
 procedure TAbstractMemBlockchainStorage.DoEraseStorage;
 begin
-  FStorageLock.Acquire;
+  FStorageLock.AcquireWriteLock;
   Try
     FFileMem.ClearContent(FFileMem.Is64Bits,FFileMem.MemUnitsSize);
     FreeAndNil(FFileMem);
     DoInitialize;
     FinalizedUpdating;
   Finally
-    FStorageLock.Release;
+    FStorageLock.ReleaseWriteLock;
   End;
 end;
 
@@ -1286,7 +1290,7 @@ function TAbstractMemBlockchainStorage.DoMoveBlockChain(StartBlock : Cardinal; C
 var LPCOperationsComp : TPCOperationsComp;
 begin
   Assert(Orphan<>DestOrphan,'Orphan and Destorphan are equals');
-  FStorageLock.Acquire;
+  FStorageLock.AcquireWriteLock;
   try
     LPCOperationsComp := TPCOperationsComp.Create(Nil);
     try
@@ -1301,13 +1305,13 @@ begin
     Result := True;
     FinalizedUpdating;
   finally
-    FStorageLock.Release;
+    FStorageLock.ReleaseWriteLock;
   end;
 end;
 
 function TAbstractMemBlockchainStorage.DoSaveBlockChain(Operations: TPCOperationsComp): Boolean;
 begin
-  FStorageLock.Acquire;
+  FStorageLock.AcquireWriteLock;
   try
     try
       Result := DoSaveBlockChainExt(Operations,Orphan,FSaveStorageStats);
@@ -1319,7 +1323,7 @@ begin
       end;
     end;
   finally
-    FStorageLock.Release;
+    FStorageLock.ReleaseWriteLock;
   end;
 end;
 
@@ -1567,7 +1571,7 @@ var
   i : Integer;
 begin
   if (FUseMultithread=Value) and (Value or not Assigned(FPendingToSave)) then Exit;
-  FStorageLock.Acquire;
+  FStorageLock.AcquireWriteLock;
   Try
     if Assigned(FPendingToSave) then begin
       i := FPendingToSave.PendingsCount;
@@ -1588,7 +1592,7 @@ begin
       FPendingToSave := TPendingToSave.Create(Self,FOperationsRawData_By_RightOpHash,FAffectedAccounts_By_Account_Block_OpBlock);
     end;
   Finally
-    FStorageLock.Release;
+    FStorageLock.ReleaseWriteLock;
   End;
 end;
 

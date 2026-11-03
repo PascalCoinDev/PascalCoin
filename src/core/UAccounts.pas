@@ -254,7 +254,7 @@ Type
     FListOfOrderedAccountKeysList : TList<TOrderedAccountKeysList>;
     FTotalBalance: Int64;
     FSafeBoxHash : TRawBytes;
-    FLock: TPCCriticalSection; // Thread safe
+    FLock: TReadWriteLock; // Thread safe
     FWorkSum : UInt64;
     FCurrentProtocol: Integer;
     // Snapshots utility new on V3
@@ -2690,7 +2690,9 @@ Var c,t : Cardinal;
   bn : TBigNum;
   LOpBlock : TOperationBlock;
 begin
-  FLock.Acquire;
+  // Block-info access can populate shared caches, so this calculation retains
+  // write ownership even though it returns a derived read-only value.
+  FLock.AcquireWriteLock;
   Try
     Result := TBigNum.Create;
     try
@@ -2726,7 +2728,7 @@ begin
       Raise;
     end;
   Finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   End;
 end;
 
@@ -3026,7 +3028,7 @@ end;
 constructor TPCSafeBox.Create;
 begin
   FMaxSafeboxSnapshots:=CT_DEFAULT_MaxSafeboxSnapshots;
-  FLock := TPCCriticalSection.Create('TPCSafeBox_Lock');
+  FLock := TReadWriteLock.Create('TPCSafeBox_Lock',lrpSupportsRecursion);
   {$IFDEF USE_ABSTRACTMEM}
   FPCAbstractMem := TPCAbstractMem.Create('',False);
   {$ELSE}
@@ -3580,7 +3582,7 @@ end;
 
 procedure TPCSafeBox.EndThreadSave;
 begin
-  FLock.Release;
+  FLock.ReleaseWriteLock;
 end;
 
 function TPCSafeBox.LoadSafeBoxChunkFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var ALastReadBlock : TBlockAccount; var errors : String) : Boolean;
@@ -5113,7 +5115,9 @@ end;
 
 procedure TPCSafeBox.StartThreadSafe;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FLock);
+  // This public lease permits mutations and cache-backed reads. Preserve its
+  // recursive exclusive contract rather than inferring a read from its caller.
+  TPCThread.ProtectAcquireWriteLock(Self,FLock);
 end;
 
 { TPCSafeBoxTransaction }

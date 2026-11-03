@@ -104,7 +104,8 @@ type
     FFileName : String;
     FAbstractMem: TAbstractMem;
     FCheckingThread : TPCAbstractMemCheckThread;
-    FLockAbstractMem : TPCCriticalSection;
+    // Protects checker lifetime; backend file/cache guards still own their data.
+    FLockAbstractMem : TReadWriteLock;
 
     FStats : TPCAbstractMemStats;
     FInitialized : Boolean;
@@ -275,7 +276,7 @@ end;
 function TPCAbstractMem.CheckConsistency(AReport: TStrings) : Boolean;
 begin
   AReport.Clear;
-  FLockAbstractMem.Acquire;
+  FLockAbstractMem.AcquireWriteLock;
   Try
     if Assigned(FCheckingThread) then begin
       FCheckingThread.Terminate;
@@ -293,7 +294,7 @@ begin
     FCheckingThread.WaitFor;
     FreeAndNil(FCheckingThread);
   Finally
-    FLockAbstractMem.Release;
+    FLockAbstractMem.ReleaseWriteLock;
   End;
   Result := AReport.Count=0;
 end;
@@ -524,7 +525,7 @@ begin
   FBufferBlocksHash:= Nil;
 
   FCheckingThread := Nil;
-  FLockAbstractMem := TPCCriticalSection.Create(Self.ClassName);
+  FLockAbstractMem := TReadWriteLock.Create(Self.ClassName,lrpSupportsRecursion);
   FAccountCache := TAccountCache.Create(50000,_AccountCache_Comparision);
   FSavingNewSafeboxMode := False;
 
@@ -580,12 +581,12 @@ begin
   LCheckingThread := Nil;
   try
     if Assigned(FLockAbstractMem) then begin
-      FLockAbstractMem.Acquire;
+      FLockAbstractMem.AcquireWriteLock;
       try
         LCheckingThread := FCheckingThread;
         if Assigned(LCheckingThread) then LCheckingThread.Terminate;
       finally
-        FLockAbstractMem.Release;
+        FLockAbstractMem.ReleaseWriteLock;
       end;
     end;
     // The checker borrows this object and takes its lock when it is destroyed.
@@ -636,13 +637,13 @@ end;
 procedure TPCAbstractMem.DoCheck;
 begin
   if IsChecking then Exit;
-  FLockAbstractMem.Acquire;
+  FLockAbstractMem.AcquireWriteLock;
   Try
     if Not Assigned(FCheckingThread) then begin
       FCheckingThread := TPCAbstractMemCheckThread.Create(Self);
     end;
   Finally
-    FLockAbstractMem.Release;
+    FLockAbstractMem.ReleaseWriteLock;
   End;
 end;
 
@@ -1027,11 +1028,12 @@ end;
 function TPCAbstractMem.IsChecking: Boolean;
 begin
   Result := Assigned(TPCThread.GetThreadByClass(TPCAbstractMemCheckThread,Nil));
-  FLockAbstractMem.Acquire;
+  // This getter only copies worker presence; creation and retirement use write.
+  FLockAbstractMem.AcquireReadLock;
   Try
     Result := Assigned(FCheckingThread);
   Finally
-    FLockAbstractMem.Release;
+    FLockAbstractMem.ReleaseReadLock;
   End;
 end;
 
@@ -1368,11 +1370,11 @@ constructor TPCAbstractMemCheckThread.Create(APCAbstractMem: TPCAbstractMem);
 begin
   FPCAbstractMem := APCAbstractMem;
 
-  FPCAbstractMem.FLockAbstractMem.Acquire;
+  FPCAbstractMem.FLockAbstractMem.AcquireWriteLock;
   try
     FPCAbstractMem.FCheckingThread := Self;
   finally
-    FPCAbstractMem.FLockAbstractMem.Release;
+    FPCAbstractMem.FLockAbstractMem.ReleaseWriteLock;
   end;
 
   FErrorsCount := 0;
@@ -1385,11 +1387,11 @@ end;
 
 destructor TPCAbstractMemCheckThread.Destroy;
 begin
-  FPCAbstractMem.FLockAbstractMem.Acquire;
+  FPCAbstractMem.FLockAbstractMem.AcquireWriteLock;
   try
     FPCAbstractMem.FCheckingThread := Nil;
   finally
-    FPCAbstractMem.FLockAbstractMem.Release;
+    FPCAbstractMem.FLockAbstractMem.ReleaseWriteLock;
   end;
   FErrors.Free;
   inherited Destroy;

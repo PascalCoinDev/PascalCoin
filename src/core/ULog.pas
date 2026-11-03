@@ -23,7 +23,7 @@ unit ULog;
 interface
 
 uses
-  Classes, UThread, SyncObjs, UConst,
+  Classes, UThread, UConst,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 
@@ -63,7 +63,8 @@ type
     FSaveTypes: TLogTypes;
     FThreadSafeLogEvent : TThreadSafeLogEvent;
     FProcessGlobalLogs: Boolean;
-    FLock : TCriticalSection;
+    // Log writes and in-thread callbacks are serialized; callbacks may log recursively.
+    FLock : TReadWriteLock;
     procedure SetFileName(const Value: String);
   protected
     Procedure DoLog(logtype : TLogType; const sender, logtext : String); virtual;
@@ -96,7 +97,7 @@ Type PLogData = ^TLogData;
 
 constructor TLog.Create(AOwner: TComponent);
 begin
-  FLock := TCriticalSection.Create;
+  FLock := TReadWriteLock.Create('TLog.Log',lrpSupportsRecursion);
   FProcessGlobalLogs := true;
   FLogDataList := TThreadList<Pointer>.Create;
   FFileStream := Nil;
@@ -162,7 +163,7 @@ procedure TLog.NotifyNewLog(logtype: TLogType; Const sender, logtext: String);
 Var s,tid : RawByteString;
   P : PLogData;
 begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   try
     if assigned(FFileStream) And (logType in FSaveTypes) then begin
       if TThread.CurrentThread.ThreadID=MainThreadID then tid := ' MAIN:' else tid:=' TID:';
@@ -183,7 +184,7 @@ begin
       FLogDataList.Add(P);
     end;
   finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   end;
   DoLog(logtype,sender,logtext);
 end;

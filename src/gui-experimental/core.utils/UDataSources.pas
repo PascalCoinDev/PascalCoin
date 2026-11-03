@@ -51,7 +51,7 @@ uses
   Classes, SysUtils, UAccounts, UNode, UBlockchain, UCrypto, UCoreObjects,
   UCommon, UMemory, UConst, UCommon.Data, UCoreUtils, UBaseTypes,
   UCommon.Collections, Generics.Collections, Generics.Defaults, syncobjs, UPCDataTypes,
-  UCache, UWalletStartupTask;
+  UCache, UWalletStartupTask, UThread;
 
 type
 
@@ -90,7 +90,7 @@ type
 
   TAccountsDataSource = class(TAccountsDataSourceBase)
   private
-    FConfigLock: TCriticalSection;
+    FConfigLock: UThread.TReadWriteLock;
     function GetIncludePending: Boolean;
     procedure SetIncludePending(AIncludePending: Boolean);
   protected
@@ -124,7 +124,7 @@ type
     FOwnershipChanges: TArray<TAccountOwnershipChange>;
     FFullSnapshotBlockTip: Cardinal;
     FBalanceTask: TWalletStartupTask;
-    FBalanceLock: TCriticalSection;
+    FBalanceLock: UThread.TReadWriteLock;
     FBalanceGeneration, FBalanceTaskGeneration: Int64;
     FBalanceIncludePending: Boolean;
     FBalanceReady: Boolean;
@@ -179,7 +179,7 @@ type
 
   TAccountsOperationsDataSource = class(TOperationsDataSourceBase)
   private
-    FConfigLock: TCriticalSection;
+    FConfigLock: UThread.TReadWriteLock;
     FConfigRevision: UInt64;
     FBlockDepth: Cardinal;
     FAccounts: TArray<cardinal>;
@@ -395,7 +395,7 @@ end;
 constructor TAccountsDataSource.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  FConfigLock := TCriticalSection.Create;
+  FConfigLock := UThread.TReadWriteLock.Create('DataSource.ConfigLock',UThread.lrpSupportsRecursion);
   FKeys := CreateAccountKeySet;
 end;
 
@@ -408,11 +408,12 @@ end;
 
 function TAccountsDataSource.GetFilterKeys: TArray<TAccountKey>;
 begin
-  FConfigLock.Acquire;
+  // Set enumeration initializes shared RTL wrappers, so retain write ownership.
+  FConfigLock.AcquireWriteLock;
   try
     Result := FKeys.ToArray;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseWriteLock;
   end;
 end;
 
@@ -421,7 +422,7 @@ var
   i: integer;
   LChanged: Boolean;
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireWriteLock;
   try
     LChanged := FKeys.Count <> Length(AKeys);
     if not LChanged then
@@ -436,40 +437,41 @@ begin
       FKeys.Add(AKeys[i]);
     InvalidateSnapshot;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseWriteLock;
   end;
 end;
 
 function TAccountsDataSource.GetIncludePending: Boolean;
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireReadLock;
   try
     Result := FIncludePending;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseReadLock;
   end;
 end;
 
 procedure TAccountsDataSource.SetIncludePending(AIncludePending: Boolean);
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireWriteLock;
   try
     if FIncludePending = AIncludePending then Exit;
     FIncludePending := AIncludePending;
     InvalidateSnapshot;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseWriteLock;
   end;
 end;
 
 procedure TAccountsDataSource.ReadConfiguration(out AKeys: TArray<TAccountKey>; out AIncludePending: Boolean);
 begin
-  FConfigLock.Acquire;
+  // Set enumeration initializes shared RTL wrappers, so retain write ownership.
+  FConfigLock.AcquireWriteLock;
   try
     AKeys := FKeys.ToArray;
     AIncludePending := FIncludePending;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseWriteLock;
   end;
 end;
 
@@ -522,7 +524,7 @@ end;
 constructor TMyAccountsDataSource.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  FBalanceLock := TCriticalSection.Create;
+  FBalanceLock := UThread.TReadWriteLock.Create('DataSource.BalanceLock',UThread.lrpSupportsRecursion);
   FBalanceCompletedNotify := TThreadNotify.Create(TThread.CurrentThread);
   FBalanceTaskGeneration := -1;
 end;
@@ -911,12 +913,12 @@ begin
     FBalanceTask := TWalletBalanceTask.Create(Self, LGeneration, LIncludePending);
     FBalanceTask.Start;
   end;
-  FBalanceLock.Acquire;
+  FBalanceLock.AcquireReadLock;
   try
     Result := FBalanceReady;
     ASummary := FBalanceSummary;
   finally
-    FBalanceLock.Release;
+    FBalanceLock.ReleaseReadLock;
   end;
   // Keep the legacy pointer usable, but write it only from this UI request, not
   // from a worker that could outlive the form owning the pointed-to record.
@@ -993,14 +995,14 @@ begin
   if not BeginBalanceSnapshot(ATask, AGeneration, AIncludePending, LContext) then Exit;
   try
     if LContext.StateID <> LStateID then Exit;
-    FBalanceLock.Acquire;
+    FBalanceLock.AcquireWriteLock;
     try
       if ATask.Cancelled or
         (InterlockedCompareExchange64(FBalanceGeneration, 0, 0) <> AGeneration) then Exit;
       FBalanceSummary := LSummary;
       FBalanceReady := True;
     finally
-      FBalanceLock.Release;
+      FBalanceLock.ReleaseWriteLock;
     end;
   finally
     EndReadSnapshot(LContext);
@@ -1091,7 +1093,7 @@ end;
 constructor TAccountsOperationsDataSource.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  FConfigLock := TCriticalSection.Create;
+  FConfigLock := UThread.TReadWriteLock.Create('DataSource.ConfigLock',UThread.lrpSupportsRecursion);
   FLastWalletAccountsGeneration := -1;
 end;
 
@@ -1103,14 +1105,14 @@ end;
 
 function TAccountsOperationsDataSource.GetAccounts: TArray<Cardinal>;
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireReadLock;
   try
     if FUseWalletAccounts then
       Result := TArrayTool<Cardinal>.Copy(FWalletAccounts)
     else
       Result := TArrayTool<Cardinal>.Copy(FAccounts);
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseReadLock;
   end;
 end;
 
@@ -1118,7 +1120,7 @@ procedure TAccountsOperationsDataSource.SetAccounts(const AAccounts: TArray<Card
 type
   TAccountNumbers = TArray<Cardinal>;
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireWriteLock;
   try
     if TEqualityComparer<TAccountNumbers>.Default.Equals(FAccounts, AAccounts) then exit;
     FAccounts := TArrayTool<Cardinal>.Copy(AAccounts);
@@ -1127,23 +1129,23 @@ begin
     FLastFetchID := '';
     InvalidateSnapshot;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseWriteLock;
   end;
 end;
 
 function TAccountsOperationsDataSource.GetBlockDepth: Cardinal;
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireReadLock;
   try
     Result := FBlockDepth;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseReadLock;
   end;
 end;
 
 procedure TAccountsOperationsDataSource.SetBlockDepth(ABlockDepth: Cardinal);
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireWriteLock;
   try
     if FBlockDepth = ABlockDepth then exit;
     FBlockDepth := ABlockDepth;
@@ -1151,23 +1153,23 @@ begin
     FLastFetchID := '';
     InvalidateSnapshot;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseWriteLock;
   end;
 end;
 
 function TAccountsOperationsDataSource.GetUseWalletAccounts: Boolean;
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireReadLock;
   try
     Result := FUseWalletAccounts;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseReadLock;
   end;
 end;
 
 procedure TAccountsOperationsDataSource.SetUseWalletAccounts(AUseWalletAccounts: Boolean);
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireWriteLock;
   try
     if FUseWalletAccounts = AUseWalletAccounts then Exit;
     FUseWalletAccounts := AUseWalletAccounts;
@@ -1175,7 +1177,7 @@ begin
     FLastFetchID := '';
     InvalidateSnapshot;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseWriteLock;
   end;
 end;
 
@@ -1198,20 +1200,20 @@ var
   LGeneration: Int64;
   LAccounts: TArray<Cardinal>;
 begin
-  FConfigLock.Acquire;
+  FConfigLock.AcquireReadLock;
   try
     if not FUseWalletAccounts then Exit;
     LGeneration := InterlockedCompareExchange64(FWalletAccountsGeneration, 0, 0);
     if FLastWalletAccountsGeneration = LGeneration then Exit;
     LConfigRevision := FConfigRevision;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseReadLock;
   end;
   // Enumeration can visit hundreds of thousands of accounts. Keep it on the
   // fetch worker and outside the short settings lock used by UI callbacks.
   LAccounts := FetchWalletAccounts;
   CheckWalletQueryCancelled;
-  FConfigLock.Acquire;
+  FConfigLock.AcquireWriteLock;
   try
     if (not FUseWalletAccounts) or (FConfigRevision <> LConfigRevision) or
       (InterlockedCompareExchange64(FWalletAccountsGeneration, 0, 0) <> LGeneration) then Exit;
@@ -1220,7 +1222,7 @@ begin
     FWalletAccounts := LAccounts;
     FLastWalletAccountsGeneration := LGeneration;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseWriteLock;
   end;
 end;
 
@@ -1258,7 +1260,7 @@ begin
   // UI settings use a separate, short-held lock so a refresh cannot freeze them.
   CheckWalletQueryCancelled;
   RefreshWalletAccounts;
-  FConfigLock.Acquire;
+  FConfigLock.AcquireReadLock;
   try
     LUseWalletAccounts := FUseWalletAccounts;
     LWalletGeneration := FLastWalletAccountsGeneration;
@@ -1271,7 +1273,7 @@ begin
     LCachedFetchID := FLastFetchID;
     LStoredOperations := FLastFetchBlockOperations;
   finally
-    FConfigLock.Release;
+    FConfigLock.ReleaseReadLock;
   end;
   if Length(LAccounts) = 0 then
     exit;
@@ -1287,7 +1289,7 @@ begin
     LStoredOperations := LNode.GetStoredOperationsAffectingAccounts(LAccounts, LBlockDepth, 0, MaxInt);
     CheckWalletQueryCancelled;
     LCurrentFetchID := ComputeFetchID;
-    FConfigLock.Acquire;
+    FConfigLock.AcquireWriteLock;
     try
       // Publish only successful results for this unchanged settings snapshot
       // and chain. An older worker must not replace a newer selection's cache.
@@ -1300,7 +1302,7 @@ begin
         end else FLastFetchID := '';
       end;
     finally
-      FConfigLock.Release;
+      FConfigLock.ReleaseWriteLock;
     end;
   end;
   AContainer.AddRange(LStoredOperations);

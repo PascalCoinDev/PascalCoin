@@ -25,7 +25,7 @@ interface
 {$I ./../config.inc}
 
 uses
-  Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256, URandomHash, URandomHash2, UBaseTypes, UCommon,
+  Classes, SysUtils, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256, URandomHash, URandomHash2, UBaseTypes, UCommon,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 type
@@ -157,7 +157,8 @@ Type
   TCPUOpenSSLMinerThread = Class(TPCThread)
   private
     FCPUDeviceThread : TCPUDeviceThread;
-    FLock : TCriticalSection;
+    // Hashing changes the digest stream and nonce state; each job owns a writer.
+    FLock : TReadWriteLock;
     FJobNum : Integer;
   protected
     FCurrentMinerValuesForWork : TMinerValuesForWork;
@@ -771,7 +772,7 @@ begin
     nextmin := 0;
     for i:=0 to l.count-1 do begin
       cpu := TCPUOpenSSLMinerThread(l[i]);
-      cpu.FLock.Acquire;
+      cpu.FLock.AcquireWriteLock;
       try
         Inc(cpu.FJobNum);
         cpu.FCurrentMinerValuesForWork := FMinerValuesForWork;
@@ -787,7 +788,7 @@ begin
         nextmin := cpu.FMaxNOnce+1;
         cpu.FDigestStreamMsg.WriteBuffer(digest[Low(digest)],Length(digest));
       finally
-        cpu.Flock.Release;
+        cpu.Flock.ReleaseWriteLock;
       end;
     end;
   finally
@@ -853,7 +854,7 @@ begin
       If (FCPUDeviceThread.Paused) then sleep(1)
       else begin
         dstep := 2;
-        FLock.Acquire;
+        FLock.AcquireWriteLock;
         try
           LUseRandomHash := TPoolMinerThread.UseRandomHash(FCurrentMinerValuesForWork.version);
           if (LUseRandomHash) then begin
@@ -936,13 +937,13 @@ begin
                   if (TBaseType.BinStrComp(LResultsToCheck[j].PoW,FCurrentMinerValuesForWork.target_pow)<0) then begin
                     if (Terminated) Or (FCPUDeviceThread.Terminated) then exit;
                     dstep := 5;
-                    FLock.Release;
+                    FLock.ReleaseWriteLock;
                     try
                       dstep := 6;
                       FCPUDeviceThread.FoundNOnce(FCurrentMinerValuesForWork, ts, LResultsToCheck[j].Nonce);
                       dstep := 7;
                     finally
-                      FLock.Acquire;
+                      FLock.AcquireWriteLock;
                     end;
                     dstep := 8;
                   end;
@@ -967,11 +968,11 @@ begin
                 PascalCoinExecuteLastChunkAndDoSha256(FInternalSha256,FInternalChunk,FChangeTimestampAndNOnceBytePos,nonce,ts,resultPoW); // Note: RandomHash is handled above
                 if (TBaseType.BinStrComp(resultPoW,FCurrentMinerValuesForWork.target_pow)<0) then begin
                   if Terminated then exit;
-                  FLock.Release;
+                  FLock.ReleaseWriteLock;
                   try
                     FCPUDeviceThread.FoundNOnce(FCurrentMinerValuesForWork, ts,nonce);
                   finally
-                    FLock.Acquire;
+                    FLock.AcquireWriteLock;
                   end;
                 end;
                 if(nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
@@ -987,7 +988,7 @@ begin
             FCPUDeviceThread.UpdateDeviceStats(AuxStats);
           end; // FDigestStreamMsg.size>8
         finally
-          FLock.Release;
+          FLock.ReleaseWriteLock;
         end;
       end; // Not paused
       Except
@@ -1004,7 +1005,7 @@ end;
 constructor TCPUOpenSSLMinerThread.Create(CPUDeviceThread : TCPUDeviceThread);
 begin
   FCPUDeviceThread := CPUDeviceThread;
-  FLock := TCriticalSection.Create;
+  FLock := TReadWriteLock.Create('TCPUOpenSSLMinerThread.Work',lrpSupportsRecursion);
   FDigestStreamMsg := TMemoryStream.Create;
   FMinNOnce := 0; FMaxNOnce:=$FFFFFFFF;
   FResetNOnce:=True;

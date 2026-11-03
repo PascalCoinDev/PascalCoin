@@ -89,7 +89,8 @@ Type
   private
     // This gate protects ownership/admission bookkeeping only. The caller's
     // resource stays protected by the granted ownership after the gate is left.
-    FGate: TPCCriticalSection;
+    FGate: TCriticalSection;
+    FName: String;
     // UConst makes the existing core thread-ID type visible in both interface
     // and implementation; an implementation-only import cannot change it here.
     FThreads: TDictionary<TThreadID, TThreadCounts>;
@@ -126,7 +127,8 @@ Type
     function GetWaitingWriteCount: Integer;
     function GetWaitingUpgradeCount: Integer;
   public
-    constructor Create(ARecursionPolicy: TLockRecursionPolicy = lrpNoRecursion);
+    constructor Create(ARecursionPolicy: TLockRecursionPolicy = lrpNoRecursion); overload;
+    constructor Create(const AName: String; ARecursionPolicy: TLockRecursionPolicy = lrpNoRecursion); overload;
     destructor Destroy; override;
     procedure Dispose;
     // Pair every successful Acquire/TryAcquire with the matching Release on
@@ -141,6 +143,7 @@ Type
     function TryAcquireUpgradeableReadLock(AMillisecondsTimeout: Integer): Boolean;
     procedure ReleaseUpgradeableReadLock;
     property RecursionPolicy: TLockRecursionPolicy read FPolicy;
+    property Name: String read FName;
     property IsReadLockHeld: Boolean read GetIsReadLockHeld;
     property IsWriteLockHeld: Boolean read GetIsWriteLockHeld;
     property IsUpgradeableReadLockHeld: Boolean read GetIsUpgradeableReadLockHeld;
@@ -171,6 +174,8 @@ Type
     Class function GetThreadByClass(tclass : TPCThreadClass; Exclude : TObject) : TPCThread;
     Class Procedure ProtectEnterCriticalSection(Const Sender : TObject; var Lock : TPCCriticalSection);
     Class Function TryProtectEnterCriticalSection(Const Sender : TObject; MaxWaitMilliseconds : Cardinal; var Lock : TPCCriticalSection) : Boolean;
+    Class Procedure ProtectAcquireWriteLock(const Sender: TObject; const Lock: TReadWriteLock);
+    Class Function TryProtectAcquireWriteLock(const Sender: TObject; MaxWaitMilliseconds: Cardinal; const Lock: TReadWriteLock): Boolean;
     Class Procedure ThreadsListInfo(list: TStrings);
     constructor Create(CreateSuspended: Boolean);
     destructor Destroy; override;
@@ -182,7 +187,7 @@ Type
   TPCThreadList<T> = class
   private
     FList: TList<T>;
-    FLock: TPCCriticalSection;
+    FLock: TReadWriteLock;
   public
     constructor Create(const AName : String);
     destructor Destroy; override;
@@ -205,7 +210,7 @@ Type
     TStageQueue = class
     private
       FDirty : Boolean;
-      FLock : TMultiReadExclusiveWriteSynchronizer;
+      FLock : TReadWriteLock;
       FItems : TList<T>;
       function GetDirty : Boolean;
       procedure SetDirty (AValue : Boolean);
@@ -214,7 +219,7 @@ Type
       constructor Create; overload;
       destructor Destroy; override;
       property Dirty : Boolean read GetDirty write SetDirty;
-      property Lock : TMultiReadExclusiveWriteSynchronizer read FLock;
+      property Lock : TReadWriteLock read FLock;
       property Items : TArray<T> read GetItems;
     end;
 
@@ -454,6 +459,29 @@ end;
 
 { TPCThreadList }
 
+class procedure TPCThread.ProtectAcquireWriteLock(const Sender: TObject; const Lock: TReadWriteLock);
+begin
+  Lock.AcquireWriteLock;
+end;
+
+class function TPCThread.TryProtectAcquireWriteLock(const Sender: TObject; MaxWaitMilliseconds: Cardinal; const Lock: TReadWriteLock): Boolean;
+{$IFDEF HIGHLOG}
+var LSenderName: String;
+{$ENDIF}
+begin
+  // Retain the legacy helper's cap before converting the unsigned timeout.
+  // The read/write lock waits on its event instead of polling every millisecond.
+  if MaxWaitMilliseconds > 60000 then MaxWaitMilliseconds := 60000;
+  Result := Lock.TryAcquireWriteLock(Integer(MaxWaitMilliseconds));
+  {$IFDEF HIGHLOG}
+  if not Result then begin
+    if Assigned(Sender) then LSenderName := Sender.ClassName else LSenderName := '';
+    TLog.NewLog(ltdebug,ClassName,Format('Cannot acquire write lock %s for %s after %d milliseconds; waiting writers: %d',
+      [Lock.Name,LSenderName,MaxWaitMilliseconds,Lock.WaitingWriteCount]));
+  end;
+  {$ENDIF}
+end;
+
 function TPCThreadList<T>.Add(Item: T) : Integer;
 begin
   LockList;
@@ -476,13 +504,18 @@ end;
 
 constructor TPCThreadList<T>.Create(const AName : String);
 begin
-  FLock := TPCCriticalSection.Create(AName);
+  FLock := TReadWriteLock.Create(AName,lrpSupportsRecursion);
   FList := TList<T>.Create;
 end;
 
 function TPCThreadList<T>.Count : Integer;
 begin
-  Result := FList.Count;
+  FLock.AcquireReadLock;
+  try
+    Result := FList.Count;
+  finally
+    FLock.ReleaseReadLock;
+  end;
 end;
 
 destructor TPCThreadList<T>.Destroy;
@@ -499,7 +532,8 @@ end;
 
 function TPCThreadList<T>.LockList: TList<T>;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FLock);
+  // This API returns a mutable list, so even callers inspecting it own WRITE.
+  TPCThread.ProtectAcquireWriteLock(Self,FLock);
   Result := FList;
 end;
 
@@ -516,12 +550,12 @@ end;
 function TPCThreadList<T>.TryLockList(MaxWaitMilliseconds: Cardinal; var lockedList: TList<T>): Boolean;
 begin
   lockedList := FList;
-  Result := TPCThread.TryProtectEnterCriticalSection(Self,MaxWaitMilliseconds,FLock);
+  Result := TPCThread.TryProtectAcquireWriteLock(Self,MaxWaitMilliseconds,FLock);
 end;
 
 procedure TPCThreadList<T>.UnlockList;
 begin
-  FLock.Release;
+  FLock.ReleaseWriteLock;
 end;
 
 { TPCCriticalSection }
@@ -654,12 +688,12 @@ end;
 
 procedure TPipelineQueue<T>.EnqueueRange(AStage : Integer; const AItems : array of T);
 begin
-  FQueues[AStage].Lock.BeginWrite;
+  FQueues[AStage].Lock.AcquireWriteLock;
   try
     FQueues[AStage].FDirty := True;
     FQueues[AStage].FItems.AddRange(AItems);
   finally
-    FQueues[AStage].Lock.EndWrite;
+    FQueues[AStage].Lock.ReleaseWriteLock;
   end;
   NotifyPipelineAppended(AStage);
 end;
@@ -706,7 +740,7 @@ constructor TPipelineQueue<T>.TStageQueue.Create;
 begin
   inherited;
   FDirty := False;
-  FLock := TMultiReadExclusiveWriteSynchronizer.Create;
+  FLock := TReadWriteLock.Create('Pipeline.Stage',lrpSupportsRecursion);
   FItems := TList<T>.Create;
 end;
 
@@ -719,32 +753,32 @@ end;
 
 function TPipelineQueue<T>.TStageQueue.GetDirty : Boolean;
 begin
-  FLock.BeginRead;
+  FLock.AcquireReadLock;
   try
     Result := FDirty;
   finally
-    FLock.EndRead;
+    FLock.ReleaseReadLock;
   end;
 end;
 
 procedure TPipelineQueue<T>.TStageQueue.SetDirty ( AValue : Boolean );
 begin
-  FLock.BeginWrite;
+  FLock.AcquireWriteLock;
   try
     FDirty := AValue;
   finally
-    FLock.EndWrite;
+    FLock.ReleaseWriteLock;
   end;
 end;
 
 function TPipelineQueue<T>.TStageQueue.GetItems : TArray<T>;
 begin
   begin
-    FLock.BeginRead;
+    FLock.AcquireReadLock;
     try
       Result := FItems.ToArray;
     finally
-      FLock.EndRead;
+      FLock.ReleaseReadLock;
     end;
   end;
 end;
@@ -778,13 +812,13 @@ begin
       if not FPipeline.FQueues[FStage].FDirty then exit;
 
       // Extract items from pipeline stage
-      FPipeline.FQueues[FStage].Lock.BeginWrite;
+      FPipeline.FQueues[FStage].Lock.AcquireWriteLock;
       try
         LIn := FPipeline.FQueues[FStage].FItems.ToArray;
         FPipeline.FQueues[FStage].FItems.Clear;
         FPipeline.FQueues[FStage].FDirty := False;
       finally
-        FPipeline.FQueues[FStage].Lock.EndWrite;
+        FPipeline.FQueues[FStage].Lock.ReleaseWriteLock;
       end;
 
       // process items
@@ -821,10 +855,17 @@ constructor TReadWriteLock.Create(ARecursionPolicy: TLockRecursionPolicy);
 begin
   inherited Create;
   FPolicy := ARecursionPolicy;
-  // Keep admission ownership/wait diagnostics in the core's existing lock tools.
-  FGate := TPCCriticalSection.Create('TReadWriteLock.Admission');
+  // Admission must use the lower-level primitive. Its contention path must not
+  // log: the logger itself uses this lock, including in HIGHLOG builds.
+  FGate := TCriticalSection.Create;
   FThreads := TDictionary<TThreadID, TThreadCounts>.Create;
   FWaiters := TList<TLockWaiter>.Create;
+end;
+
+constructor TReadWriteLock.Create(const AName: String; ARecursionPolicy: TLockRecursionPolicy);
+begin
+  Create(ARecursionPolicy);
+  FName := AName;
 end;
 
 destructor TReadWriteLock.Destroy;

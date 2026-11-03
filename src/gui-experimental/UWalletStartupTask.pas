@@ -37,7 +37,7 @@ type
   private
     FCancelled : LongInt;
     FHasStarted : Boolean;
-    FProgressLock : TPCCriticalSection;
+    FProgressLock : TReadWriteLock;
     FProgressQueued : Boolean;
     FProgress : TProgressInfo;
     FErrorMessage : String;
@@ -67,7 +67,7 @@ implementation
 
 constructor TWalletStartupTask.Create;
 begin
-  FProgressLock := TPCCriticalSection.Create('WalletStartup.Progress');
+  FProgressLock := TReadWriteLock.Create('WalletStartup.Progress',lrpSupportsRecursion);
   inherited Create(true);
   FreeOnTerminate := false;
 end;
@@ -137,13 +137,13 @@ var
   LQueue : Boolean;
 begin
   CheckCancelled;
-  FProgressLock.Acquire;
+  FProgressLock.AcquireWriteLock;
   try
     FProgress := AProgress;
     LQueue := not FProgressQueued;
     FProgressQueued := true;
   finally
-    FProgressLock.Release;
+    FProgressLock.ReleaseWriteLock;
   end;
   if LQueue then Queue(DispatchProgress);
 end;
@@ -152,14 +152,15 @@ procedure TWalletStartupTask.DispatchProgress;
 var
   LProgress : TProgressInfo;
 begin
-  FProgressLock.Acquire;
+  // Dispatch also clears the queued flag, so it retains write ownership.
+  FProgressLock.AcquireWriteLock;
   try
     // Copy one complete measurement, including managed filename/peer metadata,
     // before dropping the lock. Formatting never runs on the producer thread.
     LProgress := FProgress;
     FProgressQueued := false;
   finally
-    FProgressLock.Release;
+    FProgressLock.ReleaseWriteLock;
   end;
   if (not Cancelled) and Assigned(FOnProgress) then
     FOnProgress(Self, LProgress);

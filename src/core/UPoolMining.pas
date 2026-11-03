@@ -79,9 +79,10 @@ Type
   TJSONRPCTcpIpClient = Class(TBufferedNetTcpIpClient)
   private
     FLastId : Cardinal;
-    FLockProcessBuffer : TPCCriticalSection;
+    // Waiting for a response re-enters the mutable buffer processor on this thread.
+    FLockProcessBuffer : TReadWriteLock;
     FReceivedBuffer : TBytes;
-    FLockReceivedBuffer : TPCCriticalSection;
+    FLockReceivedBuffer : TReadWriteLock;
     FPendingResponseMessages : TPCThreadList<Pointer>;
   protected
   public
@@ -256,8 +257,8 @@ begin
   inherited;
   FLastId := 1;
   SetLength(FReceivedBuffer,0);
-  FLockProcessBuffer := TPCCriticalSection.Create('TJSONRPCTcpIpClient_LockProcessBuffer');
-  FLockReceivedBuffer := TPCCriticalSection.Create('TJSONRPCTcpIpClient_LockReceivedBuffer');
+  FLockProcessBuffer := TReadWriteLock.Create('TJSONRPCTcpIpClient_LockProcessBuffer',lrpSupportsRecursion);
+  FLockReceivedBuffer := TReadWriteLock.Create('TJSONRPCTcpIpClient_LockReceivedBuffer',lrpSupportsRecursion);
   FPendingResponseMessages := TPCThreadList<Pointer>.Create('TJSONRPCTcpIpClient_PendingResponseMessages');
 end;
 
@@ -350,7 +351,7 @@ begin
   Result := false;
   ResponseMethod := '';
   tc := TPlatform.GetTickCount;
-  If Not TPCThread.TryProtectEnterCriticalSection(Self,MaxWaitMiliseconds,FLockProcessBuffer) then Exit;
+  If Not TPCThread.TryProtectAcquireWriteLock(Self,MaxWaitMiliseconds,FLockProcessBuffer) then Exit;
   try
     if Assigned(SenderThread) then continue := Not SenderThread.Terminated
     else continue := true;
@@ -402,18 +403,18 @@ begin
     end;
   finally
     FlushBufferPendingMessages(false,0);
-    FLockProcessBuffer.Release;
+    FLockProcessBuffer.ReleaseWriteLock;
   end;
 end;
 
 function TJSONRPCTcpIpClient.GetNewId: Cardinal;
 begin
-  FLockReceivedBuffer.Acquire;
+  FLockReceivedBuffer.AcquireWriteLock;
   try
     inc(FLastId);
     Result := FLastId;
   finally
-    FLockReceivedBuffer.Release;
+    FLockReceivedBuffer.ReleaseWriteLock;
   end;
 end;
 
@@ -495,7 +496,7 @@ Var nId : Cardinal;
   rm : String;
 begin
   Result := false;
-  FLockProcessBuffer.Acquire;
+  FLockProcessBuffer.AcquireWriteLock;
   try
     nId := GetNewId;
     SendJSONRPCMethod(method,params,nId);
@@ -523,7 +524,7 @@ begin
       TLog.NewLog(lterror,classname,'Not received a JSON response Id:'+inttostr(nId)+' for method:'+method);
     end;
   finally
-    FLockProcessBuffer.Release;
+    FLockProcessBuffer.ReleaseWriteLock;
   end;
 end;
 

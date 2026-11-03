@@ -13,7 +13,7 @@ uses
   Interfaces, Forms, SysUtils, fpcunit, testregistry, plaintestreport,
   UWalletStartupTests, UPendingRestoreTests, UPendingCleanupTests, UOperationPreparationTests, UChangeInfoBatchTests, UOperationWizardTests,
   UWalletRestoreTests, UWalletViewTests, UWalletAccountEnumerationTests, UWalletHistoryTests,
-  UWalletSnapshotTests, UWalletMempoolReadSafetyTests, UWalletProgressDisplayTests, UThreadConcurrencyTests,
+  UWalletSnapshotTests, UWalletMempoolReadSafetyTests, UWalletProgressDisplayTests, UThreadConcurrencyTests, UCoreLockMigrationTests,
   UNodeSynchronizationTests,
   UChangeAccountInfoReplayTests,
   UBlockSanitizeTests,

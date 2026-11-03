@@ -149,7 +149,7 @@ Type
   private
     FAllowDeleteOnClean: Boolean;
     FNetData : TNetData;
-    FCritical : TPCCriticalSection;
+    FCritical : TReadWriteLock;
     FListByIp : TList<Pointer>;
     FListByNetConnection : TList<Pointer>;
     Procedure SecuredDeleteFromListByIp(index : Integer);
@@ -281,8 +281,8 @@ Type
     FOnProcessReservedAreaMessage: TProcessReservedAreaMessage;
     FRegisteredRequests : TPCThreadList<Pointer>;
     FIsDiscoveringServers : Boolean;
-    FLockGettingNewBlockChainFromClient : TPCCriticalSection;
-    FNewBlockChainProgressLock : TPCCriticalSection;
+    FLockGettingNewBlockChainFromClient : TReadWriteLock;
+    FNewBlockChainProgressLock : TReadWriteLock;
     FNewBlockChainFromClientStatus : TProgressInfo;
     FOnConnectivityChanged : TNotifyManyEvent;
     FOnNetConnectionsUpdated: TNotifyEvent;
@@ -297,10 +297,10 @@ Type
     FNetClientsDestroyThread : TNetClientsDestroyThread;
     FNetConnectionsActive: Boolean;
     FShutdownRequested: LongInt;
-    FBlockChainWorkerLock: TPCCriticalSection;
+    FBlockChainWorkerLock: TReadWriteLock;
     FBlockChainWorker: TThreadGetNewBlockChainFromClient;
     FBlockChainStartPending: Boolean;
-    FDiscoveryWorkerLock: TPCCriticalSection;
+    FDiscoveryWorkerLock: TReadWriteLock;
     FDiscoveryWorkers: TList<TThreadDiscoverConnection>;
     FMaxConnections : Integer;
     FNetworkAdjustedTime : TNetworkAdjustedTime;
@@ -414,7 +414,7 @@ Type
     FLastDataReceivedTS : TTickCount;
     FLastDataSendedTS : TTickCount;
     FClientBufferRead : TStream;
-    FNetLock : TPCCriticalSection;
+    FNetLock : TReadWriteLock;
     FIsWaitingForResponse : Boolean;
     FTimestampDiff : Integer;
     FIsMyselfServer : Boolean;
@@ -427,7 +427,7 @@ Type
     FHasReceivedData : Boolean;
     FIsDownloadingBlocks : Boolean;
     FRandomWaitSecondsSendHello : Cardinal;
-    FBufferLock : TPCCriticalSection;
+    FBufferLock : TReadWriteLock;
     FBufferReceivedOperationsHash : TOrderedRawList;
     FBufferToSendOperations : TOperationsHashTree;
     FClientTimestampIp : String;
@@ -592,7 +592,7 @@ begin
   CleanNodeServersList;
   // This procedure cleans old blacklisted IPs
   Result := 0;
-  FCritical.Acquire;
+  FCritical.AcquireWriteLock;
   Try
     for i := FListByIp.Count - 1 downto 0 do begin
       P := FListByIp[i];
@@ -608,7 +608,7 @@ begin
       end;
     end;
   Finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   End;
   if (Result>0) then FNetData.NotifyBlackListUpdated;
 end;
@@ -620,7 +620,7 @@ var i : Integer;
 begin
   If Not (FAllowDeleteOnClean) then Exit;
   currunixtimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
-  FCritical.Acquire;
+  FCritical.AcquireWriteLock;
   Try
     i := FListByIp.Count-1;
     while (i>=0) do begin
@@ -653,7 +653,7 @@ begin
       dec(i);
     end;
   finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   end;
 end;
 
@@ -661,7 +661,7 @@ procedure TOrderedServerAddressListTS.Clear;
 Var P : PNodeServerAddress;
   i : Integer;
 begin
-  FCritical.Acquire;
+  FCritical.AcquireWriteLock;
   Try
     for i := 0 to FListByIp.Count - 1 do begin
       P := FListByIp[i];
@@ -672,24 +672,26 @@ begin
     FListByNetConnection.Clear;
     FNetData.FNetStatistics.NodeServersListCount := 0;
   finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   end;
 end;
 
 function TOrderedServerAddressListTS.Count: Integer;
 begin
-  FCritical.Acquire;
+  FCritical.AcquireReadLock;
   try
     Result := FListByIp.Count;
   finally
-    FCritical.Release;
+    FCritical.ReleaseReadLock;
   end;
 end;
 
 constructor TOrderedServerAddressListTS.Create(ANetData : TNetData);
 begin
   FNetData := ANetData;
-  FCritical := TPCCriticalSection.Create(Classname);
+  // Existing list leases expose mutable pointers and remain recursive writes.
+  // Only complete copied snapshots/lookups below use shared read ownership.
+  FCritical := TReadWriteLock.Create(Classname,lrpSupportsRecursion);
   FListByIp := TList<Pointer>.Create;
   FListByNetConnection := TList<Pointer>.Create;
   FAllowDeleteOnClean := True;
@@ -698,7 +700,7 @@ end;
 function TOrderedServerAddressListTS.DeleteNetConnection(netConnection: TNetConnection) : Boolean;
 Var i : Integer;
 begin
-  FCritical.Acquire;
+  FCritical.AcquireWriteLock;
   Try
     If SecuredFindByNetConnection(netConnection,i) then begin
       PNodeServerAddress( FListByNetConnection[i] )^.netConnection := Nil;
@@ -706,7 +708,7 @@ begin
       Result := True;
     end else Result := False;
   Finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   end;
 end;
 
@@ -723,7 +725,7 @@ function TOrderedServerAddressListTS.GetNodeServerAddress(const ip: String; port
 Var i : Integer;
   P : PNodeServerAddress;
 begin
-  FCritical.Acquire;
+  FCritical.AcquireWriteLock;
   Try
     if SecuredFindByIp(ip,port,i) then begin
       P := FListByIp.Items[i];
@@ -742,7 +744,7 @@ begin
       Result := False;
     end;
   Finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   End;
 end;
 
@@ -769,7 +771,7 @@ Var i,j, iStart : Integer;
   l : TList<Pointer>;
   ns : TNodeServerAddress;
 begin
-  FCritical.Acquire;
+  FCritical.AcquireWriteLock;
   Try
     l := TList<Pointer>.Create;
     Try
@@ -825,7 +827,7 @@ begin
       l.Free;
     End;
   Finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   end;
 end;
 
@@ -838,7 +840,8 @@ begin
   currunixtimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
   CleanNodeServersList;
   // Save other node servers
-  FCritical.Acquire;
+  // Random advances mutable PRNG state; preserve serialization for this path.
+  FCritical.AcquireWriteLock;
   try
     If Max>0 then iStart := Random(FListByIp.Count)
     else iStart := 0;
@@ -880,7 +883,7 @@ begin
       end;
     end;
   finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   end;
 end;
 
@@ -890,7 +893,7 @@ Var i : Integer;
 begin
   Result := false;
   AReason := '';
-  FCritical.Acquire;
+  FCritical.AcquireReadLock;
   Try
     SecuredFindByIp(ip,0,i);
     // Position will be the first by IP:
@@ -904,7 +907,7 @@ begin
       inc(i);
     end;
   Finally
-    FCritical.Release;
+    FCritical.ReleaseReadLock;
   End;
 end;
 
@@ -916,7 +919,8 @@ end;
 
 function TOrderedServerAddressListTS.LockList: TList<Pointer>;
 begin
-  FCritical.Acquire;
+  // Callers may mutate the returned list and pointed records until UnlockList.
+  FCritical.AcquireWriteLock;
   Result := FListByIp;
 end;
 
@@ -925,7 +929,7 @@ Var P : PNodeServerAddress;
   i : Integer;
 begin
   CleanNodeServersList;
-  FCritical.Acquire;
+  FCritical.AcquireWriteLock;
   Try
     for i := FListByIp.Count - 1 downto 0 do begin
       P := FListByIp[i];
@@ -935,7 +939,7 @@ begin
       P^.last_attempt_to_connect := 0;
     end;
   Finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   End;
 end;
 
@@ -1014,7 +1018,7 @@ procedure TOrderedServerAddressListTS.SetNodeServerAddress(
 Var i : Integer;
   P : PNodeServerAddress;
 begin
-  FCritical.Acquire;
+  FCritical.AcquireWriteLock;
   Try
     if SecuredFindByIp(nodeServerAddress.ip,nodeServerAddress.port,i) then begin
       P := FListByIp.Items[i];
@@ -1039,26 +1043,26 @@ begin
       end;
     end;
   Finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   end;
 end;
 
 procedure TOrderedServerAddressListTS.UnlockList;
 begin
-  FCritical.Release;
+  FCritical.ReleaseWriteLock;
 end;
 
 procedure TOrderedServerAddressListTS.UpdateNetConnection(netConnection: TNetConnection);
 Var i : Integer;
 begin
-  FCritical.Acquire;
+  FCritical.AcquireWriteLock;
   Try
     If SecuredFindByNetConnection(netConnection,i) then begin
       PNodeServerAddress(FListByNetConnection[i])^.last_connection := (UnivDateTimeToUnix(DateTime2UnivDateTime(now)));
       PNodeServerAddress(FListByNetConnection[i])^.total_failed_attemps_to_connect := 0;
     end;
   Finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   End;
 end;
 
@@ -1182,7 +1186,7 @@ begin
     try
       repeat
         if (nc.Connected) and Assigned(nc.FNetLock) then begin
-          If nc.FNetLock.TryEnter then Result := True
+          If nc.FNetLock.TryAcquireWriteLock(0) then Result := True
           else Sleep(1);
         end else Exit;
       until (Result) Or (TPlatform.GetElapsedMilliseconds(tc)>MaxWaitMiliseconds);
@@ -1273,7 +1277,7 @@ begin
     TLog.NewLog(ltError,ClassName,'Cannot unlock unregistered NetConnection '+IntToHex(PtrInt(ObjectPointer),8));
     Exit;
   end;
-  nc.FNetLock.Release;
+  nc.FNetLock.ReleaseWriteLock;
   // Release FNetLock first; no registry ownership is held across socket work or
   // a lock wait, and the pin still keeps nc alive until this final release.
   ReleaseDownloadConnection(nc);
@@ -1300,12 +1304,12 @@ begin
   FNodeServersAddresses := TOrderedServerAddressListTS.Create(Self);
   FLastRequestId := 0;
   FNetConnections := TPCThreadList<TNetConnection>.Create('TNetData_NetConnections');
-  FBlockChainWorkerLock := TPCCriticalSection.Create('TNetData_BlockChainWorker');
+  FBlockChainWorkerLock := TReadWriteLock.Create('TNetData_BlockChainWorker',lrpSupportsRecursion);
   FBlockChainStartPending := False;
-  FDiscoveryWorkerLock := TPCCriticalSection.Create('TNetData_DiscoveryWorkers');
+  FDiscoveryWorkerLock := TReadWriteLock.Create('TNetData_DiscoveryWorkers',lrpSupportsRecursion);
   FDiscoveryWorkers := TList<TThreadDiscoverConnection>.Create;
-  FLockGettingNewBlockChainFromClient := TPCCriticalSection.Create('LockGettingNewBlockChainFromClient');
-  FNewBlockChainProgressLock := TPCCriticalSection.Create('NewBlockChainProgress');
+  FLockGettingNewBlockChainFromClient := TReadWriteLock.Create('LockGettingNewBlockChainFromClient',lrpSupportsRecursion);
+  FNewBlockChainProgressLock := TReadWriteLock.Create('NewBlockChainProgress',lrpSupportsRecursion);
   FNewBlockChainFromClientStatus := Default(TProgressInfo);
   FNodePrivateKey := TECPrivateKey.Create;
   FNodePrivateKey.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
@@ -1448,11 +1452,11 @@ Var j : Integer;
   nsa : TNodeServerAddressArray;
 begin
   if (not FNetConnectionsActive) or ShutdownRequested then exit;
-  FDiscoveryWorkerLock.Acquire;
+  FDiscoveryWorkerLock.AcquireReadLock;
   try
     if ShutdownRequested or DiscoveryActiveLocked then Exit;
   finally
-    FDiscoveryWorkerLock.Release;
+    FDiscoveryWorkerLock.ReleaseReadLock;
   end;
   FNodeServersAddresses.CleanBlackList(False);
   If NetStatistics.ClientsConnections>0 then begin
@@ -1478,13 +1482,13 @@ end;
 procedure TNetData.DiscoverServersTerminated(Sender: TObject);
 var LFinished: Boolean;
 begin
-  FDiscoveryWorkerLock.Acquire;
+  FDiscoveryWorkerLock.AcquireWriteLock;
   try
     TThreadDiscoverConnection(Sender).FExecutionFinished := true;
     LFinished := FIsDiscoveringServers and not DiscoveryActiveLocked;
     if LFinished then FIsDiscoveringServers := false;
   finally
-    FDiscoveryWorkerLock.Release;
+    FDiscoveryWorkerLock.ReleaseWriteLock;
   end;
   if ShutdownRequested then Exit;
   NotifyNodeServersUpdated;
@@ -1525,7 +1529,7 @@ begin
   if ShutdownRequested or not FNetConnectionsActive then Exit;
   LRetired := TList<TThreadDiscoverConnection>.Create;
   try
-    FDiscoveryWorkerLock.Acquire;
+    FDiscoveryWorkerLock.AcquireWriteLock;
     try
       if ShutdownRequested or not FNetConnectionsActive or DiscoveryActiveLocked then Exit;
       for LWorker in FDiscoveryWorkers do LRetired.Add(LWorker);
@@ -1550,7 +1554,7 @@ begin
         FIsDiscoveringServers := DiscoveryActiveLocked;
       end;
     finally
-      FDiscoveryWorkerLock.Release;
+      FDiscoveryWorkerLock.ReleaseWriteLock;
     end;
     if FIsDiscoveringServers then NotifyStatisticsChanged;
   finally
@@ -1568,7 +1572,7 @@ begin
   if not Assigned(FDiscoveryWorkerLock) then Exit;
   LWorkers := TList<TThreadDiscoverConnection>.Create;
   try
-    FDiscoveryWorkerLock.Acquire;
+    FDiscoveryWorkerLock.AcquireWriteLock;
     try
       for LWorker in FDiscoveryWorkers do begin
         LWorker.Terminate;
@@ -1577,7 +1581,7 @@ begin
       FDiscoveryWorkers.Clear;
       FIsDiscoveringServers := false;
     finally
-      FDiscoveryWorkerLock.Release;
+      FDiscoveryWorkerLock.ReleaseWriteLock;
     end;
     // All are terminated before the first join. TThread.Destroy also starts a
     // never-started terminated thread so its native handle is joined safely.
@@ -1599,7 +1603,7 @@ end;
 function TNetData.TryCreateDiscoveryClient(AWorker: TThreadDiscoverConnection): TNetClient;
 begin
   Result := nil;
-  FDiscoveryWorkerLock.Acquire;
+  FDiscoveryWorkerLock.AcquireWriteLock;
   try
     if AWorker.StopRequested then Exit;
     Result := CreateDiscoveryClient;
@@ -1614,7 +1618,7 @@ begin
       FNetConnections.UnlockList;
     end;
   finally
-    FDiscoveryWorkerLock.Release;
+    FDiscoveryWorkerLock.ReleaseWriteLock;
   end;
 end;
 
@@ -1632,7 +1636,7 @@ begin
   LPrevious := nil;
   LFailed := nil;
   try
-    FBlockChainWorkerLock.Acquire;
+    FBlockChainWorkerLock.AcquireWriteLock;
     try
       if ShutdownRequested then Exit;
       if AResumePending and not FBlockChainStartPending then Exit;
@@ -1659,7 +1663,7 @@ begin
         raise;
       end;
     finally
-      FBlockChainWorkerLock.Release;
+      FBlockChainWorkerLock.ReleaseWriteLock;
     end;
   finally
     // Both joins/destruction are outside admission. Start/constructor failures
@@ -1673,13 +1677,13 @@ procedure TNetData.StopBlockChainWorker;
 var LWorker: TThreadGetNewBlockChainFromClient;
 begin
   if not Assigned(FBlockChainWorkerLock) then Exit;
-  FBlockChainWorkerLock.Acquire;
+  FBlockChainWorkerLock.AcquireWriteLock;
   try
     LWorker := FBlockChainWorker;
     FBlockChainWorker := nil;
     if Assigned(LWorker) then LWorker.Terminate;
   finally
-    FBlockChainWorkerLock.Release;
+    FBlockChainWorkerLock.ReleaseWriteLock;
   end;
   if Assigned(LWorker) then begin
     LWorker.WaitFor;
@@ -2411,7 +2415,7 @@ begin
   if (Not Assigned(TNode.Node.Bank.StorageClass)) then Exit;
   //
   LTickCount := TPlatform.GetTickCount;
-  if Not FLockGettingNewBlockChainFromClient.TryEnter then begin
+  if Not FLockGettingNewBlockChainFromClient.TryAcquireWriteLock(0) then begin
     TLog.NewLog(ltdebug,CT_LogSender,'Is getting new blockchain from client...');
     exit;
   end;
@@ -2494,7 +2498,7 @@ begin
     finally
       try TNode.Node.EndBlockChainUpdate;
       finally
-        FLockGettingNewBlockChainFromClient.Release;
+        FLockGettingNewBlockChainFromClient.ReleaseWriteLock;
         NotifyStatisticsChanged;
         TLog.NewLog(ltdebug,CT_LogSender,Format('Finalizing process in %d milis',[TPlatform.GetElapsedMilliseconds(LTickCount)]));
       end;
@@ -2516,7 +2520,7 @@ procedure TNetData.IncStatistics(incActiveConnections, incClientsConnections,
   incServersConnections,incServersConnectionsWithResponse: Integer; incBytesReceived, incBytesSend: Int64);
 begin
   // Multithread prevention
-  FNodeServersAddresses.FCritical.Acquire;
+  FNodeServersAddresses.FCritical.AcquireWriteLock;
   Try
     FNetStatistics.ActiveConnections := FNetStatistics.ActiveConnections + incActiveConnections;
     FNetStatistics.ClientsConnections := FNetStatistics.ClientsConnections + incClientsConnections;
@@ -2528,7 +2532,7 @@ begin
     FNetStatistics.BytesReceived := FNetStatistics.BytesReceived + incBytesReceived;
     FNetStatistics.BytesSend := FNetStatistics.BytesSend + incBytesSend;
   Finally
-    FNodeServersAddresses.FCritical.Release;
+    FNodeServersAddresses.FCritical.ReleaseWriteLock;
   End;
   NotifyStatisticsChanged;
   if (incBytesReceived<>0) Or (incBytesSend<>0) then begin
@@ -2538,20 +2542,20 @@ end;
 
 function TNetData.IsGettingNewBlockChainFromClient(var status: TProgressInfo): Boolean;
 begin
-  if FLockGettingNewBlockChainFromClient.TryEnter then begin
+  if FLockGettingNewBlockChainFromClient.TryAcquireWriteLock(0) then begin
     try
       Result := False;
       status := Default(TProgressInfo);
     finally
-      FLockGettingNewBlockChainFromClient.Release;
+      FLockGettingNewBlockChainFromClient.ReleaseWriteLock;
     end;
   end else begin
     // Copy only the small managed snapshot, never wait for download completion.
-    FNewBlockChainProgressLock.Acquire;
+    FNewBlockChainProgressLock.AcquireReadLock;
     try
       status := FNewBlockChainFromClientStatus;
     finally
-      FNewBlockChainProgressLock.Release;
+      FNewBlockChainProgressLock.ReleaseReadLock;
     end;
     Result := True;
   end;
@@ -2659,11 +2663,11 @@ procedure TNetData.SetBlockChainProgress(const AProgress: TProgressInfo);
 begin
   // Synchronize record/string ownership separately from the long download gate.
   // Formatting and notification callbacks must run outside this short copy lock.
-  FNewBlockChainProgressLock.Acquire;
+  FNewBlockChainProgressLock.AcquireWriteLock;
   try
     FNewBlockChainFromClientStatus := AProgress;
   finally
-    FNewBlockChainProgressLock.Release;
+    FNewBlockChainProgressLock.ReleaseWriteLock;
   end;
   if TNode.NodeExists then TNode.Node.SetSynchronizationProgress(AProgress);
 end;
@@ -2899,7 +2903,7 @@ Var i : Integer;
 begin
   Result := 0;
   try
-    FBufferLock.Acquire;
+    FBufferLock.AcquireWriteLock;
     Try
       for i := 0 to Operations.OperationsCount - 1 do begin
         if FBufferReceivedOperationsHash.IndexOf(Operations.GetOperation(i).Sha256)<0 then begin
@@ -2911,7 +2915,7 @@ begin
         end;
       end;
     finally
-      FBufferLock.Release;
+      FBufferLock.ReleaseWriteLock;
     end;
   Except
     On E:Exception do begin
@@ -2939,7 +2943,7 @@ begin
   Try
     FIsConnecting:=True;
     if Client.Connected then Client.Disconnect;
-    TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+    TPCThread.ProtectAcquireWriteLock(Self,FNetLock);
     Try
       Client.RemoteHost := ServerIP;
       if ServerPort<=0 then ServerPort := CT_NetServer_Port;
@@ -2959,7 +2963,7 @@ begin
         Result := False;
       end;
     Finally
-      FNetLock.Release;
+      FNetLock.ReleaseWriteLock;
     End;
     if Result then begin
       {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,'Connected to a possible server at: '+ClientRemoteAddr);{$ENDIF}
@@ -2994,7 +2998,9 @@ begin
   FTimestampDiff := 0;
   FIsWaitingForResponse := false;
   FClientBufferRead := TMemoryStream.Create;
-  FNetLock := TPCCriticalSection.Create('TNetConnection_NetLock');
+  // Legacy ConnectionLock leases serialize mutable protocol/stream state and
+  // may nest on the same thread; a successful write still owns one lifetime pin.
+  FNetLock := TReadWriteLock.Create('TNetConnection_NetLock',lrpSupportsRecursion);
   FLastHelloTS := 0;
   FLastDataReceivedTS := 0;
   FLastDataSendedTS := 0;
@@ -3007,7 +3013,7 @@ begin
   FDownloadLeasesDrained := TEvent.Create(nil, true, true, '');
   FDownloadOwner.FNetConnections.Add(Self);
   TNetData.NetData.NotifyNetConnectionUpdated;
-  FBufferLock := TPCCriticalSection.Create('TNetConnection_BufferLock');
+  FBufferLock := TReadWriteLock.Create('TNetConnection_BufferLock',lrpSupportsRecursion);
   FBufferReceivedOperationsHash := TOrderedRawList.Create;
   FBufferToSendOperations := TOperationsHashTree.Create;
   FClientTimestampIp := '';
@@ -3203,7 +3209,7 @@ begin
     // same transport is connected again after the balanced resume below.
     LClient.Disconnect;
     LClient.WaitForReceiveIdle;
-    TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+    TPCThread.ProtectAcquireWriteLock(Self,FNetLock);
     try
       if FDrainingReceivedBlocks then Exit;
       FDrainingReceivedBlocks := True;
@@ -3247,7 +3253,7 @@ begin
         end;
         FClientBufferRead.Size := 0;
       finally FDrainingReceivedBlocks := False; end;
-    finally FNetLock.Release; end;
+    finally FNetLock.ReleaseWriteLock; end;
   finally
     try
       if LPhysicalScope then TNode.Node.EndBlockChainUpdate;
@@ -3292,7 +3298,7 @@ begin
         DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
       end else begin
         // Add to received buffer
-        FBufferLock.Acquire;
+        FBufferLock.AcquireWriteLock;
         Try
           for i := 0 to operations.OperationsCount - 1 do begin
             op := operations.GetOperation(i);
@@ -3303,7 +3309,7 @@ begin
             end;
           end;
         Finally
-          FBufferLock.Release;
+          FBufferLock.ReleaseWriteLock;
         End;
         TNode.Node.AddOperations(Self,operations,Nil,errors);
       end;
@@ -4741,7 +4747,7 @@ begin
     if not CanRequestBlockDownload then Exit;
     iDebugStep := 110;
     tc := TPlatform.GetTickCount;
-    If TPCThread.TryProtectEnterCriticalSection(Self,MaxWaitTime,FNetLock) then begin
+    If TPCThread.TryProtectAcquireWriteLock(Self,MaxWaitTime,FNetLock) then begin
       Try
         iDebugStep := 120;
         if not CanRequestBlockDownload then Exit;
@@ -4886,7 +4892,7 @@ begin
         end;
         iDebugStep := 990;
       Finally
-        FNetLock.Release;
+        FNetLock.ReleaseWriteLock;
       End;
     end;
   Except
@@ -4961,7 +4967,7 @@ begin
   Result := false;
   HeaderData := CT_NetHeaderData;
   BufferData.Size := 0;
-  TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+  TPCThread.ProtectAcquireWriteLock(Self,FNetLock);
   try
     tc := TPlatform.GetTickCount;
     repeat
@@ -5046,7 +5052,7 @@ begin
         end;
       end;
     Finally
-      FNetLock.Release;
+      FNetLock.ReleaseWriteLock;
     End;
   end;
   if t_bytes_read>0 then begin
@@ -5124,7 +5130,7 @@ begin
       {$IFDEF HIGHLOG}s := '';{$ENDIF}
     end;
     Buffer.Position := 0;
-    TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+    TPCThread.ProtectAcquireWriteLock(Self,FNetLock);
     Try
       {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,'Sending: '+CT_NetTransferType[NetTranferType]+' operation:'+
         TNetData.OperationToText(operation)+' id:'+Inttostr(request_id)+' errorcode:'+InttoStr(errorcode)+
@@ -5133,7 +5139,7 @@ begin
       (Client as TBufferedNetTcpIpClient).WriteBufferToSend(Buffer);
       FLastDataSendedTS := TPlatform.GetTickCount;
     Finally
-      FNetLock.Release;
+      FNetLock.ReleaseWriteLock;
     End;
     TNetData.NetData.IncStatistics(0,0,0,0,0,Buffer.Size);
   finally
@@ -5162,10 +5168,10 @@ Var LStream : TStream;
 begin
   Result := false;
   if Not Connected then exit;
-  FNetLock.Acquire;
+  FNetLock.AcquireWriteLock;
   try
     nOpsToSend := 0;
-    FBufferLock.Acquire;
+    FBufferLock.AcquireWriteLock;
     Try
       If Assigned(Operations) then begin
         for i := 0 to Operations.OperationsCount - 1 do begin
@@ -5203,10 +5209,10 @@ begin
         end;
       end{$IFDEF HIGHLOG} else TLog.NewLog(ltdebug,ClassName,Format('Not sending any operations to %s (inProc:%d, Received:%d, Sent:%d)',[ClientRemoteAddr,nOpsToSend,FBufferReceivedOperationsHash.Count,FBufferToSendOperations.OperationsCount])){$ENDIF};
     finally
-      FBufferLock.Release;
+      FBufferLock.ReleaseWriteLock;
     end;
   finally
-    FNetLock.Release;
+    FNetLock.ReleaseWriteLock;
   end;
   Result := Connected;
 end;
@@ -5350,15 +5356,15 @@ var data : TStream;
 begin
   Result := false;
   if Not Connected then exit;
-  FNetLock.Acquire;
+  FNetLock.AcquireWriteLock;
   Try
     // Clear buffers
-    FBufferLock.Acquire;
+    FBufferLock.AcquireWriteLock;
     Try
       FBufferReceivedOperationsHash.Clear;
       FBufferToSendOperations.ClearHastThree;
     finally
-      FBufferLock.Release;
+      FBufferLock.ReleaseWriteLock;
     end;
     // Checking if operationblock is the same to prevent double messaging...
     If (TPCOperationsComp.EqualsOperationBlock(FRemoteOperationBlock,NewBlock.OperationBlock)) then begin
@@ -5406,7 +5412,7 @@ begin
       data.Free;
     end;
   Finally
-    FNetLock.Release;
+    FNetLock.ReleaseWriteLock;
   End;
   Result := Connected;
 end;

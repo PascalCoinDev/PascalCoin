@@ -31,7 +31,7 @@ uses
   Windows,
   Messages,
   {$ENDIF}
-  SyncObjs,
+  UThread,
   UOpenSSL, UCrypto, UNode, UFileStorage, UFolderHelper, UWalletKeys, UConst, ULog, UNetProtocol,
   URPC;
 
@@ -45,7 +45,7 @@ type
 
   TPascalCoinServerApp = class
   private
-    FLock : TCriticalSection;
+    FLock : TReadWriteLock;
     FOnLog: TPascalCoinServerAppLogEvent;
     FTerminated : Boolean;
     {$IFDEF OS_MSWIN}
@@ -99,7 +99,7 @@ uses
 constructor TPascalCoinServerApp.Create;
 begin
   inherited Create;
-  FLock := TCriticalSection.Create;
+  FLock := TReadWriteLock.Create('TPascalCoinServerApp.State',lrpSupportsRecursion);
   FLog := TLog.Create(Nil);
   FLog.OnInThreadNewLog:=OnPascalCoinLog;
   {$IFDEF OS_MSWIN}
@@ -120,12 +120,12 @@ end;
 
 procedure TPascalCoinServerApp.Lock;
 begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
 end;
 
 procedure TPascalCoinServerApp.Unlock;
 begin
-  FLock.Release;
+  FLock.ReleaseWriteLock;
 end;
 
 procedure TPascalCoinServerApp.Log(const LogType: TPascalCoinServerLogType;
@@ -152,11 +152,12 @@ end;
 
 function TPascalCoinServerApp.GetTerminated: Boolean;
 begin
-  Lock;
+  // Reading the stop flag does not mutate server state or invoke callbacks.
+  FLock.AcquireReadLock;
   try
     Result := FTerminated;
   finally
-    Unlock;
+    FLock.ReleaseReadLock;
   end;
 end;
 
