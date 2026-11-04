@@ -7,6 +7,12 @@
 - Implementation of PIP-0044 (Induplicatable NFT) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0044.md
 - Improvements on downloading Safebox (fresh installation)
 
+## Build 5.9.2
+- Restore Experimental wallet account history stored in legacy blockchain files before, or within gaps in, the newer block index.
+- Retain dropdown-controlled 7-day, 30-day and Maximum history limits, with no duplicate rows for missing archive blocks.
+- Add three layered-storage regressions to the shared Delphi/FPC checks and the wallet unit runner.
+- Align node, miner and executable versions at 5.9.2.
+
 ## Build 5.9.1
 - Use the core `TReadWriteLock` for application guards across node, networking, storage, mining and wallet data sources.
 - Allow concurrent access on proven read-only paths; retain recursive write ownership for mutable streams, caches, callbacks and operation sequencing.

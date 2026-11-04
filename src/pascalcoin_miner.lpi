@@ -20,9 +20,9 @@
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="5"/>
       <MinorVersionNr Value="9"/>
-      <RevisionNr Value="1"/>
+      <RevisionNr Value="2"/>
       <BuildNr Value="0"/>
-      <StringTable ProductName="PascalCoin" ProductVersion="5.9.1.0" FileVersion="5.9.1.0"/>
+      <StringTable ProductName="PascalCoin" ProductVersion="5.9.2.0" FileVersion="5.9.2.0"/>
     </VersionInfo>
     <BuildModes Count="1">
       <Item1 Name="Default" Default="True"/>
