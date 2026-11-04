@@ -6,13 +6,19 @@ signed operations and commits the real `TPCSafeBoxTransaction`. Its storage
 override records every requested block, so the tests verify the search boundary
 and early exit as well as the returned rows.
 
-The twelve groups cover signed 64-bit balances, reverse traversal, finite and
+The fifteen groups cover signed 64-bit balances, reverse traversal, finite and
 Maximum history through the actual data source, tip-only queries, an account last
 updated outside the range, finite-page skip/take, empty queries, pending rows and
 the live pending index. Linked blocks at 160, 161 and 162 distinguish an inclusive
 boundary from an unnecessary older-block read. The hash regression compares each
 returned operation with the core hash generated from its actual stored block
 height, including legacy hashes where applicable.
+
+The layered-storage regressions write signed blocks through the actual legacy
+file storage and AbstractMem index. They cover history older than the index's
+first block, a missing indexed block still present in the legacy archive, and
+a block absent from both stores. Maximum and finite-depth queries must publish
+the available operations without substituting or duplicating another block.
 
 [`ULivePendingHistoryChecks`](ULivePendingHistoryChecks.pas) admits signed
 transactions, account-information, data and multioperations through

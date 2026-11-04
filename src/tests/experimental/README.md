@@ -34,7 +34,7 @@ application state lasts for the process. A registration manifest fails if a
 fixture unit is absent from both unit runners. `test-coverage.json` records the
 native phases and helpers already covered by the unit fixtures.
 
-The general runner registers **944 tests** for shared utilities, application-lock
+The general runner registers **947 tests** for shared utilities, application-lock
 ownership, storage recovery, buffered streams, logger handoff and wallet behavior.
 The isolated controller runs one composite integration case in a separate process.
 The [logger handoff regression](native/log-gui-handoff/README.md) registers six
@@ -321,7 +321,7 @@ full-wallet runtime coverage.
 | `ui/UWalletExplorerTests.pas` | Bounded cached account snapshots, worker-only reads, stale-generation/error rejection, asynchronous history selection/cancellation, selected totals beyond cache capacity, retired filter-worker ownership, locked-index captured-key filtering and cooperative storage traversal cancellation |
 | `ui/UWalletExplorerSchedulingTests.pas` | Actual Explorer refresh-input scheduler, deferred leading delivery, queued timer order and quiet trailing delivery without producer/core-state vetoes |
 | `ui/UWalletAccountEnumerationTests.pas` | Six cases: bounded/empty persisted account snapshots, unsigned account numbers, invalid values, sorted unique wallet accounts and an 8,192-account traversal with instrumented node-read bounds |
-| `ui/UWalletHistoryTests.pas` | Pending-history order/index/balance/paging/cancellation checks and twelve shared stored-history groups: wide balances, bounded linked traversal, finite/Maximum paging, pending-index isolation and hashes encoded with the actual block height; the shared native probe runs under Delphi and FPC |
+| `ui/UWalletHistoryTests.pas` | Pending-history order/index/balance/paging/cancellation checks and fifteen shared stored-history groups: wide balances, bounded linked traversal, finite/Maximum paging, legacy archive fallback, pending-index isolation and hashes encoded with the actual block height; the shared native probe runs under Delphi and FPC |
 | `core/UOrderedCardinalTests.pas` | Three shared AbstractMem comparator/list cases: all 25 boundary pairs, all 120 insertion/find/removal permutations, and duplicate/missing-value policy; checked Delphi and FPC both reproduce the old subtraction failure and pass the correction |
 | `ui/UWalletSnapshotTests.pas` | Three cases: worker-only wallet membership resolution with same-count replacements, stale resolution rejection, and responsive membership/account-filter/pending settings during gated work |
 | `ui/UWalletPagingTests.pas` | Counted default-page reads, small-key isolation and custom sorting, pending ownership corrections, prefix growth, captured pending state, global totals, aggregate cancellation/publication and cancellation/retry of custom queries |

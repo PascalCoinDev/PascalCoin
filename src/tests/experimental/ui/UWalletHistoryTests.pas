@@ -70,6 +70,9 @@ type
     procedure FiniteHistoryRetainsPendingOperations;
     procedure LivePendingIndexAvoidsUnrelatedTraversal;
     procedure StoredOperationHashesUseActualBlockHeight;
+    procedure MaximumReadsLegacyHistoryBeforeThePrimaryRange;
+    procedure MaximumReadsLegacyHistoryInsideAPrimaryGap;
+    procedure MissingLegacyBlockDoesNotPublishAnotherBlocksOperations;
   end;
 
 implementation
@@ -147,6 +150,21 @@ end;
 procedure TWalletStoredHistoryTests.StoredOperationHashesUseActualBlockHeight;
 begin
   CheckStoredHistory(shcActualBlockHashes);
+end;
+
+procedure TWalletStoredHistoryTests.MaximumReadsLegacyHistoryBeforeThePrimaryRange;
+begin
+  CheckStoredHistory(shcLayeredBeforePrimary);
+end;
+
+procedure TWalletStoredHistoryTests.MaximumReadsLegacyHistoryInsideAPrimaryGap;
+begin
+  CheckStoredHistory(shcLayeredPrimaryGap);
+end;
+
+procedure TWalletStoredHistoryTests.MissingLegacyBlockDoesNotPublishAnotherBlocksOperations;
+begin
+  CheckStoredHistory(shcLayeredMissingBlock);
 end;
 
 type

@@ -12,7 +12,8 @@ type
   TStoredHistoryCheck = (shcWideBalance, shcReverseBoundary, shcAllHistory,
     shcActualPage, shcFiniteDepth, shcTipOnly, shcOldAccount,
     shcFinitePage, shcZeroTake, shcFiniteWithPending, shcLivePendingFastPath,
-    shcActualBlockHashes);
+    shcActualBlockHashes, shcLayeredBeforePrimary, shcLayeredPrimaryGap,
+    shcLayeredMissingBlock);
 
 procedure CheckStoredHistory(ACheck: TStoredHistoryCheck);
 function RunStoredHistoryChecks(const ALogFile: String): Integer;
@@ -21,7 +22,8 @@ implementation
 
 uses Classes, SysUtils, Generics.Collections, UCrypto, UAccounts, UBlockChain,
   UOpTransaction, UPCDataTypes, UCoreUtils, UNode, UConst, UBaseTypes,
-  UDataSources, UCommon.Data, UFileStorage, ULivePendingHistoryChecks;
+  UDataSources, UCommon.Data, UFileStorage, ULivePendingHistoryChecks,
+  UAbstractMemBlockchainStorage;
 
 type
   TStoredHistorySafeBox = class(TPCSafeBox)
@@ -35,6 +37,7 @@ type
     function GetLastBlockNumber: Int64; override;
     function DoLoadBlockChain(Operations: TPCOperationsComp;
       Block: Cardinal): Boolean; override;
+    function DoBlockExists(Block: Cardinal): Boolean; override;
   public
     StoredBlock: TPCOperationsComp;
     LinkedBlocks: TObjectList<TPCOperationsComp>;
@@ -60,6 +63,7 @@ type
     procedure BuildStoredHistory(AInitialBalance: Int64; AFirstAmount,
       ASecondAmount: UInt64);
     procedure BuildLinkedHistory;
+    procedure PrepareLayeredHistory(AIncludeFirstInPrimary, AIncludeMiddleInLegacy: Boolean);
     function History(ABlockDepth: Cardinal; ASkip: Integer = 0;
       ATake: Integer = MaxInt): TArray<TOperationResume>;
     procedure RequireLoaded(const AExpected: array of Cardinal);
@@ -77,6 +81,9 @@ type
     procedure ZeroTakeAvoidsStoredReads;
     procedure FiniteHistoryRetainsPendingOperations;
     procedure StoredOperationHashesUseActualBlockHeight;
+    procedure MaximumReadsLegacyHistoryBeforeThePrimaryRange;
+    procedure MaximumReadsLegacyHistoryInsideAPrimaryGap;
+    procedure MissingLegacyBlockDoesNotPublishAnotherBlocksOperations;
   end;
 
 procedure RequireTrue(const AMessage: String; ACondition: Boolean); overload;
@@ -166,6 +173,18 @@ begin
   end;
   Result := Assigned(StoredBlock) and (Block = StoredBlock.OperationBlock.block);
   if Result then Operations.CopyFrom(StoredBlock);
+end;
+
+function TStoredHistoryStorage.DoBlockExists(Block: Cardinal): Boolean;
+var I: Integer;
+begin
+  // Match the fixture's stored blocks without recording an actual block load.
+  if Assigned(LinkedBlocks) then begin
+    for I := 0 to LinkedBlocks.Count - 1 do
+      if LinkedBlocks[I].OperationBlock.block = Block then Exit(True);
+    Exit(False);
+  end;
+  Result := Assigned(StoredBlock) and (StoredBlock.OperationBlock.block = Block);
 end;
 
 function TStoredHistoryPageSource.ReadPage(out ATable: TDataTable): TPageFetchResult;
@@ -314,6 +333,36 @@ begin
   // its operation template observe the same final chain as the stored reader.
   FNode.Bank.UpdateValuesFromSafebox;
   TStoredHistoryStorage(FNode.Bank.Storage).LoadedBlocks.Clear;
+end;
+
+procedure TStoredHistoryFixture.PrepareLayeredHistory(AIncludeFirstInPrimary, AIncludeMiddleInLegacy: Boolean);
+var LStorage: TAbstractMemBlockchainStorageSecondary; I: Integer;
+begin
+  BuildLinkedHistory;
+  // Use both real file formats: older operations exist only in the legacy
+  // archive, just as after restoring a checkpoint before creating its index.
+  FNode.Bank.StorageClass := TAbstractMemBlockchainStorageSecondary;
+  LStorage := TAbstractMemBlockchainStorageSecondary(FNode.Bank.Storage);
+  RequireTrue('The layered history storage initializes in its fresh directory', LStorage.Initialize);
+  LStorage.UseMultithread := False;
+  LStorage.AutoFlushCache := False;
+  // Fix the legacy archive's first block before saving the newer primary tip.
+  RequireTrue('The legacy archive starts at the oldest generated block', LStorage.AuxStorage.SaveBlockChainBlock(FLinkedBlocks[0]));
+  if AIncludeFirstInPrimary then
+    RequireTrue('The primary index saves the oldest generated block', LStorage.SaveBlockChainBlock(FLinkedBlocks[0]));
+  RequireTrue('The primary index saves the newest generated block', LStorage.SaveBlockChainBlock(FLinkedBlocks[2]));
+  // Rewriting an older legacy block truncates its following archive. Populate
+  // that archive last, in ascending order, to retain the intended middle block.
+  for I := 0 to FLinkedBlocks.Count - 1 do
+    if (I <> 1) or AIncludeMiddleInLegacy then
+      RequireTrue('The legacy archive saves its generated signed block', LStorage.AuxStorage.SaveBlockChainBlock(FLinkedBlocks[I]));
+  RequireTrue('The fixture must retain the intended legacy middle block or gap', LStorage.AuxStorage.BlockExists(161) = AIncludeMiddleInLegacy);
+  RequireEquals('The primary index ends at the generated tip', 162, LStorage.LastBlock);
+  if AIncludeFirstInPrimary then
+    RequireEquals('The primary range surrounds its missing middle block', 160, LStorage.FirstBlock)
+  else
+    RequireEquals('The primary index starts after the older account update', 162, LStorage.FirstBlock);
+  RequireEquals('The legacy archive begins before the primary-only tip', 160, LStorage.AuxStorage.FirstBlock);
 end;
 
 procedure TStoredHistoryFixture.RequireLoaded(const AExpected: array of Cardinal);
@@ -566,6 +615,62 @@ begin
   finally LSource.Free; end;
 end;
 
+procedure TStoredHistoryFixture.MaximumReadsLegacyHistoryBeforeThePrimaryRange;
+var LRows: TArray<TOperationResume>; LSource: TStoredHistoryPageSource; LTable: TDataTable; LResult: TPageFetchResult;
+begin
+  PrepareLayeredHistory(False, True);
+  LRows := FNode.GetStoredOperationsAffectingAccounts([102], High(Cardinal), 0, MaxInt);
+  RequireEquals('Maximum finds an account last updated before the primary index begins', 1, Length(LRows));
+  RequireEquals('The returned legacy operation retains its actual height', 160, LRows[0].Block);
+  RequireEquals('The returned legacy operation belongs to the selected account', 102, LRows[0].AffectedAccount);
+  LSource := TStoredHistoryPageSource.Create(nil);
+  try
+    LSource.Accounts := TArray<Cardinal>.Create(100);
+    LSource.BlockDepth := High(Cardinal);
+    LResult := LSource.ReadPage(LTable);
+    RequireEquals('The actual grid source counts all primary and legacy history', 4, LResult.TotalDataCount);
+    RequireEquals('The actual grid source publishes all available rows', 4, Length(LTable.Rows));
+    LSource.BlockDepth := 2016;
+    LResult := LSource.ReadPage(LTable);
+    RequireEquals('Seven-day depth retains all rows in this short local chain', 4, LResult.TotalDataCount);
+    LSource.BlockDepth := 8640;
+    LResult := LSource.ReadPage(LTable);
+    RequireEquals('Thirty-day depth retains all rows in this short local chain', 4, LResult.TotalDataCount);
+  finally
+    LSource.Free;
+  end;
+end;
+
+procedure TStoredHistoryFixture.MaximumReadsLegacyHistoryInsideAPrimaryGap;
+var LRows: TArray<TOperationResume>;
+begin
+  PrepareLayeredHistory(True, True);
+  LRows := History(High(Cardinal));
+  RequireEquals('Maximum includes the block held only by legacy storage inside the primary range', 4, Length(LRows));
+  RequireEquals('The newest history row is the primary tip', 162, LRows[0].Block);
+  RequireEquals('The missing primary block is loaded before its operations are scanned', 161, LRows[1].Block);
+  RequireEquals('Both operations from the oldest linked block remain available', 160, LRows[2].Block);
+  RequireEquals(160, LRows[3].Block);
+  LRows := History(1);
+  RequireEquals('Layered storage still honors the finite inclusive cutoff', 2, Length(LRows));
+  RequireEquals(162, LRows[0].Block);
+  RequireEquals(161, LRows[1].Block);
+  LRows := History(0);
+  RequireEquals('Layered storage still honors tip-only history', 1, Length(LRows));
+  RequireEquals(162, LRows[0].Block);
+end;
+
+procedure TStoredHistoryFixture.MissingLegacyBlockDoesNotPublishAnotherBlocksOperations;
+var LRows: TArray<TOperationResume>;
+begin
+  PrepareLayeredHistory(True, False);
+  // A genuine archive gap must stop that account's linked traversal, rather
+  // than reusing the previous block component and publishing duplicate rows.
+  LRows := History(High(Cardinal));
+  RequireEquals('A block absent from both stores does not invent history', 1, Length(LRows));
+  RequireEquals('Only the actual available tip operation is returned', 162, LRows[0].Block);
+end;
+
 procedure CheckStoredHistory(ACheck: TStoredHistoryCheck);
 var LFixture: TStoredHistoryFixture;
 begin
@@ -587,6 +692,9 @@ begin
       shcZeroTake: LFixture.ZeroTakeAvoidsStoredReads;
       shcFiniteWithPending: LFixture.FiniteHistoryRetainsPendingOperations;
       shcActualBlockHashes: LFixture.StoredOperationHashesUseActualBlockHeight;
+      shcLayeredBeforePrimary: LFixture.MaximumReadsLegacyHistoryBeforeThePrimaryRange;
+      shcLayeredPrimaryGap: LFixture.MaximumReadsLegacyHistoryInsideAPrimaryGap;
+      shcLayeredMissingBlock: LFixture.MissingLegacyBlockDoesNotPublishAnotherBlocksOperations;
     end;
   finally LFixture.Free; end;
 end;
@@ -600,7 +708,10 @@ const CNames: array[TStoredHistoryCheck] of String =
    'old selected account avoids stored reads', 'finite pages stop linked traversal',
    'zero take and empty selection avoid stored reads',
    'finite history retains live pending operations', 'live pending index fast path',
-   'stored operation hashes encode actual block heights');
+   'stored operation hashes encode actual block heights',
+   'Maximum reads legacy history before the primary range',
+   'Maximum reads legacy history inside a primary gap',
+   'missing legacy block does not publish another blocks operations');
 begin
   Result := 0;
   LLog := TStringList.Create;

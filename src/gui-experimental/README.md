@@ -53,7 +53,8 @@ Scrolling, keyboard navigation and programmatic selection do not open a dialog.
 The wallet's **Recent Operations** dropdown applies to both selected accounts
 and all wallet accounts. **7 Days** searches up to 2,016 blocks back; **30 Days**
 searches up to 8,640. These ranges use the protocol's five-minute target, measured
-from the current local tip. **Maximum** searches the entire local chain.
+from the current local tip. **Maximum** searches all locally stored operation
+history, including older blocks in the legacy archive that are not yet indexed.
 Changing the selected account retains the chosen range.
 
 Stored history follows each account's previous-update links and stops at the

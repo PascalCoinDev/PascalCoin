@@ -668,8 +668,10 @@ var
     LOpsComp := LDisposables.AddObject(TPCOperationsComp.Create(nil)) as TPCOperationsComp;
     LRelevantBlockOps := LDisposables.AddObject(TList<Cardinal>.Create) as TList<Cardinal>;
 
-    // load block
-    if not Bank.Storage.LoadBlockChainBlock(LOpsComp, ABlockNum) then
+    // Match Classic history: resolve secondary legacy storage before the load's
+    // indexed-range check. Otherwise an older archived block is reported absent.
+    if not Bank.Storage.BlockExists(ABlockNum) or
+      not Bank.Storage.LoadBlockChainBlock(LOpsComp, ABlockNum) then
     begin
       TLog.NewLog(ltdebug, ClassName, 'Block ' + IntToStr(ABlockNum) + ' not found. Cannot read operations');
       exit;
