@@ -3252,8 +3252,12 @@ begin
           // incomplete/invalid suffix is safely discarded.
         end;
         FClientBufferRead.Size := 0;
-      finally FDrainingReceivedBlocks := False; end;
-    finally FNetLock.ReleaseWriteLock; end;
+      finally
+        FDrainingReceivedBlocks := False;
+      end;
+    finally
+      FNetLock.ReleaseWriteLock;
+    end;
   finally
     try
       if LPhysicalScope then TNode.Node.EndBlockChainUpdate;

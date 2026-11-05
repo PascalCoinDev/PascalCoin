@@ -457,8 +457,6 @@ begin
   {$ENDIF}
 end;
 
-{ TPCThreadList }
-
 class procedure TPCThread.ProtectAcquireWriteLock(const Sender: TObject; const Lock: TReadWriteLock);
 begin
   Lock.AcquireWriteLock;
@@ -481,6 +479,8 @@ begin
   end;
   {$ENDIF}
 end;
+
+{ TPCThreadList }
 
 function TPCThreadList<T>.Add(Item: T) : Integer;
 begin
