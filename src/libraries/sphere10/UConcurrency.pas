@@ -380,14 +380,21 @@ begin
       end;
       if not Assigned(LWaiter) then begin
         LWaiter := TLockWaiter.Create(AKind);
-        try FWaiters.Add(LWaiter);
-        except FreeAndNil(LWaiter); raise; end;
+        try
+          FWaiters.Add(LWaiter);
+        except
+          FreeAndNil(LWaiter);
+          raise;
+        end;
         ChangeWaitCount(AKind, 1);
       end;
       // No protected resource or admission lock is held during an event wait.
       FGate.Release;
-      try LWaitResult := LWaiter.Signal.WaitFor(LRemaining);
-      finally FGate.Acquire; end;
+      try
+        LWaitResult := LWaiter.Signal.WaitFor(LRemaining);
+      finally
+        FGate.Acquire;
+      end;
       if LWaitResult = wrTimeout then Exit(False);
       if LWaitResult <> wrSignaled then
         raise ESynchronizationLockException.Create('Waiting for lock ownership failed.');

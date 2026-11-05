@@ -304,7 +304,6 @@ const
       __IPredicate_T = IPredicate<T>;
       __TList_IPredicate_T = TList<__IPredicate_T>;
     public
-     class function ToArrayWorkAround( ParaList : __TList_IPredicate_T ) : TArray<IPredicate<T>>; // Skybuck: work around for buggy TList.ToArray
      class function ConstructRowComparer(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplySortDelegate<T>) : IComparer<T>;
      class function ConstructRowPredicate(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplyFilterDelegate<T>; const AOperand : TFilterOperand) : IPredicate<T>;
   end;
@@ -501,7 +500,7 @@ procedure TCustomDataSource<T>.EnsureSnapshotCache;
 begin
   if Assigned(FSnapshotCache) then Exit;
   FSnapshotCache := TSnapshotCache.Create(nil,
-    TCacheValueFetcher<Integer, TSnapshotItems>.FromObjectFunction(FetchSnapshot),
+    TCacheValueFetcher<Integer,TSnapshotItems>.FromObjectFunction(FetchSnapshot),
     TCacheSizeEstimator<TSnapshotItems>.FromObjectFunction(EstimateSnapshot),
     idpNone, TCacheReapPolicy.crpOldest,
     TCacheExpirationPolicy.epNone,
@@ -876,12 +875,6 @@ begin
   end;
 end;
 
-// Skybuck: ToArrayWorkAround implementation until TList.ToArray is fixed by FPC compiler and/or generics team ?
-class function TDataSourceTool<T>.ToArrayWorkAround( ParaList : __TList_IPredicate_T ) : TArray<IPredicate<T>>;
-begin
-  result := ParaList.ToArray;
-end;
-
 class function TDataSourceTool<T>.ConstructRowPredicate(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplyFilterDelegate<T>; const AOperand : TFilterOperand) : IPredicate<T>;
 type
   __TColumnFilterPredicate_T = TColumnFilterPredicate<T>;
@@ -889,6 +882,7 @@ type
 var
   i : integer;
   filters : __TList_IPredicate_T;
+  predicates : TArray<__IPredicate_T>;
   GC : TDisposables;
 begin
   filters := GC.AddObject( __TList_IPredicate_T.Create ) as __TList_IPredicate_T;
@@ -898,16 +892,16 @@ begin
     end;
   end;
 
-  // Skybuck: Free Pascal Compiler Bug/Internal Error 2015052501 caused by buggy TList.ToArray
   case filters.Count of
     0: Result := nil;
     1: Result := filters[0];
-    else case AOperand of
-//      foAnd: Result := __TPredicateTool_T.AndMany(filters.ToArray); // Skybuck: TList.ToArray causes FPC compiler to crash here.
-//      foOr: Result := __TPredicateTool_T.OrMany(filters.ToArray);
-
-      foAnd: Result := __TPredicateTool_T.AndMany(ToArrayWorkAround(filters));
-      foOr: Result := __TPredicateTool_T.OrMany(ToArrayWorkAround(filters));
+    else begin
+      // FPC 3.2.0 cannot resolve the overloaded generic call on ToArray directly.
+      predicates := filters.ToArray;
+      case AOperand of
+        foAnd: Result := __TPredicateTool_T.AndMany(predicates);
+        foOr: Result := __TPredicateTool_T.OrMany(predicates);
+      end;
     end;
   end;
 end;

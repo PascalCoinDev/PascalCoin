@@ -872,7 +872,9 @@ begin
       Result[i] := item.Value;
       Inc(i);
     end;
-  finally FLock.Release; end;
+  finally
+    FLock.Release;
+  end;
 end;
 
 procedure TCacheBase<TKey, TValue>.BulkLoad(const ABulkValues: TEnumerable<__TPair_TKey_TValue>);
@@ -1283,14 +1285,19 @@ begin
         refresh := not FInternalStorage.TryGetValue(AKey,item);
         if not refresh then begin
           item._AddRef;
-          try refresh := (not item.FRemoving) and (IsExpired(item) or IsStale(AKey,item));
-          finally item._Release; end;
+          try
+            refresh := (not item.FRemoving) and (IsExpired(item) or IsStale(AKey,item));
+          finally
+            item._Release;
+          end;
         end;
       end;
       if refresh then ForceRefresh;
     end;
     Result := inherited Get(AKey);
-  finally FLock.Release; end;
+  finally
+    FLock.Release;
+  end;
 end;
 
 function TBulkFetchCacheBase<TKey, TValue>.ContainsCachedItem(const AKey: TKey): Boolean;
@@ -1301,7 +1308,9 @@ begin
     if (not FLoaded) and (not FRefreshing) then ForceRefresh;
     if FFetchOnceOnly then Result := FInternalStorage.ContainsKey(AKey)
     else Result := inherited ContainsCachedItem(AKey);
-  finally FLock.Release; end;
+  finally
+    FLock.Release;
+  end;
 end;
 
 function TBulkFetchCacheBase<TKey, TValue>.GetAllCachedValues: TArray<TValue>;
@@ -1311,7 +1320,9 @@ begin
     CheckAvailable;
     if (not FLoaded) and (not FRefreshing) then ForceRefresh;
     Result := inherited GetAllCachedValues;
-  finally FLock.Release; end;
+  finally
+    FLock.Release;
+  end;
 end;
 
 procedure TBulkFetchCacheBase<TKey, TValue>.ForceRefresh;
@@ -1335,9 +1346,15 @@ begin
         for pair in values do SetValue(pair.Key,pair.Value);
         FLoaded := True;
         Inc(FFetchCount);
-      finally values.Free; end;
-    finally FRefreshing := False; end;
-  finally FLock.Release; end;
+      finally
+        values.Free;
+      end;
+    finally
+      FRefreshing := False;
+    end;
+  finally
+    FLock.Release;
+  end;
 end;
 
 procedure TBulkFetchCacheBase<TKey, TValue>.Purge;
@@ -1347,7 +1364,9 @@ begin
     inherited;
     FLoaded := False;
     FFetchCount := 0;
-  finally FLock.Release; end;
+  finally
+    FLock.Release;
+  end;
 end;
 
 procedure TBulkFetchCacheBase<TKey, TValue>.Remove(const AKey: TKey);

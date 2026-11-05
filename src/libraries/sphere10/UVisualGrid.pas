@@ -202,6 +202,8 @@ uses
 
   { TVisualGridOptions }
 
+  // vgoAutoHidePaging hides page navigation while every row fits one page; the
+  // footer keeps the paging-mode menu and the total visible.
   TVisualGridOptions = set of (vgoColAutoFill, vgoColSizing, vgoAutoHidePaging, vgoAutoHideSearchPanel, vgoMultiSearchCheckComboBox, vgoSortDirectionAllowNone);
 
   { TSortMode }
@@ -642,6 +644,10 @@ resourcestring
   sDataUpdating = 'Updating...';
   sExpression = 'Expression';
   sImproperColumnIndex = 'Improper column index. Max expected is %d but %d found.';
+  sPagingModeSingle = 'Single';
+  sPagingModeAuto = 'Auto';
+  sPagingModeManual = 'Manual';
+  sPagingModeHint = 'Paging mode: %s. Choose %s, %s or %s.';
 
 const
   CT_DEFAULT_CELL_PADDING_LEFT = 0;
@@ -1260,12 +1266,21 @@ begin
       {$IFNDEF FPC}FPageModeMenu.AutoHotkeys := maManual;{$ENDIF}
       for LMode := 0 to 2 do begin
         LItem := TMenuItem.Create(FPageModeMenu);
+        // Component names stay fixed identifiers; captions may be translated.
         case LMode of
-          0: LItem.Caption := 'Single';
-          1: LItem.Caption := 'Auto';
-          2: LItem.Caption := 'Manual';
+          0: begin
+            LItem.Caption := sPagingModeSingle;
+            LItem.Name := 'PageModeSingle';
+          end;
+          1: begin
+            LItem.Caption := sPagingModeAuto;
+            LItem.Name := 'PageModeAuto';
+          end;
+          2: begin
+            LItem.Caption := sPagingModeManual;
+            LItem.Name := 'PageModeManual';
+          end;
         end;
-        LItem.Name := 'PageMode'+LItem.Caption;
         LItem.Tag := LMode;
         LItem.RadioItem := True;
         LItem.GroupIndex := 1;
@@ -3139,8 +3154,7 @@ begin
   if not Assigned(FPageModeButton) then Exit;
   for I := 0 to FPageModeMenu.Items.Count-1 do
     FPageModeMenu.Items[I].Checked := I = Ord(FPageMode);
-  FPageModeButton.Hint := 'Paging mode: '+FPageModeMenu.Items[Ord(FPageMode)].Caption+
-    '. Choose Single, Auto or Manual.';
+  FPageModeButton.Hint := Format(sPagingModeHint, [FPageModeMenu.Items[Ord(FPageMode)].Caption, sPagingModeSingle, sPagingModeAuto, sPagingModeManual]);
   if not Assigned(Parent) then Exit;
   FBottomPanel.Visible := FCanPage;
   FBottomRightPanel.Visible := FCanPage;

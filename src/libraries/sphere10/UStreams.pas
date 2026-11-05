@@ -37,7 +37,7 @@ type
     attempting mutation. Construction never queries the input's size or position.
 
     Disabling read buffering forwards reads/writes directly and releases
-    BufferedData. BufferSize retains the configured capacity for the
+    the read-ahead memory. BufferSize retains the configured capacity for the
     next enable. Unread bytes must first be consumed or returned to the input by
     FlushUnreadData; disabling never attempts an implicit rewind. Length caching
     works independently of read buffering, including when read buffering is off. }

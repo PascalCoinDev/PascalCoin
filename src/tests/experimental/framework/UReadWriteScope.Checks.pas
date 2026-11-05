@@ -105,6 +105,20 @@ begin
   Check(ALock.CurrentReadCount = 0, 'Scope left a reader registered');
 end;
 
+procedure WaitForWaiter(ALock: TReadWriteLock; AWrite: Boolean);
+var LAttempt: Integer;
+begin
+  // The timed negative assertions mean something only once the worker is
+  // registered as a waiter; a slow start would otherwise pass them vacuously.
+  LAttempt := 0;
+  while (ALock.WaitingWriteCount + ALock.WaitingReadCount = 0) and (LAttempt < 2000) do begin
+    Sleep(1);
+    Inc(LAttempt);
+  end;
+  if AWrite then Check(ALock.WaitingWriteCount = 1, 'Worker did not queue for write ownership')
+  else Check(ALock.WaitingReadCount = 1, 'Worker did not queue for read ownership');
+end;
+
 procedure RunLocal(ALock: TReadWriteLock; AMode: TMode; AExitKind: Integer);
 var Scope: TScope;
 begin
@@ -362,6 +376,7 @@ begin
         end;
         Worker.Start;
         Check(Worker.Started.WaitFor(2000) = wrSignaled, 'Blocked worker did not start');
+        WaitForWaiter(Lock, AIndex = 22);
         Check(Worker.Acquired.WaitFor(40) = wrTimeout, 'Worker bypassed owning scope');
         Scope.Reset;
         if AIndex = 22 then begin

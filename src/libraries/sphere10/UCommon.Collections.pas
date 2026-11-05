@@ -386,7 +386,6 @@ end;
 class function TComparerTool<T>.Many(const comparers: array of IComparer<T>) : IComparer<T>;
 type
   __TArrayTool_IComparer_T = TArrayTool<__IComparer_T>;
-
 begin
   Result := TManyComparer<T>.Create( __TArrayTool_IComparer_T.Copy(comparers) );
 end;
@@ -507,8 +506,6 @@ begin
 end;
 
 class function TPredicateTool<T>.AndMany(const APredicates : array of IPredicate<T>) : IPredicate<T>;
-// type
-//  __TArrayTool_IPredicate_T = TArrayTool<__IPredicate_T>;  // Skybuck: Disabled not needed
 var
   arr : TArray<__IPredicate_T>;
   i : Integer;
@@ -851,7 +848,7 @@ begin
       {$ENDIF}
       AList[index] := default(T);
     end
-    else raise ENotSupportedException(Format('TItemDisposePolicy: [%d]', [Ord(ADisposePolicy)]));
+    else raise ENotSupportedException.Create(Format('TItemDisposePolicy: [%d]', [Ord(ADisposePolicy)]));
   end;
 end;
 
