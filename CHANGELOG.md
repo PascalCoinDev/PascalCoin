@@ -7,6 +7,13 @@
 - Implementation of PIP-0044 (Induplicatable NFT) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0044.md
 - Improvements on downloading Safebox (fresh installation)
 
+## Build 5.9.3
+- Keep the Delphi Classic and Experimental log views following each published log batch.
+- Sync the embedded Sphere10 library with the framework: translatable paging-mode captions with fixed component names, a constructed unsupported-dispose-policy exception and aligned formatting.
+- Remove a redundant thread lookup from abstract-memory check detection, size header read-ahead buffers from the block header constant and create the Experimental startup progress lock without recursion.
+- Key the RandomHash adoption regression on the shipping protocol define and wait for queued workers in the scope regressions.
+- Align node, miner and executable versions at 5.9.3.
+
 ## Build 5.9.2
 - Restore Experimental wallet account history stored in legacy blockchain files before, or within gaps in, the newer block index.
 - Retain dropdown-controlled 7-day, 30-day and Maximum history limits, with no duplicate rows for missing archive blocks.

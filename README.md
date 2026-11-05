@@ -36,17 +36,17 @@ balance redactions.*
 
 ## Downloads
 
-[PascalCoin 5.9.2](https://github.com/PascalCoin/PascalCoin/releases/tag/5.9.2)
+[PascalCoin 5.9.3](https://github.com/PascalCoin/PascalCoin/releases/tag/5.9.3)
 packages contain all four applications:
 
 | Platform | Package |
 |---|---|
-| Windows x64 | [PascalCoin-5.9.2-x86_64-win64.zip](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.2/PascalCoin-5.9.2-x86_64-win64.zip) |
-| Linux x64 | [PascalCoin-5.9.2-x86_64-linux.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.2/PascalCoin-5.9.2-x86_64-linux.tar.gz) |
-| macOS Intel | [PascalCoin-5.9.2-x86_64-darwin.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.2/PascalCoin-5.9.2-x86_64-darwin.tar.gz) |
+| Windows x64 | [PascalCoin-5.9.3-x86_64-win64.zip](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.3/PascalCoin-5.9.3-x86_64-win64.zip) |
+| Linux x64 | [PascalCoin-5.9.3-x86_64-linux.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.3/PascalCoin-5.9.3-x86_64-linux.tar.gz) |
+| macOS Intel | [PascalCoin-5.9.3-x86_64-darwin.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.3/PascalCoin-5.9.3-x86_64-darwin.tar.gz) |
 
 Verify packages against the release's
-[SHA256SUMS](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.2/SHA256SUMS).
+[SHA256SUMS](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.3/SHA256SUMS).
 [All releases](https://github.com/PascalCoin/PascalCoin/releases) include earlier
 mainnet and testnet builds; choose the intended network.
 
@@ -71,7 +71,7 @@ share ownership. File cursors, lazy caches, mutable lists and re-entrant callbac
 retain recursive write ownership. Lock names and bounded acquisition support
 core diagnostics; low-level admission uses a separate primitive.
 
-See [Build 5.9.2](CHANGELOG.md#build-592) for the patch changes. The screenshots
+See [Build 5.9.3](CHANGELOG.md#build-593) for the patch changes. The screenshots
 above show the 5.9 interface; the patch retains the same wallet applications.
 
 ## Wallet features

@@ -1,13 +1,15 @@
-# PascalCoin 5.9.2
+# PascalCoin 5.9.3
 
-This patch restores Experimental wallet account history when older operations
-remain in legacy blockchain files outside the newer index or within its gaps.
+This patch applies maintenance corrections from a review of the 5.9.1 and 5.9.2
+changes across the wallets, core storage and the embedded Sphere10 library.
 
-- Resolve legacy blocks through the same storage lookup used by Classic before reading their operations.
-- Keep Recent Operations controlled by the selected 7 Days, 30 Days or Maximum option.
-- Return only available history when a block is absent from both stores.
-- Add three shared Delphi/FPC regressions and register them in the wallet unit runner.
-- Update runtime and executable versions to 5.9.2.
+- Keep the Delphi Classic and Experimental log views following the newest batch.
+- Translate the grid paging-mode menu and hint through resourcestrings while keeping fixed component names.
+- Raise a constructed exception for unsupported dispose policies in the embedded library.
+- Remove a redundant thread lookup from abstract-memory check detection and size header read-ahead buffers from the block header constant.
+- Create the Experimental startup progress lock without recursion.
+- Key the RandomHash adoption regression on the shipping protocol define and wait for queued workers in the scope regressions.
+- Update runtime and executable versions to 5.9.3.
 
 This patch retains existing validation, persistence and synchronization behavior.
 Classic and Experimental remain separate applications in each platform package.
@@ -28,5 +30,5 @@ GTK2 runtime libraries.
 On Linux, launch the executables from the extracted folder so the bundled runtime
 can be found.
 
-See [Build 5.9.2](https://github.com/PascalCoin/PascalCoin/blob/5.9.2/CHANGELOG.md#build-592)
+See [Build 5.9.3](https://github.com/PascalCoin/PascalCoin/blob/5.9.3/CHANGELOG.md#build-593)
 for the complete change list.

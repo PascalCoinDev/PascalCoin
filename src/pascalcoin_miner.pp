@@ -59,7 +59,7 @@ type
   end;
 
 Const
-  CT_MINER_VERSION = {$IFDEF PRODUCTION}'5.9.2'{$ELSE}{$IFDEF TESTNET}'5.9.2 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
+  CT_MINER_VERSION = {$IFDEF PRODUCTION}'5.9.3'{$ELSE}{$IFDEF TESTNET}'5.9.3 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
   CT_Line_DeviceStatus = 3;
   CT_Line_ConnectionStatus = 4;
   CT_Line_MinerValues = 7;
