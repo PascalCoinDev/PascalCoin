@@ -5,6 +5,7 @@ unit UBufferedAdoptionChecks;
   The header-boundary records test storage serialization, not consensus admission. }
 
 {$IFDEF FPC}{$MODE Delphi}{$H+}{$ENDIF}
+{$I ../../../../config.inc}
 
 interface
 
@@ -381,11 +382,11 @@ begin
     end;
     Require(LRawAccepted=(AKind=0),'raw canonical-table fixture has an unexpected outcome');
     LPublicAccepted := TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(LPath,LExpected);
-    {$IFDEF BUFFERED_ADOPTION_RANDOMHASH_ENABLED}
-    LExpectedAccepted := LRawAccepted;
-    {$ELSE}
-    // Shipping configuration currently bypasses this table before opening it.
+    {$IFDEF ASSUME_VALID_POW_OLD_PROTOCOLS}
+    // The shipping configuration returns before opening the table file.
     LExpectedAccepted := False;
+    {$ELSE}
+    LExpectedAccepted := LRawAccepted;
     {$ENDIF}
     Require(LPublicAccepted=LExpectedAccepted,'actual RandomHash entry changed raw-loader acceptance');
     Require(SameBytes(LBytes,FileBytes(LPath)),'RandomHash load altered the input file');
@@ -599,10 +600,10 @@ begin
         end;
       end;
     end;
-    {$IFDEF BUFFERED_ADOPTION_RANDOMHASH_ENABLED}
-    LLines.Add('RANDOMHASH_ENTRY=private-QA-flag-off');
-    {$ELSE}
+    {$IFDEF ASSUME_VALID_POW_OLD_PROTOCOLS}
     LLines.Add('RANDOMHASH_ENTRY=shipping-early-return');
+    {$ELSE}
+    LLines.Add('RANDOMHASH_ENTRY=table-entry-exercised');
     {$ENDIF}
     if Result=0 then LLines.Add('PASS '+IntToStr(BufferedAdoptionCheckCount));
     LLines.SaveToFile(ALogPath);
