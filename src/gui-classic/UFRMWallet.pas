@@ -2272,6 +2272,11 @@ begin
       memoLogs.Text := LText;
       {$ENDIF}
       memoLogs.SelStart := memoLogs.GetTextLen;
+      {$IFNDEF FPC}
+      // VCL EM_SETSEL moves the caret without scrolling; the replaced native
+      // Add did scroll, so keep following the newest line explicitly.
+      memoLogs.Perform(EM_SCROLLCARET,0,0);
+      {$ENDIF}
     end;
   finally
     FLogBatchChanged := False;

@@ -34,7 +34,7 @@ interface
 {$I ..\config.inc}
 
 uses
-  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+  {$IFNDEF FPC}Winapi.Windows, Winapi.Messages,{$ENDIF}
     {$IFDEF FPC}LCLIntf,{$ENDIF}
     SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, ExtCtrls,  StdCtrls, UCommon.UI,
@@ -123,6 +123,11 @@ begin
       memoLogs.Text := LText;
       {$ENDIF}
       memoLogs.SelStart := memoLogs.GetTextLen;
+      {$IFNDEF FPC}
+      // VCL EM_SETSEL moves the caret without scrolling; the replaced native
+      // Add did scroll, so keep following the newest line explicitly.
+      memoLogs.Perform(EM_SCROLLCARET,0,0);
+      {$ENDIF}
     end;
   finally
     FLogBatchChanged := False;
