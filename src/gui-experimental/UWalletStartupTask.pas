@@ -67,7 +67,7 @@ implementation
 
 constructor TWalletStartupTask.Create;
 begin
-  FProgressLock := TReadWriteLock.Create('WalletStartup.Progress',lrpSupportsRecursion);
+  FProgressLock := TReadWriteLock.Create('WalletStartup.Progress',lrpNoRecursion);
   inherited Create(true);
   FreeOnTerminate := false;
 end;

@@ -1027,7 +1027,6 @@ end;
 
 function TPCAbstractMem.IsChecking: Boolean;
 begin
-  Result := Assigned(TPCThread.GetThreadByClass(TPCAbstractMemCheckThread,Nil));
   // This getter only copies worker presence; creation and retirement use write.
   FLockAbstractMem.AcquireReadLock;
   Try

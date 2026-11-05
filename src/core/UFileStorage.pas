@@ -359,7 +359,7 @@ begin
   if iPos>High(FBlockHeadersFirstBytePosition) then Begin
     // Each serialized header is three small fields. Read exactly one header
     // ahead; file length stays dynamic because this backend can grow or truncate.
-    LHeaderInput := TBufferedStream.Create(Stream,SizeOf(bh.BlockNumber)+SizeOf(bh.StreamBlockRelStartPos)+SizeOf(bh.BlockSize),False,False,True);
+    LHeaderInput := TBufferedStream.Create(Stream,CT_SizeOfBlockHeader,False,False,True);
     try
       Stream := LHeaderInput;
       if Length(FBlockHeadersFirstBytePosition)>0 then begin
@@ -774,7 +774,7 @@ begin
   _BlockHeaderFirstBlock:=BlockHeaderFirstBlock;
   // Coalesce the 4/8/4-byte fields without allocating a block-sized buffer.
   // Borrow the existing locked file; its mutable length must never be cached.
-  LHeaderInput := TBufferedStream.Create(Stream,SizeOf(BlockHeader.BlockNumber)+SizeOf(BlockHeader.StreamBlockRelStartPos)+SizeOf(BlockHeader.BlockSize),False,False,True);
+  LHeaderInput := TBufferedStream.Create(Stream,CT_SizeOfBlockHeader,False,False,True);
   try
     Stream := LHeaderInput;
     // Reading block header
