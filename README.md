@@ -153,7 +153,9 @@ On macOS, add `--ws=cocoa` to both wallet commands. Linux uses GTK2. Outputs are
 under `src` with the executable names listed above. For a source build, place the
 matching OpenSSL 1.1 runtime from `windows-dll` or `linux-libs` beside the programs;
 retain `src/locale` and `src/pascalsha.cl` when distributing them. macOS selects
-CryptoLib4Pascal and does not require OpenSSL.
+CryptoLib4Pascal and does not require OpenSSL. On macOS,
+`bash build/macOS/package-macos.sh src dist` packages both wallets as
+application bundles in a disk image; see [build/README.md](build/README.md).
 
 For native Windows Delphi/VCL builds, open
 [pascalcoin_wallet_classic.dproj](src/pascalcoin_wallet_classic.dproj) or

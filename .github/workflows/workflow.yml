@@ -90,6 +90,10 @@ jobs:
       if: ${{ runner.os == 'macOS' }}
       run: lazbuild -B --ws=cocoa --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
 
+    - name: Package wallet apps into a disk image (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      run: bash build/macOS/package-macos.sh src "$RUNNER_TEMP/macos-dmg"
+
     - name: Test bounded message dialogs on the default desktop (Windows)
       if: ${{ runner.os == 'Windows' }}
       shell: pwsh
@@ -174,6 +178,14 @@ jobs:
           src/PascalCoinWalletLazarus
           src/PascalCoinWalletExperimental
 
+    - name: Upload disk image (macOS)
+      if: ${{ (runner.os == 'macOS')  &&  (matrix.lazarus-versions == 'stable') }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: PascalCoinMacOSDiskImage
+        if-no-files-found: error
+        path: ${{ runner.temp }}/macos-dmg/*.dmg
+
   package-release:
     if: contains(github.ref, '/tags/')
 
@@ -201,6 +213,7 @@ jobs:
         ls -alF PascalCoinWindows
         ls -alF PascalCoinLinux
         ls -alF PascalCoinMacOS
+        ls -alF PascalCoinMacOSDiskImage
 
     - name: Create release files
       run: |
@@ -218,10 +231,14 @@ jobs:
         cd ../PascalCoinMacOS
         chmod +x PascalCoin* pascalcoin*
         tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.tar.gz PascalCoin* pascalcoin* locale licenses pascalsha.cl LICENSE
+        cd ../PascalCoinMacOSDiskImage
+        images=(*.dmg)
+        if [[ ${#images[@]} -ne 1 ]]; then echo "Expected one disk image" >&2; exit 1; fi
+        mv "${images[0]}" PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.dmg
 
     - name: Checksum release files
       run: |
-        for archive in PascalCoinWindows/*.zip PascalCoinLinux/*.tar.gz PascalCoinMacOS/*.tar.gz; do
+        for archive in PascalCoinWindows/*.zip PascalCoinLinux/*.tar.gz PascalCoinMacOS/*.tar.gz PascalCoinMacOSDiskImage/*.dmg; do
           sha256sum "$archive" | sed 's@  .*/@  @'
         done > SHA256SUMS
 
@@ -234,6 +251,7 @@ jobs:
           PascalCoinWindows/*.zip
           PascalCoinLinux/*.tar.gz
           PascalCoinMacOS/*.tar.gz
+          PascalCoinMacOSDiskImage/*.dmg
           SHA256SUMS
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
