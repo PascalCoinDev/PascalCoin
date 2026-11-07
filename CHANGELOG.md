@@ -7,6 +7,12 @@
 - Implementation of PIP-0044 (Induplicatable NFT) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0044.md
 - Improvements on downloading Safebox (fresh installation)
 
+## Build 5.9.4
+- Package the macOS Classic and Experimental wallets as `PascalCoin Wallet.app` and `PascalCoin Wallet Experimental.app` in a `PascalCoin-<version>-x86_64-darwin.dmg` disk image with an Applications link and first-start instructions.
+- Sign the macOS app bundles ad hoc and verify them, inside the disk image, in CI.
+- Keep the macOS `.tar.gz` archive with all four programs and list the disk image in SHA256SUMS.
+- Align node, miner and executable versions at 5.9.4.
+
 ## Build 5.9.3
 - Keep the Delphi Classic and Experimental log views following each published log batch.
 - Sync the embedded Sphere10 library with the framework: translatable paging-mode captions with fixed component names, a constructed unsupported-dispose-policy exception and aligned formatting.

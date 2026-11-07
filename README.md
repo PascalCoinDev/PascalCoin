@@ -36,17 +36,22 @@ balance redactions.*
 
 ## Downloads
 
-[PascalCoin 5.9.3](https://github.com/PascalCoin/PascalCoin/releases/tag/5.9.3)
-packages contain all four applications:
+[PascalCoin 5.9.4](https://github.com/PascalCoin/PascalCoin/releases/tag/5.9.4)
+archives contain all four applications. The macOS disk image contains the two
+wallets as Mac apps; open it and drag them to Applications.
 
 | Platform | Package |
 |---|---|
-| Windows x64 | [PascalCoin-5.9.3-x86_64-win64.zip](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.3/PascalCoin-5.9.3-x86_64-win64.zip) |
-| Linux x64 | [PascalCoin-5.9.3-x86_64-linux.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.3/PascalCoin-5.9.3-x86_64-linux.tar.gz) |
-| macOS Intel | [PascalCoin-5.9.3-x86_64-darwin.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.3/PascalCoin-5.9.3-x86_64-darwin.tar.gz) |
+| Windows x64 | [PascalCoin-5.9.4-x86_64-win64.zip](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.4/PascalCoin-5.9.4-x86_64-win64.zip) |
+| Linux x64 | [PascalCoin-5.9.4-x86_64-linux.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.4/PascalCoin-5.9.4-x86_64-linux.tar.gz) |
+| macOS Intel, wallet apps | [PascalCoin-5.9.4-x86_64-darwin.dmg](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.4/PascalCoin-5.9.4-x86_64-darwin.dmg) |
+| macOS Intel, all programs | [PascalCoin-5.9.4-x86_64-darwin.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.4/PascalCoin-5.9.4-x86_64-darwin.tar.gz) |
 
 Verify packages against the release's
-[SHA256SUMS](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.3/SHA256SUMS).
+[SHA256SUMS](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.4/SHA256SUMS).
+The macOS apps are not notarised by Apple. On their first start, macOS asks you to
+confirm them under System Settings, Privacy & Security, Open Anyway. On macOS 14
+and earlier, Control-click the app and choose Open instead.
 [All releases](https://github.com/PascalCoin/PascalCoin/releases) include earlier
 mainnet and testnet builds; choose the intended network.
 
@@ -71,7 +76,7 @@ share ownership. File cursors, lazy caches, mutable lists and re-entrant callbac
 retain recursive write ownership. Lock names and bounded acquisition support
 core diagnostics; low-level admission uses a separate primitive.
 
-See [Build 5.9.3](CHANGELOG.md#build-593) for the patch changes. The screenshots
+See [Build 5.9.4](CHANGELOG.md#build-594) for the patch changes. The screenshots
 above show the 5.9 interface; the patch retains the same wallet applications.
 
 ## Wallet features
