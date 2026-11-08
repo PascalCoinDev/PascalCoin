@@ -234,7 +234,8 @@ jobs:
         cd ../PascalCoinMacOSDiskImage
         images=(*.dmg)
         if [[ ${#images[@]} -ne 1 ]]; then echo "Expected one disk image" >&2; exit 1; fi
-        mv "${images[0]}" PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.dmg
+        image=PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.dmg
+        if [[ "${images[0]}" != "$image" ]]; then mv "${images[0]}" "$image"; fi
 
     - name: Checksum release files
       run: |
