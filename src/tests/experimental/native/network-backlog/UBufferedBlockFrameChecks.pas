@@ -635,7 +635,7 @@ begin
 end;
 
 procedure TFrameCase.CheckSecondReceived(ABytes: Int64; AParserSuffix: Boolean);
-var LUntil: UInt64; LHeader: TNetHeaderData; LMore: Boolean; LSavedPosition: Int64;
+var LUntil: UInt64; LHeader: TNetHeaderData; LMore, LComplete: Boolean; LSavedPosition: Int64;
   LCopy, LPayload, LBuffer: TMemoryStream;
 begin
   LUntil := GetTickCount64 + 3000;
@@ -650,16 +650,24 @@ begin
   end else begin
     LCopy := TMemoryStream.Create; LPayload := TMemoryStream.Create;
     try
-      LBuffer := FTransport.ReadBufferLock;
-      try
-        LSavedPosition := LBuffer.Position;
-        try LCopy.CopyFrom(LBuffer, 0); finally LBuffer.Position := LSavedPosition; end;
-      finally FTransport.ReadBufferUnlock; end;
-      LCopy.Position := 0;
-      Require(TNetData.ExtractHeaderInfo(LCopy, LHeader, LPayload, LMore) and
-        (LHeader.operation in [CT_NetOp_NewBlock,CT_NetOp_NewBlock_Fast_Propagation]) and
-        (LHeader.header_type = ntp_autosend),
-        'The retained transport bytes do not contain the complete NewBlock frame');
+      // ReceiveBuf counts bytes before the receive thread appends them to the
+      // buffer, so wait until the retained bytes hold the complete frame.
+      LUntil := GetTickCount64 + 3000;
+      repeat
+        LCopy.Clear; LPayload.Clear;
+        LBuffer := FTransport.ReadBufferLock;
+        try
+          LSavedPosition := LBuffer.Position;
+          try LCopy.CopyFrom(LBuffer, 0); finally LBuffer.Position := LSavedPosition; end;
+        finally FTransport.ReadBufferUnlock; end;
+        LCopy.Position := 0;
+        LComplete := TNetData.ExtractHeaderInfo(LCopy, LHeader, LPayload, LMore) and
+          (LHeader.operation in [CT_NetOp_NewBlock,CT_NetOp_NewBlock_Fast_Propagation]) and
+          (LHeader.header_type = ntp_autosend);
+        if LComplete or (GetTickCount64 >= LUntil) then Break;
+        Pump;
+      until False;
+      Require(LComplete, 'The retained transport bytes do not contain the complete NewBlock frame');
       Log('RECEIVED complete announcement frame retained in transport buffer');
     finally LPayload.Free; LCopy.Free; end;
   end;

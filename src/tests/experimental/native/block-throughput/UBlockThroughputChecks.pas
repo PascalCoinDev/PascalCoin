@@ -337,7 +337,7 @@ var LBlock: TPCOperationsComp; LPool: TPCOperationsComp;
   end;
 
 begin
-  Require(ANode.Bank.BlocksCount=841529,'Real fixture must start at the frozen public tip841529');
+  Require(ANode.Bank.BlocksCount=841529,'Real fixture must start at the frozen public tip 841529');
   LAnnouncedLast := GetEnvironmentVariable('PASCAL_BLOCK_BENCH_ANNOUNCED_LAST')='1';
   LBlock := TPCOperationsComp.Create(ANode.Bank);
   LInput := TOperationsHashTree.Create;

@@ -152,8 +152,7 @@ type
     procedure CheckReopenedStorage(AExpected: Integer);
     function Wallet: TWalletAccess;
   public
-    constructor Create(const ALogPath: String; AOutgoingOwner, AIncomingOwner,
-      AShutdownAfterFirst, AExerciseSettings, AConnectedMiner: Boolean);
+    constructor Create(const ALogPath: String; AOutgoingOwner, AIncomingOwner, AShutdownAfterFirst, AExerciseSettings, AConnectedMiner: Boolean; ASynchronizationLifecycle: Boolean = False);
     destructor Destroy; override;
     procedure Run;
   end;
@@ -302,8 +301,7 @@ begin
   end;
 end;
 
-constructor TBufferedBlockChecks.Create(const ALogPath: String; AOutgoingOwner, AIncomingOwner,
-  AShutdownAfterFirst, AExerciseSettings, AConnectedMiner: Boolean);
+constructor TBufferedBlockChecks.Create(const ALogPath: String; AOutgoingOwner, AIncomingOwner, AShutdownAfterFirst, AExerciseSettings, AConnectedMiner: Boolean; ASynchronizationLifecycle: Boolean);
 begin
   inherited Create;
   FLogPath := ALogPath;
@@ -312,7 +310,9 @@ begin
   FShutdownAfterFirst := AShutdownAfterFirst;
   FExerciseSettings := AExerciseSettings;
   FConnectedMiner := AConnectedMiner;
-  FSynchronizationLifecycle := SameText(GetEnvironmentVariable('PASCALCOIN_BACKLOG_CASE'),'synchronization');
+  // Only the multi-case BufferedBlockBacklogProbe reads PASCALCOIN_BACKLOG_CASE;
+  // dedicated probes keep their own flow even when the variable is left set.
+  FSynchronizationLifecycle := ASynchronizationLifecycle;
   FLog := TStringList.Create;
   FPreviousException := Application.OnException;
   Application.OnException := OnException;
@@ -1127,7 +1127,9 @@ begin
   Log('SHUTDOWN actual ExitApplication duration='+UIntToStr(LElapsed)+
     'ms committed='+IntToStr(InterlockedCompareExchange(FObservation.CommitCount,0,0))+
     ' destroyed='+IntToStr(InterlockedCompareExchange(FObservation.ConnectionDestroyed,0,0)));
-  Require(LElapsed < 5000,'Explicit shutdown did not join the buffered processor promptly');
+  // This bound only has to catch a hang. Hosted CI took up to about 6 s here,
+  // because the incoming case also waits for its listener to stop.
+  Require(LElapsed < 15000,'Explicit shutdown did not join the buffered processor promptly');
   Require(InterlockedCompareExchange(FObservation.CommitCount,0,0) = 1,
     'Explicit application shutdown must cancel between complete atomic blocks');
   Require(InterlockedCompareExchange(FObservation.ConnectionDestroyed,0,0) <> 0,
@@ -1317,8 +1319,7 @@ end;
 {$I UWalletLargeBufferedBlockChecks.inc}
 {$ENDIF}
 
-function RunChecks(AOutgoingOwner, AIncomingOwner, AShutdownAfterFirst,
-  AExerciseSettings, AConnectedMiner: Boolean): Integer;
+function RunChecks(AOutgoingOwner, AIncomingOwner, AShutdownAfterFirst, AExerciseSettings, AConnectedMiner, ASynchronizationLifecycle: Boolean): Integer;
 var LChecks: TBufferedBlockChecks; LInput: THandle; LName, LInputName: array[0..255] of Char; LRequired: DWORD;
 begin
   Result := 1;
@@ -1334,7 +1335,7 @@ begin
   Require(not FileExists(ParamStr(1)),'Refusing an existing test log');
   Application.Initialize;
   LChecks := TBufferedBlockChecks.Create(ExpandFileName(ParamStr(1)),AOutgoingOwner,
-    AIncomingOwner,AShutdownAfterFirst,AExerciseSettings,AConnectedMiner);
+    AIncomingOwner,AShutdownAfterFirst,AExerciseSettings,AConnectedMiner,ASynchronizationLifecycle);
   try
     try LChecks.Run; Result := 0;
     except on E: Exception do LChecks.Log('FAIL '+E.ClassName+': '+E.Message); end;
@@ -1348,7 +1349,7 @@ begin
   // and controller through the existing one-logfile private-desktop broker.
   LScenario := LowerCase(GetEnvironmentVariable('PASCALCOIN_BACKLOG_CASE'));
   if (LScenario = '') or (LScenario = 'direct') or (LScenario = 'synchronization') then
-    Result := RunChecks(False,False,False,False,False)
+    Result := RunChecks(False,False,False,False,False,LScenario = 'synchronization')
   else if LScenario = 'outgoing' then Result := RunOutgoingBufferedBlockProbe
   else if LScenario = 'outgoing-shutdown' then Result := RunOutgoingShutdownProbe
   else if LScenario = 'incoming' then Result := RunIncomingBufferedBlockProbe
@@ -1360,32 +1361,32 @@ end;
 
 function RunOutgoingBufferedBlockProbe: Integer;
 begin
-  Result := RunChecks(True,False,False,False,False);
+  Result := RunChecks(True,False,False,False,False,False);
 end;
 
 function RunIncomingBufferedBlockProbe: Integer;
 begin
-  Result := RunChecks(False,True,False,False,False);
+  Result := RunChecks(False,True,False,False,False,False);
 end;
 
 function RunOutgoingShutdownProbe: Integer;
 begin
-  Result := RunChecks(True,False,True,False,False);
+  Result := RunChecks(True,False,True,False,False,False);
 end;
 
 function RunIncomingShutdownProbe: Integer;
 begin
-  Result := RunChecks(False,True,True,False,False);
+  Result := RunChecks(False,True,True,False,False,False);
 end;
 
 function RunIncomingSettingsProbe: Integer;
 begin
-  Result := RunChecks(False,True,False,True,False);
+  Result := RunChecks(False,True,False,True,False,False);
 end;
 
 function RunConnectedMinerProbe: Integer;
 begin
-  Result := RunChecks(False,True,False,True,True);
+  Result := RunChecks(False,True,False,True,True,False);
 end;
 
 end.

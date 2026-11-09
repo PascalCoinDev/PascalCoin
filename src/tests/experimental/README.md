@@ -42,7 +42,7 @@ process:
 | `safebox-recovery` | [Safebox recovery](native/safebox-recovery/README.md) |
 | `classic` | [Classic](native/classic/README.md) key selection, filtering and shutdown |
 | `connection-restart` | [Connection restart](native/connection-restart/README.md) |
-| `pending-protocol` | All nine [pending-protocol](native/pending-protocol/README.md) groups |
+| `pending-protocol` | All nine [pending-protocol](native/pending-protocol/README.md) cases |
 | `buffered-frames` | [Buffered block frames](native/network-backlog/BufferedBlockFrameProbe.md) |
 | `node-sync` | Main-form synchronization, storage failures and grid cancellation on a real node |
 | `mempool-lock` | Mempool lock upgrades |
@@ -107,8 +107,8 @@ Run these from the repository root on Windows:
 & src\tests\experimental\RunWalletSafeboxRecoveryTests.ps1
 ```
 
-- Pass `-FpcPath` as needed, and `-LazarusDirectory` for scripts that use the
-  LCL. These scripts do not search `PATH`.
+- Each script finds FPC, and Lazarus if it uses the LCL, on `PATH`, or takes
+  `-FpcPath` and `-LazarusDirectory`.
 - Each script takes the OpenSSL 1.1 runtime from `src` or `windows-dll`. It
   writes to a new folder under `lib` in this folder, or to a new
   `-OutputDirectory`, and prints that folder when it finishes.

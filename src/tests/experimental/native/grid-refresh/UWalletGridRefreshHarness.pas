@@ -288,7 +288,7 @@ begin
   FWorkActive := True;
   FProducer := TMockBlockProducer.Create(TUserInterface.Node, FMain.Model, FCycleRows.Checked);
   FProducer.Start;
-  Log('SYNC producer started: actual node lifecycle pauses queries while notifications arrive every100ms');
+  Log('SYNC producer started: actual node lifecycle pauses queries while notifications arrive every 100ms');
 end;
 
 procedure TGridRefreshHarness.StopContinuous(Sender: TObject);
@@ -313,7 +313,7 @@ begin
   NotifyBlock;
   FHoldStarted := GetTickCount64;
   FPhase := apGapHold;
-  Log('BUSY BATCH: actual node synchronization remains active for6.5s without provider queries');
+  Log('BUSY BATCH: actual node synchronization remains active for 6.5s without provider queries');
 end;
 
 procedure TGridRefreshHarness.ToggleFetchGate(Sender: TObject);
@@ -516,7 +516,7 @@ begin
 end;
 
 procedure TGridRefreshHarness.Tick(Sender: TObject);
-var LExpectedSource: IDataSource;
+var LExpectedSource: IDataSource; LToolsChecks: String;
 begin
   if FInTick then Exit;
   FInTick := true;
@@ -561,12 +561,12 @@ begin
         Exit;
       end;
       if FAutomatic and SameText(GetEnvironmentVariable('PASCAL_WALLET_TOOLS_ONLY'),'1') then begin
-        CheckWalletToolsDialogs(FMain,ChangeFileExt(FLogPath,'.tools.log'));
+        LToolsChecks := CheckWalletToolsDialogs(FMain,ChangeFileExt(FLogPath,'.tools.log'));
         FPassed := True;
         AutomaticPassed := True;
         FPhase := apFinished;
         FTimer.Enabled := False;
-        Log('PASS actual Tools forms, Change All Key wizard and Overview geometry checks');
+        Log('PASS '+LToolsChecks);
         DrainLog;
         PostMessage(FMain.Handle,CM_PC_Terminate,0,0);
         Exit;

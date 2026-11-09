@@ -26,3 +26,6 @@ requests. To run all nine:
 2. Put its returned core directory before the normal core search path.
 3. Define `PASCAL_PROTOCOL_INTERNAL_CHECKS`.
 4. Use a new compiler output directory.
+
+`../RunWalletRegressionTests.ps1 -Probe pending-protocol` does all of this,
+requires all nine cases and recomputes the vectors with Python.

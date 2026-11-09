@@ -67,7 +67,7 @@ if (-not (Test-Path -LiteralPath $crypto)) {
 if (-not (Test-Path -LiteralPath $crypto)) { throw "OpenSSL runtime not found: $crypto" }
 Copy-Item -LiteralPath $crypto -Destination $output
 $shippingDirectory = Join-Path $output 'shipping'
-New-Item -ItemType Directory -Path $shippingDirectory | Out-Null
+New-Item -ItemType Directory -Path $shippingDirectory -Force | Out-Null
 $stagedShipping = Join-Path $shippingDirectory ([IO.Path]::GetFileName($shippingExecutable))
 $shippingHash = (Get-FileHash -LiteralPath $shippingExecutable -Algorithm SHA256).Hash
 Copy-Item -LiteralPath $shippingExecutable -Destination $stagedShipping

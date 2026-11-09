@@ -15,6 +15,9 @@ Run on Windows x64 with a new output directory:
 ./Run-BufferedAdoptionChecks.ps1 -OutputDirectory '<new-folder>'
 ```
 
+The script finds FPC on `PATH` unless you pass `-FpcPath`, and takes OpenSSL
+1.1 from `src` or `windows-dll`.
+
 For Delphi, build `BufferedAdoptionProbe.dproj`, set `TEMP` to a test folder and
 pass an output-log filename. Put `libcrypto-1_1-x64.dll` and
 `src/tests/experimental/fixtures/mainnet-blocks-0-4.bin` beside the executable.

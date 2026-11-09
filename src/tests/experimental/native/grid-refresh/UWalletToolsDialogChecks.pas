@@ -11,7 +11,7 @@ interface
 uses UWalletGridMocks;
 
 procedure SeedWalletToolsSettings(const ADirectory: String);
-procedure CheckWalletToolsDialogs(AMain: TMockMainForm; const ALogPath: String);
+function CheckWalletToolsDialogs(AMain: TMockMainForm; const ALogPath: String): String;
 
 implementation
 
@@ -1172,20 +1172,26 @@ begin
   Log('PASS actual Tools menu forms, native Change All Key wizard/cancel and Overview geometry');
 end;
 
-procedure CheckWalletToolsDialogs(AMain: TMockMainForm; const ALogPath: String);
+function CheckWalletToolsDialogs(AMain: TMockMainForm; const ALogPath: String): String;
 var
   LBag: TDisposables;
   LChecks: TWalletToolsChecks;
 begin
+  // Returns the name of the checks that ran, for the caller's main-log marker.
   LChecks := LBag.AddObject(TWalletToolsChecks.Create(AMain, ALogPath)) as TWalletToolsChecks;
-  if SameText(GetEnvironmentVariable('PASCAL_WALLET_HISTORY_DEPTH_ONLY'),'1') then
-    LChecks.RunHistoryDepth
-  else if SameText(GetEnvironmentVariable('PASCAL_WALLET_OPERATION_INPUT_ONLY'),'1') then
-    LChecks.RunOperationInput
-  else if SameText(GetEnvironmentVariable('PASCAL_WALLET_BLOCK_TOOLS_ONLY'),'1') then
-    LChecks.RunBlockTools
-  else
+  if SameText(GetEnvironmentVariable('PASCAL_WALLET_HISTORY_DEPTH_ONLY'),'1') then begin
+    LChecks.RunHistoryDepth;
+    Result := 'actual main-wallet history-depth picker checks';
+  end else if SameText(GetEnvironmentVariable('PASCAL_WALLET_OPERATION_INPUT_ONLY'),'1') then begin
+    LChecks.RunOperationInput;
+    Result := 'Operations Explorer click-only details and explicit main-wallet Details checks';
+  end else if SameText(GetEnvironmentVariable('PASCAL_WALLET_BLOCK_TOOLS_ONLY'),'1') then begin
+    LChecks.RunBlockTools;
+    Result := 'actual Block Explorer Tools refresh/reset checks';
+  end else begin
     LChecks.Run;
+    Result := 'actual Tools forms, Change All Key wizard and Overview geometry checks';
+  end;
 end;
 
 end.

@@ -26,14 +26,14 @@ project also has an FPC `.lpr` entry point.
 | `direct` | `BufferedBlockBacklogProbe.dproj` | Calls the response handler directly and checks nested requests online and offline |
 | `synchronization` | `BufferedBlockBacklogProbe.dproj` | Both synchronization cards stay visible through a quiet gap longer than six seconds, then clear |
 | `outgoing` | `OutgoingBufferedBlockProbe.dproj` | OFF must not truncate the client's buffered batch |
-| `outgoing-shutdown` | `OutgoingShutdownProbe.dproj` | Shutdown finishes within five seconds and stops between complete blocks |
+| `outgoing-shutdown` | `OutgoingShutdownProbe.dproj` | Shutdown finishes within 15 seconds and stops between complete blocks |
 | `incoming` | `IncomingBufferedBlockProbe.dproj` | OFF returns promptly while all received blocks drain |
 | `incoming-settings` | `IncomingSettingsProbe.dproj` | Latest settings win after rapid OFF, ON, OFF, port and name changes |
 | `incoming-shutdown` | `IncomingShutdownProbe.dproj` | As `outgoing-shutdown`, while OFF waits for an incoming batch |
 | `connected-miner` | `ConnectedMinerProbe.dproj` | With a loopback miner, notifications reach the UI promptly while the bank writer is held |
 
 `BufferedBlockBacklogProbe` runs the case named in `PASCALCOIN_BACKLOG_CASE`, or
-`direct` when it is unset. Other projects need no variable.
+`direct` when it is unset. Other projects ignore the variable.
 
 ## Optional large public-chain fixture
 

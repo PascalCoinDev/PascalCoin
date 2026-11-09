@@ -5,7 +5,8 @@ Builds and runs main-wallet refresh and received-block checks on a private deskt
 The default target is the dedicated FPCUnit fixture. Use -Demo to run the native
 interactive demo's automatic scenarios instead. Add -AllDemoCases to include
 every distinct native presentation/logging/dialog group in fresh processes.
-Use -DemoCase <name> with -Demo to run one of those groups instead.
+Use -DemoCase <name> with -Demo to run one of those groups instead, or one
+part of the default group alone.
 Native demo checks use the shipping Release optimization level so layout bugs
 that disappear in less optimized builds remain covered.
 Use -NetworkOff for the real
@@ -56,10 +57,20 @@ $demoSelectors = [ordered]@{
     'advanced-ui' = @('PASCAL_WALLET_ADVANCED_UI_ONLY')
 }
 $allDemoCaseNames = @('default') + @($demoSelectors.Keys)
+# Each of these runs one part of the default case on its own. -AllDemoCases
+# already runs 'default', so only -DemoCase selects them.
+$defaultPartSelectors = [ordered]@{
+    'key-notifications' = @('PASCAL_WALLET_KEY_NOTIFICATIONS_ONLY')
+    'consecutive-selection' = @('PASCAL_WALLET_CONSECUTIVE_SELECTION_ONLY')
+    'refresh-lifecycle' = @('PASCAL_WALLET_REFRESH_LIFECYCLE_ONLY')
+    'selection-completion' = @('PASCAL_WALLET_SELECTION_COMPLETION_ONLY')
+}
+$demoCaseNames = $allDemoCaseNames + @($defaultPartSelectors.Keys)
+foreach ($part in $defaultPartSelectors.GetEnumerator()) { $demoSelectors[$part.Key] = $part.Value }
 if ($DemoCase) {
     $DemoCase = $DemoCase.ToLowerInvariant()
-    if ($DemoCase -notin $allDemoCaseNames) {
-        throw "Unknown demo case '$DemoCase'. Choose: $($allDemoCaseNames -join ', ')."
+    if ($DemoCase -notin $demoCaseNames) {
+        throw "Unknown demo case '$DemoCase'. Choose: $($demoCaseNames -join ', ')."
     }
 }
 $useDemoSelectors = $AllDemoCases -or [bool]$DemoCase
@@ -147,9 +158,7 @@ $previousTemp = $env:TEMP
 $previousTmp = $env:TMP
 $previousBacklogCase = $env:PASCALCOIN_BACKLOG_CASE
 $previousLargeDataRoot = $env:PASCALCOIN_LARGE_BACKLOG_ROOT
-$selectorNames = @($demoSelectors.Values | ForEach-Object { $_ }) + @(
-    'PASCAL_WALLET_KEY_NOTIFICATIONS_ONLY', 'PASCAL_WALLET_CONSECUTIVE_SELECTION_ONLY',
-    'PASCAL_WALLET_REFRESH_LIFECYCLE_ONLY', 'PASCAL_WALLET_SELECTION_COMPLETION_ONLY')
+$selectorNames = @($demoSelectors.Values | ForEach-Object { $_ })
 $selectorNames = @($selectorNames | Sort-Object -Unique)
 $previousSelectors = @{}
 if ($useDemoSelectors) {

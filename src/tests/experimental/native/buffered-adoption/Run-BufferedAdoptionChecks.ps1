@@ -1,9 +1,10 @@
 # Copyright © 2026 Herman Schoenfeld <https://sphere10.com>. MIT license.
 param(
     [Parameter(Mandatory=$true)][string]$OutputDirectory,
-    [string]$FpcPath='fpc'
+    [string]$FpcPath=$(if ($c = Get-Command fpc -ErrorAction SilentlyContinue) { $c.Source } else { '' })
 )
 $ErrorActionPreference='Stop'
+if(-not $FpcPath){throw 'Free Pascal was not found on PATH; pass -FpcPath.'}
 $compiler=(Get-Command $FpcPath -ErrorAction Stop).Source
 $target=((& $compiler '-iTP' '-iTO') -join ' ').Trim() -split '\s+'
 if($LASTEXITCODE-ne0-or$target.Count-ne2-or$target[0]-ne'x86_64'-or$target[1]-ne'win64'){
@@ -22,7 +23,11 @@ $arguments+=Join-Path $PSScriptRoot 'BufferedAdoptionProbe.lpr'
 $arguments|Set-Content -LiteralPath (Join-Path $output 'compiler-arguments.txt')
 & $compiler @arguments *> (Join-Path $output 'build.log')
 if($LASTEXITCODE-ne0){Get-Content -LiteralPath (Join-Path $output 'build.log') -Tail 40;throw 'Buffered adoption probe did not compile.'}
-Copy-Item -LiteralPath (Join-Path $source 'libcrypto-1_1-x64.dll') -Destination $output
+# Prefer a deployed runtime, then the tracked copy, so a clean checkout also runs.
+$crypto=Join-Path $source 'libcrypto-1_1-x64.dll'
+if(-not(Test-Path -LiteralPath $crypto)){$crypto=Join-Path (Split-Path -Parent $source) 'windows-dll\libcrypto-1_1-x64.dll'}
+if(-not(Test-Path -LiteralPath $crypto)){throw "OpenSSL runtime not found: $crypto"}
+Copy-Item -LiteralPath $crypto -Destination $output
 Copy-Item -LiteralPath (Join-Path $source 'tests\experimental\fixtures\mainnet-blocks-0-4.bin') -Destination $output
 $oldTemp,$oldTmp=$env:TEMP,$env:TMP
 try{

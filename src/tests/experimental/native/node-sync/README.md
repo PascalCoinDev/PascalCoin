@@ -38,6 +38,14 @@ The cases cover:
   new work, but buffered work finishes. Listeners get the error on the main
   thread without blocking the worker. Only storage errors latch.
 
+## Wallet probe
+
+[WalletNodeSynchronizationProbe](WalletNodeSynchronizationProbe.lpr) checks the
+main form on a real node: synchronization cards, account-cache order, cancelled
+grid reads and the storage-failure banner.
+`../RunWalletRegressionTests.ps1 -Probe node-sync` builds and runs it through
+the broker.
+
 ## Recorded results
 
 On 30 October 2026, Delphi Win64 and FPC 3.2.0 builds passed the eight cases
