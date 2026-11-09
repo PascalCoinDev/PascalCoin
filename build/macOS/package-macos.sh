@@ -4,8 +4,9 @@
 # Usage: build/macOS/package-macos.sh <binary-folder> <output-folder> [dmg-name]
 #
 # <binary-folder> holds PascalCoinWalletLazarus and PascalCoinWalletExperimental
-# built with lazbuild --ws=cocoa. The DMG is named <dmg-name>.dmg, by default
-# PascalCoin-<version>-x86_64-darwin, where <version> is CT_ClientAppVersion.
+# built with lazbuild --ws=cocoa; CI merges Intel and Apple silicon builds into
+# universal binaries with lipo first. The DMG is named <dmg-name>.dmg, by default
+# PascalCoin-<version>-macOS, where <version> is CT_ClientAppVersion.
 # On a system without codesign or hdiutil the bundles are only staged, so the
 # layout can be inspected anywhere.
 set -euo pipefail
@@ -26,7 +27,7 @@ if [[ -z "$version" ]]; then
   echo "Cannot read CT_ClientAppVersion from src/core/UConst.pas" >&2
   exit 1
 fi
-name="${3:-PascalCoin-$version-x86_64-darwin}"
+name="${3:-PascalCoin-$version-macOS}"
 stage="$out/stage"
 rm -rf "$stage"
 mkdir -p "$stage"

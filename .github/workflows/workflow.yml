@@ -90,6 +90,23 @@ jobs:
       if: ${{ runner.os == 'macOS' }}
       run: lazbuild -B --ws=cocoa --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
 
+    - name: Add Apple silicon to the wallets (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      shell: bash
+      run: |
+        intel="$RUNNER_TEMP/macos-intel"
+        mkdir -p "$intel"
+        cp src/PascalCoinWalletLazarus src/PascalCoinWalletExperimental "$intel/"
+        lazbuild -B --cpu=aarch64 --os=darwin --ws=cocoa "src/pascalcoin_wallet_classic.lpi"
+        lazbuild -B --cpu=aarch64 --os=darwin --ws=cocoa --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
+        for exe in PascalCoinWalletLazarus PascalCoinWalletExperimental; do
+          lipo -create "$intel/$exe" "src/$exe" -output "$intel/$exe.universal"
+          mv "$intel/$exe.universal" "src/$exe"
+          archs="$(lipo -archs "src/$exe")"
+          echo "$exe: $archs"
+          [[ "$archs" == *x86_64* && "$archs" == *arm64* ]]
+        done
+
     - name: Package wallet apps into a disk image (macOS)
       if: ${{ runner.os == 'macOS' }}
       run: bash build/macOS/package-macos.sh src "$RUNNER_TEMP/macos-dmg"
@@ -234,7 +251,7 @@ jobs:
         cd ../PascalCoinMacOSDiskImage
         images=(*.dmg)
         if [[ ${#images[@]} -ne 1 ]]; then echo "Expected one disk image" >&2; exit 1; fi
-        image=PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.dmg
+        image=PascalCoin-${{ steps.vars.outputs.tag }}-macOS.dmg
         if [[ "${images[0]}" != "$image" ]]; then mv "${images[0]}" "$image"; fi
 
     - name: Checksum release files
