@@ -847,7 +847,10 @@ begin
     repeat
       Pump;
       LStatus := FNode.GetSynchronizationStatus;
-      if not FNode.IsUpdatingBlockChain and (InterlockedCompareExchange(FDestroyed, 0, 0) <> 0) then Break;
+      // Peer statistics settle just after the owner's destroyed flag, so wait for both.
+      if not FNode.IsUpdatingBlockChain and (InterlockedCompareExchange(FDestroyed, 0, 0) <> 0) and
+        (FNet.NetStatistics.ActiveConnections = 0) and (FNet.NetStatistics.ServersConnections = 0) and
+        (FNet.NetStatistics.ServersConnectionsWithResponse = 0) then Break;
     until GetTickCount64 >= LUntil;
     Log(Format('RESULT case=%d committed=%d blocks=%d destroyed=%d active=%d reserved=%d',
       [Ord(AScenario), FCommits, FNode.Bank.BlocksCount, FDestroyed,
