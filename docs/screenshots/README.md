@@ -1,15 +1,11 @@
 # PascalCoin 5.9 screenshots
 
-These user-supplied screenshots show the experimental wallet on Windows with
-Delphi/VCL and Free Pascal/Lazarus LCL. Compiler labels follow the supplied sets
-and their native controls. The images are unmodified WebP originals; existing
-balance redactions are preserved. No private-key or password-entry screens are
-included.
+These screenshots show the experimental wallet on Windows, built with
+Delphi (VCL) and Lazarus/FPC (LCL). They are unmodified, user-supplied WebP
+originals, including their balance redactions. No screenshot shows a
+private-key or password-entry screen.
 
-The repository keeps these files for independent documentation rendering. Their
-SHA-256 checksums are:
-
-| File | SHA-256 |
+| Screenshot | SHA-256 |
 |---|---|
 | [Delphi wallet](5.9/experimental-delphi-wallet.webp) | `f1ac26aec782529d416b5abbc346fc126f09effef0cca9ad50c162d2f991fb87` |
 | [FPC wallet](5.9/experimental-fpc-wallet.webp) | `d7226f5c450191ee5966d46046ccfa5343ecb42924cb386a9d3be58c85b0c78a` |

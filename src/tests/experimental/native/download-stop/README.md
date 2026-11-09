@@ -1,42 +1,24 @@
 # Safebox download shutdown regression
 
-The downloader requests cooperative cancellation from every chunk worker,
-releases its chunk-list lock, waits for their normal exits, then releases their
-streams and shared state. `TThread.Terminate` sets a flag; it does not kill a
-thread or close its in-progress stream. A worker retries
-under the same lock; waiting for it while holding that lock creates a deadlock.
+Checks that stopping a safebox download causes no deadlock, lets in-flight
+writes finish, deletes partial files, keeps saved files unchanged and publishes
+no archive. It also covers destroying an empty downloader.
 
-Run the checked Lazarus/FPC probe from the repository root:
+Run the Lazarus/FPC probe from the repository root:
 
 ```powershell
 & src\tests\experimental\RunWalletDownloadStopTests.ps1
 ```
 
-The script builds into a fresh directory and uses the existing private-desktop
-broker. Its log and heap report must show a natural exit and no leaks. Use
-`-OutputDirectory <new-directory>` to retain evidence in a chosen location.
+The script builds into a new folder and runs the probe through the
+[private-desktop broker](../README.md#private-desktop-broker). Pass
+`-OutputDirectory <new-directory>` to choose the output folder. `-FpcPath` and
+`-LazarusDirectory` select a Windows x64 FPC and Lazarus. The log and heap
+report must show a natural exit and no leaks.
 
-The matching [Delphi project](DownloadSafeboxStopProbe.dproj) uses the same
-[checks](UDownloadSafeboxStopChecks.pas). Build it with the normal Delphi compiler
-and launch its EXE through the private-desktop broker with one absolute log-file
-argument. Keep it beside the existing matching OpenSSL runtime; there are no build
-events or generated source-resource dependencies.
+The [Delphi project](DownloadSafeboxStopProbe.dproj) uses the same
+[checks](UDownloadSafeboxStopChecks.pas). Build it with Delphi and put the
+matching OpenSSL runtime beside the EXE. Run it through the broker with one
+absolute log filename.
 
-The probe uses a new explicit data directory and loopback-only discovery. The
-public downloader creates two actual chunk workers. A gate releases both into
-their inherited retry loop at the first real join, making contention for the
-owner's list deterministic. It checks that both workers were cancelled before
-that join, both retries return, both joins complete, temporary streams are removed
-and the enclosing core-work scope ends. Empty downloader destruction is covered
-too. The fixture does not replace the production lock acquisition or worker retry.
-
-Each worker also completes, flushes and rereads a real temporary-file write after
-the cancellation flag is set. Streams must remain alive through worker exit and
-all joins; partial files are deleted afterward. Existing saved-file bytes must
-remain unchanged and a cancelled download must publish no archive. This checks
-the downloader's cooperative stream lifetime; it is not a general protocol
-durability or power-loss test.
-
-This shutdown test is independent of grid synchronization presentation. The
-wallet's synchronization card follows the node's physical synchronization work;
-the generic refresh throttle retains its independent timer/reset contract.
+The probe uses a new data folder and loopback-only discovery.

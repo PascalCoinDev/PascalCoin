@@ -1,52 +1,37 @@
 # Classic GUI compatibility probe
 
-This Windows probe constructs the production Classic `TFRMWallet` and its actual
-DFM/LFM, local-load worker, node observers, account source and block-grid worker.
-It selects a fresh data directory beside its new log before form construction,
-seeds owned settings, two historic public watch keys and an empty public watch
-key, then applies five historic blocks through `TNode.AddNewBlockChain` on an owned
-worker. Each decoded block is copied into a container bound to the actual bank,
-as required by the normal validation transaction. No validation flag is bypassed.
-The empty watch key is derived from a temporary generated key which is freed
-before startup. Only public keys are persisted; no user wallet/configuration is read.
+This Windows probe runs the classic wallet form, `TFRMWallet`, on five mainnet
+blocks. It checks:
 
-The Classic shipping entry point does not implement the experimental
-application's `--offline` or `--data-dir` options. The probe sets the folder before
-creating the actual form and disables outbound connections. Classic activation
-still starts its own listener on an ephemeral port, so the tested composition is
-outbound-disabled rather than socket-free. Fixed discovery is restricted to
-loopback, and RPC/mining are disabled in the owned settings.
+- activation and local restore
+- validated commits, committed-tip labels and block-grid rows
+- key selection while idle and during catch-up
+- native Close while an account filter is busy
+- gettext cleanup of translated forms (Delphi only)
 
-Build `ClassicWalletProbe.lpi` with Lazarus/LCL or `ClassicWalletProbe.dproj` with
-Delphi/VCL. The projects use repository-relative source paths and match the
-Classic application's arithmetic settings. The independently checked core probes
-cover the changed lock, transport and numeric contracts.
+Run the Lazarus/FPC probe from the repository root:
 
-Run the executable on an owned non-input Windows desktop with one new absolute
-log filename. Set `PASCAL_CLASSIC_BLOCK_FIXTURE` to
-`src/tests/experimental/fixtures/mainnet-blocks-0-4.bin` and make the matching
-OpenSSL DLL available beside the executable. Bind the fixture hash to the test
-receipt. The probe rejects the input desktop and existing log/data directories.
+```powershell
+& src\tests\experimental\native\RunWalletRegressionTests.ps1 -Probe classic -OutputDirectory <new-directory>
+```
 
-The checks cover actual activation/local restore, five fully validated commits,
-committed-tip labels, real block-grid rows and actual key-dropdown changes.
-Selections cover two disjoint account sets, an empty key, all wallet keys and
-rapid changes, both while idle and while catch-up keeps pending data unavailable.
-Every phase checks account identities, actual cell records, balances and totals;
-reconciliation must retain the latest selection. No extra mining key or
-unexpected dialog/application exception is permitted. After loading
-finishes at two blocks, only the test disables Classic's normal status timer so
-the final three label checks exercise its existing node notifications. This does
-not change or require an event-only Classic status policy. The activation worker
-retains its production `FreeOnTerminate` policy; the probe observes completion
-through `OnTerminate` and a duplicated Windows thread handle. Native Close runs
-the actual form's shutdown flow with an account filter still busy. It has no
-confirmation dialog.
-Delphi runs also check that a translated form hooks its real `BeforeDestruction`
-VMT slot, preventing freed controls from surviving in gettext's cleanup registry.
+`-FpcPath` and `-LazarusDirectory` select a Windows x64 FPC and Lazarus.
 
-Build and run each required compiler/architecture separately; a passing Lazarus
-or Win64 run does not establish Win32 behavior. The probe exits zero only after
-its native checks and normal closure finish. Keep its source/executable hashes,
-log, captures and heap/leak report with each run. This probe does not establish
-live-peer synchronization or large-wallet throughput.
+Alternatively, build `ClassicWalletProbe.lpi` with Lazarus (LCL) or
+`ClassicWalletProbe.dproj` with Delphi (VCL). Build and run each compiler and
+architecture separately.
+
+1. Place the matching OpenSSL DLL beside the executable.
+2. Set `PASCAL_CLASSIC_BLOCK_FIXTURE` to the full path of
+   `src/tests/experimental/fixtures/mainnet-blocks-0-4.bin`, the
+   [five-block fixture](../../fixtures/README.md).
+3. Run the executable through the
+   [private-desktop broker](../README.md#private-desktop-broker), passing one
+   absolute log filename in a new folder.
+
+Exit code 0 means all checks passed and the form closed normally. Captures and
+the Lazarus heap report go beside the log.
+
+The probe keeps its data in a new folder beside the log and never reads a user's
+wallet or configuration. It disables outbound connections, RPC and mining, but
+the classic wallet still listens on an ephemeral port.

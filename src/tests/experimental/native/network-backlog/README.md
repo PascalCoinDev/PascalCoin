@@ -1,94 +1,52 @@
 # Received block backlog and wallet status
 
-These regressions feed the five original mainnet blocks through the actual
-network response processor, normal proof-of-work/bank validation and storage.
-They include the real outgoing `TNetClient` receive thread and incoming
-`TNetServerClient` listener/socket ownership. They run the real experimental main
-form and inherited data sources,
-with an owned loopback socket and fresh data. No existing wallet data or private
-keys are loaded. The settings case generates one disposable key and configures
-the mining listener on an OS-selected port, without external miners. The
-[small public-chain fixture](../../fixtures/README.md) is embedded
-in the executable.
+These regressions feed the embedded
+[small public-chain fixture](../../fixtures/README.md) to the experimental wallet
+over a loopback socket. They check its status, grids and storage while the
+backlog drains. No check loads existing wallet data or private keys.
 
-Run the Free Pascal target from the checkout root:
+Run the FPC target from the repository root:
 
 ```powershell
 .\src\tests\experimental\RunWalletGridRefreshTests.ps1 -Backlog `
   -OutputDirectory <local-folder>
 ```
 
-The output directory must be new. The script compiles once and runs all eight
-scenarios in separate fresh processes. The existing broker creates a private
-desktop and passes the probe one new absolute log-file path. Each scenario must
-exit naturally with a clean FPC heap report. The probe refuses the input desktop.
+The output directory must be new. Each scenario runs on a private desktop and
+must exit naturally with a clean FPC heap report.
 
-For Delphi, build a project below with the installed IDE and run its executable
-through the same broker/log contract. These are automatic tests, not interactive
-wallets. Each project also has a corresponding Free Pascal `.lpr` entry point.
+For Delphi, build a project below in the IDE and run it through the
+[private-desktop broker](../README.md#private-desktop-broker) with a new absolute log-file path. Each
+project also has an FPC `.lpr` entry point.
 
-| Delphi project | Scenario |
-|---|---|
-| `BufferedBlockBacklogProbe.dproj` | Direct protected response entry, real online/offline nested request admission and per-commit UI assertions. |
-| `BufferedBlockBacklogProbe.dproj`, `PASCALCOIN_BACKLOG_CASE=synchronization` | Two real responses containing two then three historic blocks. Both native synchronization cards must remain visible through commits and a quiet gap longer than six seconds, then clear when the selected peer target is reached. |
-| `OutgoingBufferedBlockProbe.dproj` | Actual client-owned receive thread; OFF must not let automatic client destruction truncate its buffered batch. |
-| `OutgoingShutdownProbe.dproj` | Actual application shutdown while that outgoing batch is held; stop between complete blocks and join naturally. |
-| `IncomingBufferedBlockProbe.dproj` | Actual listener/socket worker; the real toolbar OFF action must return promptly while all received blocks drain. |
-| `IncomingSettingsProbe.dproj` | Rapid OFF/ON/OFF and port/name settings while the incoming batch is held, with mining configured on using a disposable generated key. Latest settings, unchanged ordinary reward-key selection and subsequent listener/footer events must win. |
-| `IncomingShutdownProbe.dproj` | Actual application shutdown while the serialized listener-stop task is waiting for an incoming buffer. |
-| `ConnectedMinerProbe.dproj` | One actual loopback miner consumes a production job. Real block/operation notifications must reach the UI promptly while the bank writer is held; settings retain the same reward key. |
+## Scenarios
 
-The primary executable also accepts a test-only process environment variable,
-`PASCALCOIN_BACKLOG_CASE`, with values `direct`, `synchronization`, `outgoing`, `outgoing-shutdown`,
-`incoming`, `incoming-settings`, `incoming-shutdown` or `connected-miner`. An absent value selects
-`direct`. The PowerShell runner sets and restores this variable around each
-child; no environment setting is required for the individually named projects.
+| Case | Delphi project | Scenario |
+|---|---|---|
+| `direct` | `BufferedBlockBacklogProbe.dproj` | Calls the response handler directly and checks nested requests online and offline |
+| `synchronization` | `BufferedBlockBacklogProbe.dproj` | Both synchronization cards stay visible through a quiet gap longer than six seconds, then clear |
+| `outgoing` | `OutgoingBufferedBlockProbe.dproj` | OFF must not truncate the client's buffered batch |
+| `outgoing-shutdown` | `OutgoingShutdownProbe.dproj` | Shutdown finishes within five seconds and stops between complete blocks |
+| `incoming` | `IncomingBufferedBlockProbe.dproj` | OFF returns promptly while all received blocks drain |
+| `incoming-settings` | `IncomingSettingsProbe.dproj` | Latest settings win after rapid OFF, ON, OFF, port and name changes |
+| `incoming-shutdown` | `IncomingShutdownProbe.dproj` | As `outgoing-shutdown`, while OFF waits for an incoming batch |
+| `connected-miner` | `ConnectedMinerProbe.dproj` | With a loopback miner, notifications reach the UI promptly while the bank writer is held |
 
-Outgoing/direct cases switch networking off in the first real committed-block
-notification. Incoming cases hold that notification and invoke the actual
-toolbar handler on the main thread. A separate owned gate actor bounds even a
-blocking old listener shutdown without forcibly terminating any worker. Normal
-OFF must finish all five already-received blocks; explicit application shutdown
-must stop between complete blocks and reopen the complete first block.
-The checks cover:
-
-- Node status remains synchronizing, and both main grids stay suspended and
-  covered until the batch drains. Native overlay and spinner visibility, exact
-  captions and containment within each grid are checked at the commit gates.
-- The online `synchronization` case retains its selected peer target between
-  two actual `GET_BLOCKS` responses. With no active transfer during the gap,
-  both native cards must remain visible until the final target is committed.
-- The footer and basic sync labels display the same committed block count and
-  timestamp from the cached node record, while a modeless dialog keeps focus.
-- Network-off rejects new connections, block requests and nested request waits,
-  including native main-thread/external-thread callers.
-- Normal OFF reopens all five blocks through the production disk-restore
-  entrypoint with the correct final timestamp. Explicit shutdown reopens exactly
-  one complete block.
-
-These five empty historical blocks verify processing, UI consistency and
-persistence. They do not measure dense-mempool or live-network throughput.
-The owned peer is a real loopback socket. Owner scenarios reflect an exact
-production-serialized response frame into the real socket, so the actual owned
-worker performs decoding and application. Only the `direct` scenario invokes the
-protected received-response entry point itself; it independently observes the
-real outgoing request frame and public nested request/wait admission. The raw
-peer does not implement full HELLO negotiation or peer discovery.
+`BufferedBlockBacklogProbe` runs the case named in `PASCALCOIN_BACKLOG_CASE`, or
+`direct` when it is unset. Other projects need no variable.
 
 ## Optional large public-chain fixture
 
-`LargeBufferedBlockBacklogProbe.dproj` and its FPC `.lpr` entry point use the
-same real main form and outgoing transport owner with a matching owned chain
-copy at block count **841529** and **185831** pending operations. The embedded
+`LargeBufferedBlockBacklogProbe.dproj` and its FPC `.lpr` entry point run the
+main form against a chain copy at block count **841529** with **185831** pending
+operations. The embedded
 [five public blocks](../../fixtures/mainnet-blocks-841529-841533.json) advance
-the chain to **841534** through normal proof-of-work, operation, bank and storage
-validation. This is separate from the eight fresh, small-chain scenarios.
+it to **841534**.
 
-Prepare a new app root with no `WalletKeys.dat` or `AppParams.prm`. Its `Data`
-directory must be a junction to the explicitly owned public-chain copy, with a
-`LargeBacklog.owned` marker in the new app root. The operator must validate the
-resolved junction target and exclusively reserve that mutable copy for the run;
-the test never creates a second chain copy or uses a live wallet directory.
+Prepare a new app root that holds a `LargeBacklog.owned` marker and a `Data`
+junction to that chain copy, but no `WalletKeys.dat` or `AppParams.prm`. Confirm
+that `Data` resolves to the copy. The run changes the copy, so reserve it for
+this run alone. The test never uses a live wallet directory.
 
 ```powershell
 .\src\tests\experimental\RunWalletGridRefreshTests.ps1 -LargeBacklog `
@@ -96,32 +54,18 @@ the test never creates a second chain copy or uses a live wallet directory.
   -OutputDirectory <local-folder>
 ```
 
-The script supplies the global `LARGE_BACKLOG_PROBE` compiler define and the
-`PASCALCOIN_LARGE_BACKLOG_ROOT` process variable. The Delphi project supplies the
-same define; set that variable when invoking its executable through the existing
-private-desktop broker with one new log-file argument. A direct FPC compilation
-also needs `-dLARGE_BACKLOG_PROBE`. Neither project is an interactive wallet.
+Without the script, set `PASCALCOIN_LARGE_BACKLOG_ROOT` to the app root and run
+the executable through the broker with a new absolute log-file path. A direct
+FPC compilation also needs `-dLARGE_BACKLOG_PROBE`.
 
-The fixture samples distinct public owners of the first, middle and last
-pending signers, then affected accounts and a bounded public-chain fallback.
-It loads no private keys. Real typed
-provider subclasses count calls and invoke their inherited implementations;
-they do not replace data reads, invalidation, refresh or lock behavior. Initial
-pages must expose at least 326,387 owned accounts and 1,000 actual pending-history
-rows. While the received batch remains active after OFF, both grids must stay
-covered without new provider queries, the footer and sync labels must follow
-each real commit, and main-message dispatch must stay below 400 ms. Page requests
-made while paused must resume as one latest successful query per grid, with
-their actual rows published.
+The run requires that:
 
-The complete pending-operation count, ordered hash and serialized SHA-256 must
-remain unchanged. After ordinary joined shutdown, all five stored blocks must
-reopen with the exact original public network bytes and the pending package
-must reopen with the same 185,831 operations. Retain before/after hashes of the
-owned chain files, and restore that fixture before another compiler run.
-These checks verify the combined UI/data/transport lifecycle; they are not a
-live-network download-rate benchmark.
-The dense FPC entry point keeps range and overflow checks but does not enable
-heap tracing, so its allocation behavior matches the shipping program. Its
-receipt does not assert zero unfreed blocks. The eight small scenarios and the
-full wallet suite retain their separate heap-traced checks.
+- the initial pages show at least 326,387 owned accounts and 1,000
+  pending-history rows
+- both grids stay covered without new queries while the batch drains after OFF
+- main-message dispatch stays below 400 ms
+- the pending operations stay unchanged
+- all five blocks and 185,831 pending operations reopen after shutdown
+
+Keep before-and-after hashes of the chain files, and restore the copy before
+the next run.
