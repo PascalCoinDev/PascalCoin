@@ -113,7 +113,7 @@ class function TRPCOpData.OpData_FindOpDataOperations(
       AAct_depth : Integer; AFirst_Block_Is_Unknown : Boolean;
       ASearchBySender : Boolean; ASearchSender : Cardinal;
       ASearchByTarget : Boolean; ASearchTarget : Cardinal;
-      ASearchByGUID : Boolean; ASearchGUID : TGUID;
+      ASearchByGUID : Boolean; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASearchGUID : TGUID;
       ASearchByDataSequence : Boolean; ASearchDataSequence : Word;
       ASearchByDataType : Boolean; ASearchDataType : Word;
       AOperationsResumeList : TOperationsResumeList
