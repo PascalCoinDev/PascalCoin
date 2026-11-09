@@ -7,6 +7,12 @@
 - Implementation of PIP-0044 (Induplicatable NFT) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0044.md
 - Improvements on downloading Safebox (fresh installation)
 
+## Build 5.9.5
+- Ship the macOS wallets as universal apps that run natively on Apple silicon and Intel Macs. CI cross-compiles the Apple silicon builds and merges them with `lipo`.
+- Rename the macOS disk image to `PascalCoin-<version>-macOS.dmg`.
+- Rewrite the READMEs to be clear and concise, checked against the code.
+- Align node, miner and executable versions at 5.9.5.
+
 ## Build 5.9.4
 - Package the macOS Classic and Experimental wallets as `PascalCoin Wallet.app` and `PascalCoin Wallet Experimental.app` in a `PascalCoin-<version>-x86_64-darwin.dmg` disk image with an Applications link and first-start instructions.
 - Sign the macOS app bundles ad hoc and verify them, inside the disk image, in CI.

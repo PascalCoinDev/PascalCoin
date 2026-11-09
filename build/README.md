@@ -15,11 +15,13 @@ bash build/macOS/package-macos.sh src dist
 
 Bundles take their version from `CT_ClientAppVersion` in `src/core/UConst.pas`
 and metadata from [Info.plist.in](macOS/Info.plist.in). The image is
-`dist/PascalCoin-<version>-x86_64-darwin.dmg`. If `codesign` or `hdiutil` is
+`dist/PascalCoin-<version>-macOS.dmg`. If `codesign` or `hdiutil` is
 missing, the script only assembles the bundles in `dist/stage`.
 
-CI attaches the image to tagged releases as
-`PascalCoin-<tag>-x86_64-darwin.dmg`.
+CI also cross-compiles both wallets for Apple silicon with
+`lazbuild --compiler=<fpc driver> --cpu=aarch64`, merges them with `lipo` into
+universal binaries and attaches the image to tagged releases as
+`PascalCoin-<tag>-macOS.dmg`.
 
 The bundles lack Developer ID signing and notarization, so macOS asks users to
 confirm the first launch.

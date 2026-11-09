@@ -27,20 +27,20 @@ alongside the work of the PascalCoin contributors.
 
 ## Downloads
 
-[PascalCoin 5.9.4](https://github.com/PascalCoin/PascalCoin/releases/tag/5.9.4)
+[PascalCoin 5.9.5](https://github.com/PascalCoin/PascalCoin/releases/tag/5.9.5)
 archives contain all four applications. Drag the wallet apps from the macOS disk
-image to Applications.
+image to Applications. They run natively on Apple silicon and Intel Macs.
 
 | Platform | Package |
 |---|---|
-| Windows x64 | [PascalCoin-5.9.4-x86_64-win64.zip](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.4/PascalCoin-5.9.4-x86_64-win64.zip) |
-| Linux x64 | [PascalCoin-5.9.4-x86_64-linux.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.4/PascalCoin-5.9.4-x86_64-linux.tar.gz) |
-| macOS Intel, wallet apps | [PascalCoin-5.9.4-x86_64-darwin.dmg](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.4/PascalCoin-5.9.4-x86_64-darwin.dmg) |
-| macOS Intel, all programs | [PascalCoin-5.9.4-x86_64-darwin.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.4/PascalCoin-5.9.4-x86_64-darwin.tar.gz) |
+| Windows x64 | [PascalCoin-5.9.5-x86_64-win64.zip](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.5/PascalCoin-5.9.5-x86_64-win64.zip) |
+| Linux x64 | [PascalCoin-5.9.5-x86_64-linux.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.5/PascalCoin-5.9.5-x86_64-linux.tar.gz) |
+| macOS, wallet apps | [PascalCoin-5.9.5-macOS.dmg](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.5/PascalCoin-5.9.5-macOS.dmg) |
+| macOS, all programs | [PascalCoin-5.9.5-x86_64-darwin.tar.gz](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.5/PascalCoin-5.9.5-x86_64-darwin.tar.gz) |
 
 Verify packages against the release's
-[SHA256SUMS](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.4/SHA256SUMS).
-See [Build 5.9.4](CHANGELOG.md#build-594) for the patch changes.
+[SHA256SUMS](https://github.com/PascalCoin/PascalCoin/releases/download/5.9.5/SHA256SUMS).
+See [Build 5.9.5](CHANGELOG.md#build-595) for the patch changes.
 [All releases](https://github.com/PascalCoin/PascalCoin/releases) include earlier
 mainnet and testnet builds.
 
@@ -106,7 +106,7 @@ runtime layout.
 ### Lazarus/FPC
 
 With `lazbuild` and FPC, build all four applications into `src`, named as in the
-application table, on Windows, Linux or Intel macOS. Run from the repository
+application table, on Windows, Linux or macOS. Run from the repository
 root:
 
 ```sh
