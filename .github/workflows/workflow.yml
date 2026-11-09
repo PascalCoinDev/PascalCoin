@@ -108,7 +108,12 @@ jobs:
           echo "The FPC install has no aarch64 compiler (ppca64)." >&2
           exit 1
         fi
-        driver="$(command -v fpc)"
+        # Xcode's new linker aborts on FPC 3.2.2 aarch64 objects, so link with the
+        # classic linker through a wrapper around the fpc driver.
+        driver="$RUNNER_TEMP/fpc-aarch64"
+        printf '#!/bin/bash\nexec "%s" -k-ld_classic "$@"\n' "$(command -v fpc)" > "$driver"
+        chmod +x "$driver"
+        ld -v 2>&1 | head -n 2 || true
         echo "Apple silicon compiler: $ppca64, driver: $driver"
         lazbuild -B --compiler="$driver" --cpu=aarch64 --os=darwin --ws=cocoa "src/pascalcoin_wallet_classic.lpi"
         lazbuild -B --compiler="$driver" --cpu=aarch64 --os=darwin --ws=cocoa --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
