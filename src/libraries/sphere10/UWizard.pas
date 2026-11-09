@@ -72,7 +72,7 @@ type
 
   { TWizardHostForm - the host form that contains the wizard screens. }
   TWizardHostForm = class(TForm)
-    FHorizonalLine: TPanel;
+    FHorizontalLine: TPanel;
     FNextButton: TButton;
     FPreviousButton: TButton;
     FWizardScreenPanel: TPanel;

@@ -133,7 +133,7 @@ begin
         Dest.FPointers[i].Ptr := nil;
       end;
       idpRelease: begin
-        raise ENotSupportedException.Create('Dispose policy idoRelease not supported');
+        raise ENotSupportedException.Create('Dispose policy idpRelease not supported');
       end;
       idpFreeMem: if Assigned(Dest.FPointers[i].Ptr) then System.FreeMem(Dest.FPointers[i].Ptr);
       else raise ENotSupportedException.Create('Dispose policy not supported');
@@ -172,7 +172,7 @@ begin
         ADisposables.FPointers[i].Ptr := nil;
       end;
       idpRelease: begin
-        raise ENotSupportedException.Create('Dispose policy idoRelease not supported');
+        raise ENotSupportedException.Create('Dispose policy idpRelease not supported');
       end;
       idpFreeMem: if Assigned(ADisposables.FPointers[i].Ptr) then System.FreeMem(ADisposables.FPointers[i].Ptr);
       else raise ENotSupportedException.Create('Dispose policy not supported');

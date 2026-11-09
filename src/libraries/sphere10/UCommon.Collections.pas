@@ -155,7 +155,8 @@ type
     class function RemoveBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TDisposePolicy) : SizeInt; overload;
     class function FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>) : SizeInt; overload;
     class function FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TDisposePolicy) : SizeInt; overload;
-    class procedure DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TDisposePolicy);
+    class procedure DisposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TDisposePolicy);
+    class procedure DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TDisposePolicy); deprecated 'Use DisposeItem';
   end;
 
   TListTool<T1, T2> = class
@@ -810,7 +811,7 @@ begin
   while i >= 0 do begin
     item := AList[i];
     if APredicate.Evaluate(item) then begin
-      DiposeItem(AList, i, ADisposePolicy);
+      DisposeItem(AList, i, ADisposePolicy);
       AList.Delete(i);
       inc(Result);
     end;
@@ -830,7 +831,7 @@ begin
   Result := RemoveBy(AList, LRejected, ADisposePolicy);
 end;
 
-class procedure TListTool<T>.DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TDisposePolicy);
+class procedure TListTool<T>.DisposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TDisposePolicy);
 var
   item : T;
 begin
@@ -850,6 +851,11 @@ begin
     end
     else raise ENotSupportedException.Create(Format('TItemDisposePolicy: [%d]', [Ord(ADisposePolicy)]));
   end;
+end;
+
+class procedure TListTool<T>.DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TDisposePolicy);
+begin
+  DisposeItem(AList, index, ADisposePolicy);
 end;
 
 class function TListTool<T1, T2>.Transform(const AArray : TArray<T1>; const ATransform : TNestedTransformFunc<T1, T2>) : TArray<T2>;

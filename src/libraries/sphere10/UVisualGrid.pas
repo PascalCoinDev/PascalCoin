@@ -2171,7 +2171,7 @@ var
       case Kind of
         ekUnknown: Exit;
         ekNum:
-          case NumericComparisionKind of
+          case NumericComparisonKind of
             // nckUnknown is special case - pure number can be text and num
             nckUnknown: LCandidates := [vgfNumericEQ, vgfMatchTextExact];
             nckNumericEQ: LCandidates := [vgfNumericEQ];

@@ -38,7 +38,8 @@ unit UCommon.Data;
   TExpressionRecord                | Stores a parsed text, numeric or range search expression.
   TFilterCriteria                  | Holds an array of column filters.
   TFilterOperand                   | Combines filters using AND or OR.
-  TNumericComparisionKind          | Selects the numeric comparison in a parsed expression.
+  TNumericComparisionKind          | Deprecated alias of TNumericComparisonKind.
+  TNumericComparisonKind           | Selects the numeric comparison in a parsed expression.
   TPageFetchParams                 | Describes a page request, its filters and filter-combination rule.
   TPageFetchResult                 | Reports the returned page index, page count and total row count.
   TSearchExpressionService         | Parses text, numeric and range search expressions.
@@ -274,7 +275,8 @@ const
 
   TExpressionKind = (ekUnknown, ekText, ekNum, ekSet);
   TTextMatchKind = (tmkUnknown, tmkMatchTextExact, tmkMatchTextBeginning, tmkMatchTextEnd, tmkMatchTextAnywhere);
-  TNumericComparisionKind = (nckUnknown, nckNumericEQ, nckNumericLT, nckNumericLTE, nckNumericGT, nckNumericGTE);
+  TNumericComparisonKind = (nckUnknown, nckNumericEQ, nckNumericLT, nckNumericLTE, nckNumericGT, nckNumericGTE);
+  TNumericComparisionKind = TNumericComparisonKind deprecated 'Use TNumericComparisonKind';
   TSetKind = (skUnknown, skNumericBetweenInclusive, skNumericBetweenExclusive);
 
   TExpressionRecord = record
@@ -283,7 +285,7 @@ const
   case Kind: TExpressionKind of
     ekUnknown: ();
     ekText: (TextMatchKind: TTextMatchKind);
-    ekNum: (NumericComparisionKind: TNumericComparisionKind);
+    ekNum: (NumericComparisonKind: TNumericComparisonKind);
     ekSet: (SetKind: TSetKind);
   end;
 
@@ -1204,7 +1206,7 @@ begin
 
     // text mode has precedence (parsing the expressions like: 123abs)
     if (LExpressionKind = ekNum) and (AExpressionKind = ekUnknown)
-      and (LToken in [tkText, tkPercent]) and (AExpressionRecord.NumericComparisionKind = nckUnknown) then
+      and (LToken in [tkText, tkPercent]) and (AExpressionRecord.NumericComparisonKind = nckUnknown) then
     begin
       LExpressionKind := ekText;
     end;
@@ -1271,11 +1273,11 @@ begin
             else
               with AExpressionRecord do
               case LToken of
-                tkLess: NumericComparisionKind:=nckNumericLT;
-                tkGreater: NumericComparisionKind:=nckNumericGT;
-                tkEqual: NumericComparisionKind:=nckNumericEQ;
-                tkLessOrEqual: NumericComparisionKind:=nckNumericLTE;
-                tkGreaterOrEqual: NumericComparisionKind:=nckNumericGTE;
+                tkLess: NumericComparisonKind:=nckNumericLT;
+                tkGreater: NumericComparisonKind:=nckNumericGT;
+                tkEqual: NumericComparisonKind:=nckNumericEQ;
+                tkLessOrEqual: NumericComparisonKind:=nckNumericLTE;
+                tkGreaterOrEqual: NumericComparisonKind:=nckNumericGTE;
               end;
           ekSet: raise ESearchExpressionParserException.CreateFmt(sUnexpectedTokenFound, [TokenToStr(LToken)]);
         end;

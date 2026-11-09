@@ -10,7 +10,7 @@ object WizardHostForm: TWizardHostForm
   OnCloseQuery = FormCloseQuery
   Position = poOwnerFormCenter
   Visible = False
-  object FHorizonalLine: TPanel
+  object FHorizontalLine: TPanel
     Left = 0
     Height = 1
     Top = 65
