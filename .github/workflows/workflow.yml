@@ -97,8 +97,21 @@ jobs:
         intel="$RUNNER_TEMP/macos-intel"
         mkdir -p "$intel"
         cp src/PascalCoinWalletLazarus src/PascalCoinWalletExperimental "$intel/"
-        lazbuild -B --cpu=aarch64 --os=darwin --ws=cocoa "src/pascalcoin_wallet_classic.lpi"
-        lazbuild -B --cpu=aarch64 --os=darwin --ws=cocoa --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
+        # Lazarus calls ppcx64 directly, which cannot target aarch64. The fpc driver
+        # selects ppca64 from the FPC 3.2.2 Intel and Arm64 install.
+        ppca64="$(command -v ppca64 || true)"
+        if [[ -z "$ppca64" ]]; then
+          ppca64="$(ls /usr/local/lib/fpc/*/ppca64 2>/dev/null | head -n 1 || true)"
+          [[ -n "$ppca64" ]] && export PATH="$(dirname "$ppca64"):$PATH"
+        fi
+        if [[ -z "$ppca64" ]]; then
+          echo "The FPC install has no aarch64 compiler (ppca64)." >&2
+          exit 1
+        fi
+        driver="$(command -v fpc)"
+        echo "Apple silicon compiler: $ppca64, driver: $driver"
+        lazbuild -B --compiler="$driver" --cpu=aarch64 --os=darwin --ws=cocoa "src/pascalcoin_wallet_classic.lpi"
+        lazbuild -B --compiler="$driver" --cpu=aarch64 --os=darwin --ws=cocoa --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
         for exe in PascalCoinWalletLazarus PascalCoinWalletExperimental; do
           lipo -create "$intel/$exe" "src/$exe" -output "$intel/$exe.universal"
           mv "$intel/$exe.universal" "src/$exe"
