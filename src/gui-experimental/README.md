@@ -61,14 +61,14 @@ To distribute the executable, keep its matching runtime and the
 Start the wallet offline with a new data folder:
 
 ```powershell
-& .\src\PascalCoinWalletExperimental.exe --data-dir="<local-folder>" `
+& .\src\PascalCoinWalletExperimental.exe --data-dir="<new-data-folder>" `
   --offline --no-startup-dialogs
 ```
 
 For the Delphi build, use the same options with its executable:
 
 ```powershell
-& .\src\pascalcoin_wallet_experimental.exe --data-dir="<local-folder>" `
+& .\src\pascalcoin_wallet_experimental.exe --data-dir="<new-data-folder>" `
   --offline --no-startup-dialogs
 ```
 

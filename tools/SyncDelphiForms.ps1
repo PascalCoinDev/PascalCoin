@@ -18,8 +18,8 @@ param(
     [switch] $AssetsOnly,
     [switch] $PropertiesOnly,
     [string] $ImageListConverter,
-    [string] $FpcPath = '<fpc>\bin\x86_64-win64\fpc.exe',
-    [string] $LazarusDirectory = '<lazarus>'
+    [string] $FpcPath = $(if ($c = Get-Command fpc -ErrorAction SilentlyContinue) { $c.Source } else { '' }),
+    [string] $LazarusDirectory = $(if ($c = Get-Command lazbuild -ErrorAction SilentlyContinue) { Split-Path -Parent $c.Source } else { '' })
 )
 
 $ErrorActionPreference = 'Stop'

@@ -8,7 +8,7 @@ using small generated safeboxes.
 a new output directory:
 
 ```powershell
-.\src\tests\experimental\native\storage-recovery\Run-CheckpointStorageChecks.ps1 -OutputDirectory <local-folder>Qa\checkpoint-storage
+.\src\tests\experimental\native\storage-recovery\Run-CheckpointStorageChecks.ps1 -OutputDirectory <new-folder>
 ```
 
 `-FpcPath` selects another Windows x64 compiler. A passing log ends with

@@ -123,7 +123,7 @@ OpenSSL runtime beside the executable. For example:
 $previous = $env:PASCAL_WALLET_SEND_UI_ONLY
 $env:PASCAL_WALLET_SEND_UI_ONLY = '1'
 try {
-  & $Broker $WalletGridRefreshExe '<local-folder>'
+  & $Broker $WalletGridRefreshExe '<new-folder>\tests.log'
 } finally {
   $env:PASCAL_WALLET_SEND_UI_ONLY = $previous
 }

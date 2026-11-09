@@ -172,7 +172,7 @@ probes and optional large-chain fixtures.
 For a separate experimental wallet session, use a new data folder:
 
 ```powershell
-& .\src\PascalCoinWalletExperimental.exe --data-dir="<local-folder>" --offline --no-startup-dialogs
+& .\src\PascalCoinWalletExperimental.exe --data-dir="<new-data-folder>" --offline --no-startup-dialogs
 ```
 
 `--offline` disables peers, listening, RPC and mining for that run only.

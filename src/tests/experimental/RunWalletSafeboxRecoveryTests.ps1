@@ -8,7 +8,7 @@ owned private desktop and never connects to public peers or opens a user's walle
 #>
 # Copyright © 2026 Herman Schoenfeld <https://sphere10.com>. MIT license.
 param(
-    [string] $FpcPath = '<fpc>\bin\x86_64-win64\fpc.exe',
+    [string] $FpcPath = $(if ($c = Get-Command fpc -ErrorAction SilentlyContinue) { $c.Source } else { '' }),
     [string] $OutputDirectory
 )
 

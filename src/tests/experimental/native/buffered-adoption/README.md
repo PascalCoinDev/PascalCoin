@@ -12,7 +12,7 @@ separate build.
 Run on Windows x64 with a new output directory:
 
 ```powershell
-./Run-BufferedAdoptionChecks.ps1 -FpcPath '<fpc>\bin\x86_64-win64\fpc.exe' -OutputDirectory '<local-folder>'
+./Run-BufferedAdoptionChecks.ps1 -OutputDirectory '<new-folder>'
 ```
 
 For Delphi, build `BufferedAdoptionProbe.dproj`, set `TEMP` to a test folder and

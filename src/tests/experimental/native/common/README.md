@@ -14,15 +14,15 @@ For `NativeThrottleProbe`, run these commands from the repository root with
 Free Pascal on PATH:
 
 ```powershell
-New-Item src\tests\experimental\lib\native-throttle\broker,<local-folder> -ItemType Directory -Force
+New-Item src\tests\experimental\lib\native-throttle\broker,<new-folder> -ItemType Directory -Force
 fpc -FEsrc\tests\experimental\lib\native-throttle\broker -FUsrc\tests\experimental\lib\native-throttle\broker src\tests\experimental\native\PrivateDesktopBroker.lpr
 .\src\tests\experimental\lib\native-throttle\broker\PrivateDesktopBroker.exe `
   .\src\tests\experimental\lib\native-throttle\Win64\Debug\bin\NativeThrottleProbe.exe `
-  <local-folder>
+  <new-folder>\trace.log
 ```
 
 For other broker runs, substitute the probe's EXE and log path. Pass a log path
-in a test folder or point `TEMP` and `TMP` at a test folder.
+in a test folder, or point `TEMP` and `TMP` at one.
 
 | Probe | Arguments | Report | Exit codes |
 |---|---|---|---|
@@ -105,7 +105,7 @@ repository root:
 
 ```powershell
 $env:PASCAL_GRID_EARLY_CANCEL_ONLY = '1'
-.\src\tests\experimental\lib\Delphi\Win64\grid-throttle\Debug\GridThrottleProbe.exe <local-folder>
+.\src\tests\experimental\lib\Delphi\Win64\grid-throttle\Debug\GridThrottleProbe.exe <new-folder>\GridEarlyCancel.log
 ```
 
 The probe builds into

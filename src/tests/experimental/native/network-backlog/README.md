@@ -9,7 +9,7 @@ Run the FPC target from the repository root:
 
 ```powershell
 .\src\tests\experimental\RunWalletGridRefreshTests.ps1 -Backlog `
-  -OutputDirectory <local-folder>
+  -OutputDirectory <new-folder>
 ```
 
 The output directory must be new. Each scenario runs on a private desktop and
@@ -50,8 +50,8 @@ this run alone. The test never uses a live wallet directory.
 
 ```powershell
 .\src\tests\experimental\RunWalletGridRefreshTests.ps1 -LargeBacklog `
-  -LargeDataRoot <local-folder> `
-  -OutputDirectory <local-folder>
+  -LargeDataRoot <large-wallet-copy> `
+  -OutputDirectory <another-new-folder>
 ```
 
 Without the script, set `PASCALCOIN_LARGE_BACKLOG_ROOT` to the app root and run

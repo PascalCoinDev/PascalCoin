@@ -31,7 +31,7 @@ Build Win64 Debug in Delphi, put OpenSSL 1.1 beside the executable and point
 new log-file path:
 
 ```powershell
-.\CoreSynchronizationProbe.exe <local-folder>
+.\CoreSynchronizationProbe.exe <new-folder>\checks.log
 ```
 
 A successful run exits 0 and writes a summary and per-scenario logs. FPC also

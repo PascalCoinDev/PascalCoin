@@ -7,7 +7,7 @@ public peers or installed wallet processes are used.
 #>
 # Copyright (c) 2026 Herman Schoenfeld <https://sphere10.com>. MIT license.
 param(
-    [string] $FpcPath = '<fpc>\bin\x86_64-win64\fpc.exe',
+    [string] $FpcPath = $(if ($c = Get-Command fpc -ErrorAction SilentlyContinue) { $c.Source } else { '' }),
     [Parameter(Mandatory = $true)] [string] $OutputDirectory
 )
 

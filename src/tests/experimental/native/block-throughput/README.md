@@ -28,10 +28,10 @@ Both projects and the FPCUnit wrapper share
 at a test folder:
 
 ```powershell
-$env:TEMP = '<local-folder>'
+$env:TEMP = '<new-folder>'
 $env:TMP = $env:TEMP
 New-Item -ItemType Directory -Path $env:TEMP -Force
-.\PendingCatchupProbe.exe <local-folder>
+.\PendingCatchupProbe.exe <new-folder>\checks.log
 ```
 
 ## Operation sanitizer
@@ -53,7 +53,7 @@ run nine check groups with generated accounts and signed operations:
 group as an FPCUnit test. Build the probe with range and overflow checks.
 
 ```powershell
-.\SanitizeOperationsProbe.exe <local-folder>
+.\SanitizeOperationsProbe.exe <new-folder>\checks.log
 ```
 
 ## Pending saves
@@ -79,8 +79,8 @@ needs `BlockChainStream.blocks`, `safebox.am_safebox` and a `pendingbuffer.ops`
 with 185,831 pending operations.
 
 ```powershell
-$env:PASCAL_BLOCK_BENCH_DATA = '<local-folder>'
-.\BlockThroughputProbe.exe <local-folder>
+$env:PASCAL_BLOCK_BENCH_DATA = '<chain-copy-folder>'
+.\BlockThroughputProbe.exe <chain-copy-folder>\throughput.log
 ```
 
 By default the probe times three sanitizations and checks that the output is

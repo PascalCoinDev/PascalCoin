@@ -23,17 +23,13 @@ if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
 if (-not $FpcPath) {
     $command = Get-Command fpc -ErrorAction SilentlyContinue
     if ($command) { $FpcPath = $command.Source }
-    elseif (Test-Path -LiteralPath '<fpc>\bin\x86_64-win64\fpc.exe') {
-        $FpcPath = '<fpc>\bin\x86_64-win64\fpc.exe'
-    } else { throw 'Pass -FpcPath or add fpc to PATH.' }
+    else { throw 'Pass -FpcPath or add fpc to PATH.' }
 }
 $compiler = (Resolve-Path -LiteralPath $FpcPath).Path
 if (-not $LazarusDirectory) {
     $command = Get-Command lazbuild -ErrorAction SilentlyContinue
     if ($command) { $LazarusDirectory = Split-Path -Parent $command.Source }
-    elseif (Test-Path -LiteralPath '<lazarus>\lcl') {
-        $LazarusDirectory = '<lazarus>'
-    } else { throw 'Pass -LazarusDirectory or add lazbuild to PATH.' }
+    else { throw 'Pass -LazarusDirectory or add lazbuild to PATH.' }
 }
 $lazarus = (Resolve-Path -LiteralPath $LazarusDirectory).Path
 if (-not (Test-Path -LiteralPath (Join-Path $lazarus 'lcl') -PathType Container)) {

@@ -14,8 +14,8 @@ Run each EXE through the [private-desktop broker](../README.md#private-desktop-b
 passing one absolute log filename in a new folder:
 
 ```powershell
-& $Broker $DelphiSelectorExe '<local-folder>'
-& $Broker $FpcSelectorExe '<local-folder>'
+& $Broker $DelphiSelectorExe '<new-folder>\delphi.log'
+& $Broker $FpcSelectorExe '<new-folder>\fpc.log'
 ```
 
 Success writes `PASS complete experimental account selector checks` and exits

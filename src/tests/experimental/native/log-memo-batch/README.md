@@ -6,8 +6,8 @@ immediate direct callbacks. Empty and fully filtered batches change nothing.
 `-Classic` checks the classic form.
 
 ```powershell
-.\RunLogMemoBatchChecks.ps1 -OutputDirectory <local-folder>
-.\RunLogMemoBatchChecks.ps1 -Classic -OutputDirectory <local-folder>
+.\RunLogMemoBatchChecks.ps1 -OutputDirectory <new-folder>
+.\RunLogMemoBatchChecks.ps1 -Classic -OutputDirectory <another-new-folder>
 ```
 
 The output directory must be new. The probe runs offline with new data, and the
