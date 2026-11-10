@@ -139,7 +139,7 @@ begin
   end;
 
   // Do new operation
-  ASender.Node.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent sends
+  ASender.Node.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent sends
   try
 
     if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'sender',ASender.Node,LSender.account,AErrorDesc) then begin
@@ -218,7 +218,7 @@ begin
       LOpt.free;
     end;
   finally
-    ASender.Node.OperationSequenceLock.Release;
+    ASender.Node.OperationSequenceLock.ReleaseWriteLock;
   end;
 end;
 

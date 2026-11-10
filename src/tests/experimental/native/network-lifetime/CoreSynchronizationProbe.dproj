@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{52422A56-3823-4226-BD09-69768488E80A}</ProjectGuid>
+    <MainSource>CoreSynchronizationProbe.dpr</MainSource>
+    <Config>Debug</Config>
+    <Platform>Win64</Platform>
+    <Base>True</Base>
+    <TargetedPlatforms>3</TargetedPlatforms>
+    <AppType>Application</AppType>
+    <FrameworkType>None</FrameworkType>
+    <ProjectVersion>20.3</ProjectVersion>
+    <DCC_Namespace>System;Winapi;Vcl;Data;Xml</DCC_Namespace>
+    <DCC_UnitAlias>Generics.Collections=System.Generics.Collections;Generics.Defaults=System.Generics.Defaults;$(DCC_UnitAlias)</DCC_UnitAlias>
+    <DCC_UnitSearchPath>..\..\..\..\core;..\block-throughput;..\node-sync;..\..\..\..\libraries\sphere10;..\..\..\..\libraries\simplebaselib4pascal;..\..\..\..\libraries\hashlib4pascal;..\..\..\..\libraries\cryptolib4pascal;..\..\..\..\libraries\synapse;..\..\..\..\libraries\pascalcoin;..\..\..\..\libraries\paszlib;..\..\..\..\libraries\abstractmem;..\..\..\..\libraries\regex</DCC_UnitSearchPath>
+    <DCC_IncludePath>..\..\..\..\core;..\..\..\..\libraries\sphere10</DCC_IncludePath>
+    <DCC_DcuOutput>..\..\lib\network-lifetime\Delphi\$(Platform)\$(Config)\dcu</DCC_DcuOutput>
+    <DCC_ExeOutput>..\..\lib\network-lifetime\Delphi\$(Platform)\$(Config)</DCC_ExeOutput>
+    <DCC_DebugInformation>true</DCC_DebugInformation>
+    <DCC_RangeChecking>true</DCC_RangeChecking>
+    <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+  </PropertyGroup>
+  <ItemGroup>
+    <DelphiCompile Include="$(MainSource)"><MainSource>MainSource</MainSource></DelphiCompile>
+    <DCCReference Include="UCoreSynchronizationChecks.pas" />
+  </ItemGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+    <BorlandProject><Delphi.Personality><Source>
+      <Source Name="MainSource">CoreSynchronizationProbe.dpr</Source>
+    </Source></Delphi.Personality><Platforms>
+      <Platform value="Win32">True</Platform><Platform value="Win64">True</Platform>
+    </Platforms></BorlandProject>
+  </ProjectExtensions>
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" />
+</Project>

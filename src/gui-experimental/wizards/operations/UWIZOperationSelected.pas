@@ -17,7 +17,20 @@ unit UWIZOperationSelected;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+{ Reviews selected operation accounts and their total balance before
+  validating operation eligibility.
+}
+
+{ Public types in this unit
+
+  Type                  | Purpose
+  ----------------------+--------------------------------------------------------------------------
+  TWIZOperationSelected | Displays selected accounts and checks their operation prerequisites.
+}
 
 interface
 
@@ -38,14 +51,18 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UCommon,
@@ -81,6 +98,7 @@ var
   LTotalBalance: int64;
   LCaption: string;
 begin
+  FreeAndNil(FSelectedAccountsGrid);
   FSelectedAccountsGrid := TVisualGrid.Create(Self);
   FSelectedAccountsGrid.CanSearch := False;
   FSelectedAccountsGrid.SortMode := smMultiColumn;
@@ -114,8 +132,9 @@ begin
   end;
   LData := TOperationSelectedDataSource.Create(FSelectedAccountsGrid);
   LData.Model := Model;
-  FSelectedAccountsGrid.DataSource := LData;
+  // Synchronous fetching can measure native cells, so establish parenting first.
   paGrid.AddControlDockCenter(FSelectedAccountsGrid);
+  FSelectedAccountsGrid.DataSource := LData;
 
   LTotalBalance := 0;
   for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
@@ -132,11 +151,11 @@ procedure TWIZOperationSelected.OnNext;
 var
   LAllUserAccountsExcludingPending: TArray<TAccount>;
 begin
-  LAllUserAccountsExcludingPending := TCoreTool.GetUserAccounts(False);
-  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Model.Account.Count, IIF(TSettings.DefaultFee = 0, 1, TSettings.DefaultFee), LAllUserAccountsExcludingPending);
+  LAllUserAccountsExcludingPending := TCoreTool.GetUserAccounts(True);
+  Model.Signer.SignerCandidates := LAllUserAccountsExcludingPending;
 end;
 
-function TWIZOperationSelected.Validate(out message: ansistring): boolean;
+function TWIZOperationSelected.Validate(out message: String): boolean;
 var
   LIdx: integer;
   LAccount: TAccount;

@@ -15,14 +15,15 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
 
     strategy:
+      fail-fast: false
       matrix:
-        operating-system: [windows-latest,ubuntu-latest,macos-latest]
+        operating-system: [windows-latest,ubuntu-latest,macos-15-intel]
 #        lazarus-versions: [stable, 2.2.2, 2.2.0, 2.0.12]
         lazarus-versions: [stable]
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
       with:
         submodules: false
 
@@ -32,49 +33,193 @@ jobs:
         with-cache: false
         lazarus-version: ${{ matrix.lazarus-versions }}
 
+    - name: Test core and framework read/write locks
+      shell: bash
+      run: |
+        mkdir -p .ci-threading/units .ci-threading/bin
+        fpc -B -Mdelphi -Sh -gl -Cr -Co \
+          -FU.ci-threading/units -FE.ci-threading/bin \
+          -Fusrc/core -Fusrc/libraries/sphere10 -Fusrc/libraries/pascalcoin \
+          -Fusrc/libraries/generics.collections -Fisrc/libraries/generics.collections/inc \
+          -Fusrc/tests/experimental/core -Fusrc/tests/experimental/framework \
+          src/tests/experimental/ThreadingTests.lpr
+        ./.ci-threading/bin/ThreadingTests .ci-threading/results.log
+        cat .ci-threading/results.log
+        grep -q '^0 unfreed memory blocks' .ci-threading/results.log.heap.log
+
+    - name: Diagnose Unix threading failures
+      if: ${{ failure() && runner.os != 'Windows' }}
+      shell: bash
+      run: |
+        if [[ ! -x .ci-threading/bin/ThreadingTests ]]; then exit 0; fi
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          gdb --batch -ex 'set pagination off' -ex run -ex 'thread apply all bt 40' \
+            --args ./.ci-threading/bin/ThreadingTests .ci-threading/debug-results.log
+        else
+          lldb --batch -o run -k 'thread backtrace all -c 40' \
+            -- ./.ci-threading/bin/ThreadingTests .ci-threading/debug-results.log
+        fi
+
+    - name: Upload threading reports
+      if: ${{ always() && hashFiles('.ci-threading/*.log*') != '' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: Threading-${{ runner.os }}
+        path: .ci-threading/*.log*
+        include-hidden-files: true
+
     - name: Build the Pascal daemon
       run: lazbuild -B "src/pascalcoin_daemon.lpi"
 
     - name: Build reference Pascal Miner
       run: lazbuild -B "src/pascalcoin_miner.lpi"
 
-    - name: Build the Main Wallet Application (Windows/Linux)
-      if: ${{ matrix.operating-system != 'macos-latest' }}
+    - name: Build Classic Wallet (Windows/Linux)
+      if: ${{ runner.os != 'macOS' }}
       run: lazbuild -B "src/pascalcoin_wallet_classic.lpi"
 
-    - name: Build the Main Wallet Application (macOS)
-      if: ${{ matrix.operating-system == 'macos-latest' }}
+    - name: Build Classic Wallet (macOS)
+      if: ${{ runner.os == 'macOS' }}
       run: lazbuild -B --ws=cocoa "src/pascalcoin_wallet_classic.lpi"
+
+    - name: Build Experimental Wallet (Windows/Linux)
+      if: ${{ runner.os != 'macOS' }}
+      run: lazbuild -B --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
+
+    - name: Build Experimental Wallet (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      run: lazbuild -B --ws=cocoa --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
+
+    - name: Add Apple silicon to the wallets (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      shell: bash
+      run: |
+        intel="$RUNNER_TEMP/macos-intel"
+        mkdir -p "$intel"
+        cp src/PascalCoinWalletLazarus src/PascalCoinWalletExperimental "$intel/"
+        # Lazarus calls ppcx64 directly, which cannot target aarch64. The fpc driver
+        # selects ppca64 from the FPC 3.2.2 Intel and Arm64 install.
+        ppca64="$(command -v ppca64 || true)"
+        if [[ -z "$ppca64" ]]; then
+          ppca64="$(ls /usr/local/lib/fpc/*/ppca64 2>/dev/null | head -n 1 || true)"
+          [[ -n "$ppca64" ]] && export PATH="$(dirname "$ppca64"):$PATH"
+        fi
+        if [[ -z "$ppca64" ]]; then
+          echo "The FPC install has no aarch64 compiler (ppca64)." >&2
+          exit 1
+        fi
+        # Xcode's new linker aborts on FPC 3.2.2 aarch64 objects, so link with the
+        # classic linker through a wrapper around the fpc driver.
+        driver="$RUNNER_TEMP/fpc-aarch64"
+        printf '#!/bin/bash\nexec "%s" -k-ld_classic "$@"\n' "$(command -v fpc)" > "$driver"
+        chmod +x "$driver"
+        ld -v 2>&1 | head -n 2 || true
+        echo "Apple silicon compiler: $ppca64, driver: $driver"
+        lazbuild -B --compiler="$driver" --cpu=aarch64 --os=darwin --ws=cocoa "src/pascalcoin_wallet_classic.lpi"
+        lazbuild -B --compiler="$driver" --cpu=aarch64 --os=darwin --ws=cocoa --build-mode=Release "src/pascalcoin_wallet_experimental.lpi"
+        for exe in PascalCoinWalletLazarus PascalCoinWalletExperimental; do
+          lipo -create "$intel/$exe" "src/$exe" -output "$intel/$exe.universal"
+          mv "$intel/$exe.universal" "src/$exe"
+          archs="$(lipo -archs "src/$exe")"
+          echo "$exe: $archs"
+          [[ "$archs" == *x86_64* && "$archs" == *arm64* ]]
+        done
+
+    - name: Package wallet apps into a disk image (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      run: bash build/macOS/package-macos.sh src "$RUNNER_TEMP/macos-dmg"
+
+    - name: Test bounded message dialogs on the default desktop (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        $compiler = (Get-Command fpc).Source
+        $lazarus = Split-Path -Parent (Get-Command lazbuild).Source
+        & .\src\tests\experimental\RunWalletGridRefreshTests.ps1 -Demo -DemoCase operation-messages -FpcPath $compiler -LazarusDirectory $lazarus -OutputDirectory (Join-Path $env:RUNNER_TEMP 'wallet-message-small')
+        exit $LASTEXITCODE
+
+    - name: Prepare the 150-percent native test viewport (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        & .\src\tests\experimental\native\SetCiDisplayMode.ps1 -ReportPath (Join-Path $env:RUNNER_TEMP 'wallet-display.json')
+
+    - name: Test wallet units and native workflows (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        & .\src\tests\experimental\RunAllWalletTests.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'wallet-tests')
+        exit $LASTEXITCODE
+
+    - name: Upload wallet test reports
+      if: ${{ always() && runner.os == 'Windows' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: Wallet-tests-Windows
+        if-no-files-found: warn
+        retention-days: 14
+        path: |
+          ${{ runner.temp }}/wallet-tests/**/*.log
+          ${{ runner.temp }}/wallet-tests/**/*.json
+          ${{ runner.temp }}/wallet-tests/**/*.png
+          ${{ runner.temp }}/wallet-tests/**/*.bmp
+
+    - name: Upload native display checks
+      if: ${{ always() && runner.os == 'Windows' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: Native-display-Windows
+        if-no-files-found: warn
+        retention-days: 14
+        path: |
+          ${{ runner.temp }}/wallet-display.json
+          ${{ runner.temp }}/wallet-message-small/**/*.log
+          ${{ runner.temp }}/wallet-message-small/**/*.json
+          ${{ runner.temp }}/wallet-message-small/**/*.bmp
 
     - name: Upload binary (Windows)
       if: ${{ (matrix.operating-system == 'windows-latest')  &&  (matrix.lazarus-versions == 'stable') }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       with:
         name: PascalCoinWindows
+        if-no-files-found: error
         path: |
           src/pascalcoin_daemon.exe
           src/PascalCoinMiner.exe
           src/PascalCoinWalletLazarus.exe
+          src/PascalCoinWalletExperimental.exe
 
     - name: Upload binary (Ubuntu)
       if: ${{ (matrix.operating-system == 'ubuntu-latest')  &&  (matrix.lazarus-versions == 'stable') }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       with:
         name: PascalCoinLinux
+        if-no-files-found: error
         path: |
           src/pascalcoin_daemon
           src/PascalCoinMiner
           src/PascalCoinWalletLazarus
+          src/PascalCoinWalletExperimental
 
     - name: Upload binary (macOS)
-      if: ${{ (matrix.operating-system == 'macos-latest')  &&  (matrix.lazarus-versions == 'stable') }}
-      uses: actions/upload-artifact@v3
+      if: ${{ (runner.os == 'macOS')  &&  (matrix.lazarus-versions == 'stable') }}
+      uses: actions/upload-artifact@v7
       with:
         name: PascalCoinMacOS
+        if-no-files-found: error
         path: |
           src/pascalcoin_daemon
           src/PascalCoinMiner
           src/PascalCoinWalletLazarus
+          src/PascalCoinWalletExperimental
+
+    - name: Upload disk image (macOS)
+      if: ${{ (runner.os == 'macOS')  &&  (matrix.lazarus-versions == 'stable') }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: PascalCoinMacOSDiskImage
+        if-no-files-found: error
+        path: ${{ runner.temp }}/macos-dmg/*.dmg
 
   package-release:
     if: contains(github.ref, '/tags/')
@@ -82,39 +227,59 @@ jobs:
     name: Package and create GitHub Release
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Set output
       id: vars
       run: echo "tag=${GITHUB_REF#refs/*/}" >> ${GITHUB_OUTPUT}
 
     - name: Download the Release binary
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v7
+      with:
+        pattern: PascalCoin*
 
     - name: List files
       run: |
         ls -alF PascalCoinWindows
         ls -alF PascalCoinLinux
         ls -alF PascalCoinMacOS
+        ls -alF PascalCoinMacOSDiskImage
 
     - name: Create release files
       run: |
+        for package in PascalCoinWindows PascalCoinLinux PascalCoinMacOS; do
+          cp -R src/locale licenses "$package/"
+          cp src/pascalsha.cl LICENSE "$package/"
+        done
         cd PascalCoinWindows
         cp ../windows-dll/*.dll .
-        zip -r PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-win64.zip *.exe *.dll
+        zip -r PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-win64.zip *.exe *.dll locale licenses pascalsha.cl LICENSE
         cd ../PascalCoinLinux
         cp ../linux-libs/*.so.1.1 .
         chmod +x PascalCoin* pascalcoin*
-        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-linux.tar.gz PascalCoin* pascalcoin* *.so.1.1
+        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-linux.tar.gz PascalCoin* pascalcoin* *.so.1.1 locale licenses pascalsha.cl LICENSE
         cd ../PascalCoinMacOS
         chmod +x PascalCoin* pascalcoin*
-        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.tar.gz PascalCoin* pascalcoin*
+        tar -zcvf PascalCoin-${{ steps.vars.outputs.tag }}-x86_64-darwin.tar.gz PascalCoin* pascalcoin* locale licenses pascalsha.cl LICENSE
+        cd ../PascalCoinMacOSDiskImage
+        images=(*.dmg)
+        if [[ ${#images[@]} -ne 1 ]]; then echo "Expected one disk image" >&2; exit 1; fi
+        image=PascalCoin-${{ steps.vars.outputs.tag }}-macOS.dmg
+        if [[ "${images[0]}" != "$image" ]]; then mv "${images[0]}" "$image"; fi
+
+    - name: Checksum release files
+      run: |
+        for archive in PascalCoinWindows/*.zip PascalCoinLinux/*.tar.gz PascalCoinMacOS/*.tar.gz PascalCoinMacOSDiskImage/*.dmg; do
+          sha256sum "$archive" | sed 's@  .*/@  @'
+        done > SHA256SUMS
 
     - name: Create GitHub release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v3
       with:
         name: PascalCoin ${{ steps.vars.outputs.tag }}
         body_path: release-notes.md
@@ -122,6 +287,8 @@ jobs:
           PascalCoinWindows/*.zip
           PascalCoinLinux/*.tar.gz
           PascalCoinMacOS/*.tar.gz
+          PascalCoinMacOSDiskImage/*.dmg
+          SHA256SUMS
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -351,7 +351,7 @@ Type
     function N_Operation : Cardinal; override;
     procedure AffectedAccounts(list : TOrderedList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
-    Constructor CreateOpData( ACurrentProtocol : word; account_signer, account_sender, account_target : Cardinal; signer_key:TECPrivateKey; n_operation : Cardinal; dataType, dataSequence : Word; AGUID : TGUID; amount, fee : UInt64; const payload: TOperationPayload);
+    Constructor CreateOpData( ACurrentProtocol : word; account_signer, account_sender, account_target : Cardinal; signer_key:TECPrivateKey; n_operation : Cardinal; dataType, dataSequence : Word; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AGUID : TGUID; amount, fee : UInt64; const payload: TOperationPayload);
     Property Data : TOpDataData read FData;
     Function toString : String; Override;
     Function GetDigestToSign : TRawBytes; override;
@@ -519,7 +519,12 @@ begin
     exit;
   end;
   account_signer := AccountTransaction.Account(FData.account_signer);
-  account_target := AccountTransaction.Account(FData.account_target);
+  // No mutation occurs between these reads. A self-change validates the same
+  // account value twice; keep that exact record instead of rereading safebox.
+  if FData.account_signer = FData.account_target then
+    account_target := account_signer
+  else
+    account_target := AccountTransaction.Account(FData.account_target);
   if ((account_signer.n_operation+1)<>FData.n_operation) then begin
     errors := 'Invalid n_operation';
     Exit;
@@ -2849,8 +2854,10 @@ end;
 
 constructor TOpData.CreateOpData(ACurrentProtocol : word; account_signer, account_sender,
   account_target: Cardinal; signer_key: TECPrivateKey; n_operation: Cardinal;
-  dataType, dataSequence: Word; AGUID : TGUID; amount, fee: UInt64; const payload: TOperationPayload);
+  dataType, dataSequence: Word; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AGUID : TGUID; amount, fee: UInt64; const payload: TOperationPayload);
 begin
+  // FPC 3.2.2 for aarch64-darwin stops with internal error 2014121702 when this
+  // 16-byte record arrives by value on the stack, so it is passed by reference.
   Inherited Create(ACurrentProtocol);
   FData.account_sender:=account_sender;
   FData.account_signer:=account_signer;

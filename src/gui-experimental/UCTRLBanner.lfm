@@ -6,12 +6,14 @@ object CTRLBanner: TCTRLBanner
   BorderIcons = []
   BorderStyle = bsNone
   Caption = 'CTRLBanner'
+  OnDestroy = FormDestroy
   ClientHeight = 80
   ClientWidth = 992
   Constraints.MaxHeight = 80
   Constraints.MinHeight = 80
   Constraints.MinWidth = 512
   OnCreate = FormCreate
+  OnResize = FormResize
   LCLVersion = '1.8.4.0'
   Visible = False
   object imBackground: TImage
@@ -19,8 +21,8 @@ object CTRLBanner: TCTRLBanner
     Height = 81
     Top = 0
     Width = 992
-    Anchors = [akTop, akLeft, akRight, akBottom]
-    AutoSize = True
+    Align = alClient
+    AutoSize = False
     Picture.Data = {
       1754506F727461626C654E6574776F726B4772617068696366D5000089504E47
       0D0A1A0A0000000D4948445200000320000000500806000000E1BA1134000000
@@ -1758,13 +1760,14 @@ object CTRLBanner: TCTRLBanner
     Top = 32
     Width = 100
     Anchors = [akTop, akRight]
-    Enabled = False
+    Enabled = True
     ItemHeight = 15
     ItemIndex = 0
     Items.Strings = (
       'English'
     )
     Style = csDropDownList
+    OnChange = cbLanguageChange
     TabOrder = 0
     Text = 'English'
   end

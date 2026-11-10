@@ -17,8 +17,25 @@ unit UWIZChangeKey_SelectKey;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
+
+{ Selects an existing wallet key as the accounts' new owner and configures
+  optional operation steps.
+}
+
+{ Public types in this unit
+
+  Type                    | Purpose
+  ------------------------+--------------------------------------------------------------------------
+  TWIZChangeKey_SelectKey | Chooses a wallet key and rejects an unchanged account owner.
+}
 
 interface
 
@@ -42,13 +59,17 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UWallet,
@@ -149,7 +170,7 @@ begin
 
 end;
 
-function TWIZChangeKey_SelectKey.Validate(out message: ansistring): boolean;
+function TWIZChangeKey_SelectKey.Validate(out message: String): boolean;
 var
   LIdx: integer;
   LAccountKey: TAccountKey;

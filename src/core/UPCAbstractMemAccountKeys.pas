@@ -7,7 +7,7 @@ interface
 {$ENDIF}
 
 uses Classes, SysUtils,
-  SyncObjs,
+  UThread,
   UAbstractMem, UFileMem, UAbstractMemTList,
   UAbstractBTree, UAbstractAVLTree,
   UPCDataTypes, UBaseTypes, UAVLCache, UAbstractMemBTree, UOrderedList,
@@ -41,6 +41,9 @@ type
   public
     Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone; AUseCache : Boolean); reintroduce;
     function Get(Index : Integer) : Cardinal;
+    // Snapshot a range in one B-tree traversal. Repeated Get(Index) calls each
+    // walk from the lowest item and are quadratic for a complete account list.
+    function FillList(AStartIndex, ACount : Integer; const AList : TList<Cardinal>) : Integer; reintroduce; overload;
   End;
 
   TAccountKeyByPosition = record
@@ -59,7 +62,7 @@ type
 
   TPCAbstractMemAccountKeys = Class(TAVLAbstractTree<TAbstractMemAccountKeyNode>)
   private
-    FAccountKeysLock : TCriticalSection;
+    FAccountKeysLock : TReadWriteLock;
     FAbstractMem : TAbstractMem;
     FPointerToRootPosition : TAbstractMemPosition;
     FRootPosition : TAbstractMemPosition;
@@ -156,14 +159,16 @@ begin
   LRawSize := 0;
   Move(LBytes[6],LRawSize,2);
   SetLength(Self.accountKey.x,LRawSize);
-  if AAbstractMem.Read(AMyPosition + i,Self.accountKey.x[0],Length(Self.accountKey.x))<>Length(Self.accountKey.x) then raise EPCAbstractMemAccountKeys.Create(Format('Not enough data to read AccountKeyNode.x at %d',[AMyPosition]));
+  if LRawSize > 0 then
+    if AAbstractMem.Read(AMyPosition + i,Self.accountKey.x[0],Length(Self.accountKey.x))<>Length(Self.accountKey.x) then raise EPCAbstractMemAccountKeys.Create(Format('Not enough data to read AccountKeyNode.x at %d',[AMyPosition]));
   // Read next
   inc(i,LRawSize);
   LRawSize := 0;
   if AAbstractMem.Read(AMyPosition + i,LRawSize,2)<>2 then raise EPCAbstractMemAccountKeys.Create(Format('Not enough data to read AccountKeyNode.Length(y) at %d',[AMyPosition]));
   SetLength(Self.accountKey.y,LRawSize);
   inc(i,2);
-  if AAbstractMem.Read(AMyPosition + i,Self.accountKey.y[0],Length(Self.accountKey.y))<>Length(Self.accountKey.y) then raise EPCAbstractMemAccountKeys.Create(Format('Not enough data to read AccountKeyNode.y at %d',[AMyPosition]));
+  if LRawSize > 0 then
+    if AAbstractMem.Read(AMyPosition + i,Self.accountKey.y[0],Length(Self.accountKey.y))<>Length(Self.accountKey.y) then raise EPCAbstractMemAccountKeys.Create(Format('Not enough data to read AccountKeyNode.y at %d',[AMyPosition]));
 end;
 
 function TAbstractMemAccountKeyNode.ToString: String;
@@ -230,7 +235,7 @@ end;
 
 constructor TPCAbstractMemAccountKeys.Create(AAbstractMem: TAbstractMem; APointerToRootPosition : TAbstractMemPosition; AUseCacheOnAbstractMemLists : Boolean);
 begin
-  FAccountKeysLock := TCriticalSection.Create;
+  FAccountKeysLock := TReadWriteLock.Create('TPCAbstractMemAccountKeys.AccountKeys',lrpSupportsRecursion);
   FAbstractMem := AAbstractMem;
   FPointerToRootPosition := APointerToRootPosition;
   FRootPosition := 0;
@@ -265,7 +270,9 @@ var Lautk : TAccountsUsingThisKey;
   i : TAbstractMemPosition;
 begin
   AList.Clear;
-  FAccountKeysLock.Acquire;
+  // The nested lookup fills the key cache. It must recurse as a writer even
+  // though this outer method presents an account-list read to its caller.
+  FAccountKeysLock.AcquireWriteLock;
   try
   Lautk := GetAccountsUsingThisKey(AAccountKey);
   if Assigned(Lautk) then begin
@@ -276,7 +283,7 @@ begin
     end;
   end;
   finally
-    FAccountKeysLock.Release;
+    FAccountKeysLock.ReleaseWriteLock;
   end;
 end;
 
@@ -287,7 +294,7 @@ var LNode : TAbstractMemAccountKeyNode;
   LP : TAccountKeyByPosition;
 begin
   Result := TAccountsUsingThisKey_BlackHole.GetInstance;
-  FAccountKeysLock.Acquire;
+  FAccountKeysLock.AcquireWriteLock;
   try
   LNode.Clear;
   LNode.accountKey := AAccountKey;
@@ -308,7 +315,7 @@ begin
   end;
   Result := LP.accountsUsingThisKey;
   finally
-    FAccountKeysLock.Release;
+    FAccountKeysLock.ReleaseWriteLock;
   end;
 end;
 
@@ -322,7 +329,7 @@ var LNode : TAbstractMemAccountKeyNode;
   LP, LPFound : TAccountKeyByPosition;
   LAccZone : TAMZone;
 begin
-  FAccountKeysLock.Acquire;
+  FAccountKeysLock.AcquireWriteLock;
   try
   LP.Clear;
   LP.position := APosition;
@@ -341,7 +348,7 @@ begin
     FAccountKeyByPositionCache.Add(LP); // Add to cache!
   end;
   finally
-    FAccountKeysLock.Release;
+    FAccountKeysLock.ReleaseWriteLock;
   end;
 end;
 
@@ -364,7 +371,7 @@ var LNode : TAbstractMemAccountKeyNode;
   Lacckutk : TAccountsUsingThisKey;
   LAccKeyByPos  : TAccountKeyByPosition;
 begin
-  FAccountKeysLock.Acquire;
+  FAccountKeysLock.AcquireWriteLock;
   try
   LNode.Clear;
   LNode.accountKey := AAccountKey;
@@ -407,7 +414,7 @@ begin
 
   Result := LNode.myPosition;
   finally
-    FAccountKeysLock.Release;
+    FAccountKeysLock.ReleaseWriteLock;
   end;
 end;
 
@@ -419,7 +426,7 @@ var LNode : TAbstractMemAccountKeyNode;
   Lacckutk : TAccountsUsingThisKey;
   LAccKeyByPos : TAccountKeyByPosition;
 begin
-  FAccountKeysLock.Acquire;
+  FAccountKeysLock.AcquireWriteLock;
   try
   LNode.Clear;
   LNode.accountKey := AAccountKey;
@@ -449,7 +456,7 @@ begin
     LAccKeyByPos.accountsUsingThisKey.Delete( AAccountNumber );
   end;
   finally
-    FAccountKeysLock.Release;
+    FAccountKeysLock.ReleaseWriteLock;
   end;
 end;
 
@@ -543,6 +550,36 @@ var i : TAbstractMemPosition;
 begin
   if Not FindIndex(Index,i) then raise Exception.Create(Format('Accounts using this key index %d not found',[Index]));
   Result := i;
+end;
+
+function TAccountsUsingThisKey.FillList(AStartIndex, ACount: Integer;
+  const AList: TList<Cardinal>): Integer;
+var LPositions : TList<TAbstractMemPosition>;
+  i, LCount : Integer;
+begin
+  if not Assigned(AList) then raise EArgumentException.Create('Account number destination list is nil');
+  if (AStartIndex<0) or (ACount<0) then
+    raise EArgumentOutOfRangeException.Create('Account number range is negative');
+  AList.Clear;
+  Result := 0;
+  if ACount=0 then Exit;
+  LPositions := TList<TAbstractMemPosition>.Create;
+  try
+    // The inherited cursor may include one extra item for a bounded range.
+    // Honor the requested count without restarting traversal for every index.
+    inherited FillList(AStartIndex,ACount,LPositions);
+    LCount := LPositions.Count;
+    if LCount>ACount then LCount := ACount;
+    AList.Capacity := LCount;
+    for i := 0 to LCount-1 do begin
+      if (LPositions[i]<0) or (LPositions[i]>High(Cardinal)) then
+        raise EPCAbstractMemAccountKeys.Create('Account number outside Cardinal range');
+      AList.Add(Cardinal(LPositions[i]));
+    end;
+    Result := AList.Count;
+  finally
+    LPositions.Free;
+  end;
 end;
 
 function TAccountsUsingThisKey.NodeDataToString(const AData: TAbstractMemPosition): String;

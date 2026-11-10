@@ -184,9 +184,33 @@ Type
   TOrderedAccountList = Class;
   TOrderedBlockAccountList = Class;
 
-  { TProgressNotify }
+  { Domain progress data. Positions retain the producer's raw counter semantics:
+    they may describe assigned work or an index rather than completed work.
+    Equal position/total does not signal overall completion. Consumers format
+    presentation text; the core publishes stages, counters and raw metadata. }
 
-  TProgressNotify = procedure(sender : TObject; const message : String; curPos, totalCount : Int64) of object;
+  TProgressStage = (psNone, psReadingSafebox, psValidatingOperationBlocks,
+    psCheckingSafeboxIntegrity, psReadingBlockBatch, psReadingBlockchain,
+    psLoadingPendingOperations, psReadingOperations, psPreparingOperations,
+    psValidatingSignatures, psApplyingOperations, psFinalizingOperations,
+    psFinalizingRestore, psDownloadingSafeboxChunks, psSavingSafebox,
+    psReceivedSafebox, psDownloadingBlockchain);
+
+  TProgressContext = (pcNone, pcCheckingNewSafebox);
+
+  // Create returns a value record; the compiler finalizes its managed strings.
+  // Asynchronous listeners retain a record copy, without manual destruction.
+  TProgressInfo = record
+    Stage: TProgressStage;
+    Context: TProgressContext;
+    CurrentPosition, TotalCount: Int64;
+    BlockNumber, BlockCount, StartBlock, EndBlock, OperationsCount, ChunksCount: Int64;
+    FileName, PeerAddress: String;
+    class function Create(AStage: TProgressStage; ACurrentPosition: Int64 = 0;
+      ATotalCount: Int64 = 0): TProgressInfo; static;
+  end;
+
+  TProgressNotify = procedure(Sender: TObject; const AProgress: TProgressInfo) of object;
 
   { TProgressNotifyMany }
 
@@ -197,7 +221,7 @@ Type
   TProgressNotifyManyHelper = record helper for TProgressNotifyMany
     procedure Add(listener : TProgressNotify);
     procedure Remove(listener : TProgressNotify);
-    procedure Invoke(sender : TObject; const message : String; curPos, totalCount : Int64);
+    procedure Invoke(Sender: TObject; const AProgress: TProgressInfo);
   end;
 
 
@@ -230,7 +254,8 @@ Type
     FListOfOrderedAccountKeysList : TList<TOrderedAccountKeysList>;
     FTotalBalance: Int64;
     FSafeBoxHash : TRawBytes;
-    FLock: TPCCriticalSection; // Thread safe
+    FLock: TReadWriteLock; // Thread safe
+    FConstructionComplete: Boolean;
     FWorkSum : UInt64;
     FCurrentProtocol: Integer;
     // Snapshots utility new on V3
@@ -254,6 +279,7 @@ Type
     function GetAggregatedHashrate: TBigNum;
     function GetOrderedAccountKeysList: TSafeboxPubKeysAndAccounts;
     function GetAccount(AAccountNumber : Integer; var AAccount : TAccount) : Boolean;
+    procedure ReleaseSnapshots;
   protected
     FTotalFee: Int64;
     Procedure UpdateAccount(account_number : Cardinal; const newAccountInfo: TAccountInfo; const newName : TRawBytes; newType : Word;
@@ -495,7 +521,7 @@ Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 implementation
 
 uses
-  ULog, {$IFnDEF USE_ABSTRACTMEM} UAccountKeyStorage,{$ENDIF} math, UCommon, UPCOperationsBlockValidator, UPCTemporalFileStream, UEncoding;
+  ULog, {$IFnDEF USE_ABSTRACTMEM} UAccountKeyStorage,{$ENDIF} math, UCommon, UPCOperationsBlockValidator, UPCTemporalFileStream, UEncoding, UStreams;
 
 
 {$IFDEF FPC}
@@ -711,8 +737,10 @@ var ms : TMemoryStream;
 begin
   ms := TMemoryStream.Create;
   try
-    ms.WriteBuffer(operationBlock.initial_safe_box_hash[Low(operationBlock.initial_safe_box_hash)],length(operationBlock.initial_safe_box_hash));
-    ms.WriteBuffer(operationBlock.operations_hash[Low(operationBlock.operations_hash)],length(operationBlock.operations_hash));
+    if Length(operationBlock.initial_safe_box_hash)>0 then
+      ms.WriteBuffer(operationBlock.initial_safe_box_hash[Low(operationBlock.initial_safe_box_hash)],length(operationBlock.initial_safe_box_hash));
+    if Length(operationBlock.operations_hash)>0 then
+      ms.WriteBuffer(operationBlock.operations_hash[Low(operationBlock.operations_hash)],length(operationBlock.operations_hash));
     if operationBlock.protocol_version<CT_PROTOCOL_5 then begin
       // Note about fee: Fee is stored in 8 bytes, but only digest first 4 low bytes
       ms.Write(operationBlock.fee,4);
@@ -746,7 +774,8 @@ begin
       // This important issue and security fix was discovered by Herman:
       // Herman Schoenfeld <herman@sphere10.com>
 
-      ms.WriteBuffer(operationBlock.previous_proof_of_work[Low(operationBlock.previous_proof_of_work)],Length(operationBlock.previous_proof_of_work));
+      if Length(operationBlock.previous_proof_of_work)>0 then
+        ms.WriteBuffer(operationBlock.previous_proof_of_work[Low(operationBlock.previous_proof_of_work)],Length(operationBlock.previous_proof_of_work));
     end;
     SetLength(Part3,ms.Size);
     ms.Position := 0;
@@ -796,11 +825,9 @@ begin
   inc(Result, Int64(Int64(ABlockCount MOD CT_NewLineRewardDecrease) * LCurrReward));
 end;
 
-class function TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(
-  const AHardcodedFileName: String;
-  const AHardcodedSha256Value: TRawBytes): Boolean;
+class function TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(const AHardcodedFileName: String; const AHardcodedSha256Value: TRawBytes): Boolean;
 var LTmp : TPCHardcodedRandomHashTable;
-  LFileStream : TFileStream;
+  LFileStream : TStream;
   LInternalHardcodedSha256 : TRawBytes;
 begin
   Result := False;
@@ -817,6 +844,10 @@ begin
   try
     LFileStream := TFileStream.Create(AHardcodedFileName,fmOpenRead+fmShareDenyNone);
     try
+      // Combine small table-field reads. Shared access permits external changes,
+      // so keep length caching off and retain the existing file-sharing mode.
+      // Ownership transfers only after the decorator is constructed successfully.
+      LFileStream := TBufferedStream.Create(LFileStream,64*1024,True,False,True);
       if LTmp.LoadFromStream(LFileStream,LInternalHardcodedSha256) then begin
         if TBaseType.Equals(LInternalHardcodedSha256, AHardcodedSha256Value) then begin
           if Not Assigned(_INTERNAL_PascalCoinProtocol) then begin
@@ -870,7 +901,9 @@ begin
     ms.Write(operationBlock.protocol_available,Sizeof(operationBlock.protocol_available)); // Little endian
     ms.Write(operationBlock.compact_target,Sizeof(operationBlock.compact_target)); // Little endian
     // Part 2
-    ms.WriteBuffer(operationBlock.block_payload[Low(operationBlock.block_payload)],Length(operationBlock.block_payload));
+    // Empty miner payloads are valid; a zero-byte write must not index them.
+    if Length(operationBlock.block_payload)>0 then
+      ms.WriteBuffer(operationBlock.block_payload[Low(operationBlock.block_payload)],Length(operationBlock.block_payload));
     // Part 3
     ms.WriteBuffer(operationBlock.initial_safe_box_hash[Low(operationBlock.initial_safe_box_hash)],length(operationBlock.initial_safe_box_hash));
     ms.WriteBuffer(operationBlock.operations_hash[Low(operationBlock.operations_hash)],length(operationBlock.operations_hash));
@@ -2046,6 +2079,17 @@ begin
   list.Add((CT_NID_secp521r1)); // = 716
 end;
 
+{ TProgressInfo }
+
+class function TProgressInfo.Create(AStage: TProgressStage;
+  ACurrentPosition, ATotalCount: Int64): TProgressInfo;
+begin
+  Result := Default(TProgressInfo);
+  Result.Stage := AStage;
+  Result.CurrentPosition := ACurrentPosition;
+  Result.TotalCount := ATotalCount;
+end;
+
 { TProgressNotifyManyHelper }
 
 procedure TProgressNotifyManyHelper.Add(listener : TProgressNotify);
@@ -2060,11 +2104,11 @@ begin
   TArrayTool<TProgressNotify>.Remove(self, listener);
 end;
 
-procedure TProgressNotifyManyHelper.Invoke(sender : TObject; const message : String; curPos, totalCount : Int64);
+procedure TProgressNotifyManyHelper.Invoke(Sender: TObject; const AProgress: TProgressInfo);
 var i : Integer;
 begin
   for i := low(self) to high(self) do
-    self[i](sender, message, curPos, totalCount);
+    self[i](Sender, AProgress);
 end;
 
 { TPCSafeBox }
@@ -2650,7 +2694,9 @@ Var c,t : Cardinal;
   bn : TBigNum;
   LOpBlock : TOperationBlock;
 begin
-  FLock.Acquire;
+  // Block-info access can populate shared caches, so this calculation retains
+  // write ownership even though it returns a derived read-only value.
+  FLock.AcquireWriteLock;
   Try
     Result := TBigNum.Create;
     try
@@ -2686,7 +2732,7 @@ begin
       Raise;
     end;
   Finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   End;
 end;
 
@@ -2817,12 +2863,30 @@ begin
   end;
 end;
 
+procedure TPCSafeBox.ReleaseSnapshots;
+var i: Integer;
+  Psnapshot: PSafeboxSnapshot;
+begin
+  if not Assigned(FSnapshots) then Exit;
+  for i := 0 to FSnapshots.Count-1 do begin
+    Psnapshot := (Fsnapshots[i]);
+    FreeAndNil(Psnapshot^.oldBlocks);
+    FreeAndNil(Psnapshot^.newBlocks);
+    FreeAndNil(Psnapshot^.namesAdded);
+    FreeAndNil(Psnapshot^.namesDeleted);
+    FreeAndNil(Psnapshot^.oldBufferBlocksHash);
+    FreeAndNil(Psnapshot^.oldAggregatedHashrate);
+    Psnapshot^.oldSafeBoxHash := Nil;
+    Dispose(Psnapshot);
+  end;
+  FSnapshots.Clear;
+end;
+
 procedure TPCSafeBox.Clear;
 Var i : Integer;
   {$IFnDEF USE_ABSTRACTMEM}
   P : PBlockAccount;
   {$ENDIF}
-  Psnapshot : PSafeboxSnapshot;
 begin
   StartThreadSafe;
   Try
@@ -2840,18 +2904,7 @@ begin
     AggregatedHashrate.Value := 0;
     FOrderedByName.Clear;
     {$ENDIF}
-    for i := 0 to FSnapshots.Count-1 do begin
-      Psnapshot := (Fsnapshots[i]);
-      FreeAndNil(Psnapshot^.oldBlocks);
-      FreeAndNil(Psnapshot^.newBlocks);
-      FreeAndNil(Psnapshot^.namesAdded);
-      FreeAndNil(Psnapshot^.namesDeleted);
-      FreeAndNil(Psnapshot^.oldBufferBlocksHash);
-      FreeAndNil(Psnapshot^.oldAggregatedHashrate);
-      Psnapshot^.oldSafeBoxHash := Nil;
-      Dispose(Psnapshot);
-    end;
-    FSnapshots.Clear;
+    ReleaseSnapshots;
 
     For i:=0 to FListOfOrderedAccountKeysList.count-1 do begin
       TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).ClearAccounts(False);
@@ -2935,9 +2988,24 @@ end;
 procedure TPCSafeBox.SetSafeboxFileName(ASafeboxFileName : String);
 var i : Integer;
   LOpBl : TOperationBlockExt;
+  LAccountCacheLimit : Integer;
+  LHasAccountCacheLimit : Boolean;
 begin
-  FPCAbstractMem.Free;
+  // A file reload replaces storage, not the caller's bounded cache policy.
+  // Preserve only this configured limit; entries and other transient state
+  // belong to the new storage instance. Construction still defaults to 50,000.
+  LAccountCacheLimit := 0;
+  LHasAccountCacheLimit := Assigned(FPCAbstractMem);
+  if LHasAccountCacheLimit then begin
+    LAccountCacheLimit := FPCAbstractMem.AccountCache.MaxRegisters;
+    // Surface write failures before releasing the old owner. Destructors only
+    // clean up; a failed switch must retain its original storage instance.
+    FPCAbstractMem.FlushCache;
+  end;
+  FreeAndNil(FPCAbstractMem);
   FPCAbstractMem := TPCAbstractMem.Create(ASafeboxFileName,False);
+  if LHasAccountCacheLimit then
+    FPCAbstractMem.AccountCache.MaxRegisters := LAccountCacheLimit;
   if FPCAbstractMem.BlocksCount>0 then begin
     LOpBl := FPCAbstractMem.GetBlockInfo( FPCAbstractMem.BlocksCount-1 );
     FCurrentProtocol := LOpBl.operationBlock.protocol_version;
@@ -2971,7 +3039,7 @@ end;
 constructor TPCSafeBox.Create;
 begin
   FMaxSafeboxSnapshots:=CT_DEFAULT_MaxSafeboxSnapshots;
-  FLock := TPCCriticalSection.Create('TPCSafeBox_Lock');
+  FLock := TReadWriteLock.Create('TPCSafeBox_Lock',lrpSupportsRecursion);
   {$IFDEF USE_ABSTRACTMEM}
   FPCAbstractMem := TPCAbstractMem.Create('',False);
   {$ELSE}
@@ -2999,15 +3067,24 @@ begin
   {$ENDIF}
   BufferBlocksHash.SafeBoxHashCalcType := sbh_Single_Sha256;
   Clear;
+  FConstructionComplete := True;
 end;
 
 destructor TPCSafeBox.Destroy;
 Var i : Integer;
 begin
-  Clear;
-  for i := 0 to FListOfOrderedAccountKeysList.Count - 1 do begin
-    TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).FAccountList := Nil;
-  end;
+  // A failed backend constructor leaves FPCAbstractMem nil after replacement.
+  // Cleanup must not calculate its hash and replace the original I/O exception
+  // with an access violation. Partial safebox construction needs the same path.
+  if FConstructionComplete
+    {$IFDEF USE_ABSTRACTMEM}and Assigned(FPCAbstractMem){$ENDIF} then
+    Clear
+  else
+    ReleaseSnapshots;
+  if Assigned(FListOfOrderedAccountKeysList) then
+    for i := 0 to FListOfOrderedAccountKeysList.Count - 1 do begin
+      TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).FAccountList := Nil;
+    end;
   {$IFDEF USE_ABSTRACTMEM}
   FreeAndNil(FPCAbstractMem);
   {$ELSE}
@@ -3525,7 +3602,7 @@ end;
 
 procedure TPCSafeBox.EndThreadSave;
 begin
-  FLock.Release;
+  FLock.ReleaseWriteLock;
 end;
 
 function TPCSafeBox.LoadSafeBoxChunkFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var ALastReadBlock : TBlockAccount; var errors : String) : Boolean;
@@ -3548,6 +3625,7 @@ Var
   LUseMultiThreadOperationsBlockValidator, LAddToMultiThreadOperationsBlockValidator : Boolean;
   LPCOperationsBlockValidator : TPCOperationsBlockValidator;
   LValidatedOPOk, LValidatedOPError, LValidatedOPPending : Integer;
+  LProgress: TProgressInfo;
   LBlockHashRate : TBigNum;
 begin
   Result := false;
@@ -3630,7 +3708,12 @@ begin
       for iblock := sbHeader.startBlock to sbHeader.endBlock do begin
         if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=300)) then begin
           tc := TPlatform.GetTickCount;
-          progressNotify(Self,Format('Reading Safebox block %d/%d',[iblock+1,sbHeader.blocksCount]),iblock,sbHeader.blocksCount+1);
+          LProgress := TProgressInfo.Create(psReadingSafebox, iblock, sbHeader.blocksCount+1);
+          LProgress.BlockNumber := iblock+1;
+          LProgress.BlockCount := sbHeader.blocksCount;
+          LProgress.StartBlock := sbHeader.startBlock;
+          LProgress.EndBlock := sbHeader.endBlock;
+          progressNotify(Self, LProgress);
         end;
         errors := Format('Corrupted stream reading block %d/%d of %d',[iblock+1,sbHeader.endBlock+1,sbHeader.blockscount]);
         if (checkAll) then begin
@@ -3823,7 +3906,8 @@ begin
             if LValidatedOPPending>0 then begin
               if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
                 tc := TPlatform.GetTickCount;
-                progressNotify(Self,Format('Validating OperationBlock info %d/%d',[LValidatedOPOk,LValidatedOPOk+LValidatedOPPending]),LValidatedOPOk,LValidatedOPOk+LValidatedOPPending);
+                progressNotify(Self, TProgressInfo.Create(psValidatingOperationBlocks,
+                  LValidatedOPOk, LValidatedOPOk+LValidatedOPPending));
               end else Sleep(10)
             end;
           until LValidatedOPPending<=0 ;
@@ -3832,7 +3916,12 @@ begin
         LPCOperationsBlockValidator.Free;
       end;
       if (Assigned(progressNotify)) And (sbHeader.ContainsLastBlock) then begin
-        progressNotify(Self,'Checking Safebox integrity',(sbHeader.endBlock-sbHeader.startBlock+1),(sbHeader.endBlock-sbHeader.startBlock+1));
+        LProgress := TProgressInfo.Create(psCheckingSafeboxIntegrity,
+          sbHeader.endBlock-sbHeader.startBlock+1, sbHeader.endBlock-sbHeader.startBlock+1);
+        LProgress.StartBlock := sbHeader.startBlock;
+        LProgress.EndBlock := sbHeader.endBlock;
+        LProgress.BlockCount := sbHeader.endBlock-sbHeader.startBlock+1;
+        progressNotify(Self, LProgress);
       end;
       If checkAll then begin
         If (offsets[(sbHeader.endBlock-sbHeader.startBlock+1)]<>0) And (offsets[(sbHeader.endBlock-sbHeader.startBlock+1)]<>Stream.Position-posOffsetZone) then begin
@@ -5046,7 +5135,9 @@ end;
 
 procedure TPCSafeBox.StartThreadSafe;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FLock);
+  // This public lease permits mutations and cache-backed reads. Preserve its
+  // recursive exclusive contract rather than inferring a read from its caller.
+  TPCThread.ProtectAcquireWriteLock(Self,FLock);
 end;
 
 { TPCSafeBoxTransaction }

@@ -13,7 +13,19 @@ unit UWIZAddKey_Start;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+{ Chooses between adding a private key and importing a watch-only public key.
+}
+
+{ Public types in this unit
+
+  Type             | Purpose
+  -----------------+--------------------------------------------------------------------------
+  TWIZAddKey_Start | Routes Add Key to private-key setup or public-key import.
+}
 
 interface
 
@@ -35,11 +47,16 @@ type
   public
     { public declarations }
     procedure OnNext; override;
+    procedure OnPresent; override;
   end;
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UWIZAddKey_EnterName,
@@ -53,11 +70,28 @@ uses
 procedure TWIZAddKey_Start.OnNext;
 begin
   if rbPublicKey.Checked = true then begin
+    if Model.Action <> akaImportPublicKey then
+    begin
+      Model.KeyText := '';
+      Model.Password := '';
+    end;
     Model.Action := akaImportPublicKey;
     UpdatePath(ptReplaceAllNext, [TWIZAddKey_ImportPubKey, TWIZAddKey_EnterName]);
   end else begin
+    if Model.Action = akaImportPublicKey then
+    begin
+      Model.KeyText := '';
+      Model.Password := '';
+      Model.Action := akaGenerateKey;
+    end;
     UpdatePath(ptReplaceAllNext, [TWIZAddKey_GenerateOrImport, TWIZAddKey_ImportPrivKey]);
   end;
+end;
+
+procedure TWIZAddKey_Start.OnPresent;
+begin
+  rbPublicKey.Checked := Model.Action = akaImportPublicKey;
+  rbPrivateKey.Checked := not rbPublicKey.Checked;
 end;
 
 end.

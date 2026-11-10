@@ -13,9 +13,21 @@ unit UFRMSaleAccounts;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
 
 {$I ..\config.inc}
+
+{ Contains the account-sale dialog and its seller, price, lock-period and
+  buyer-key inputs. }
+
+{ Public types in this unit
+
+  Type             | Purpose
+  -----------------+-------------------------------------------------------------------------
+  TFRMSaleAccounts | Provides account-sale inputs and execution controls.
+}
 
 interface
 
@@ -71,7 +83,7 @@ uses UNode;
 {$R *.dfm}
 
 procedure TFRMSaleAccounts.actExecuteExecute(Sender: TObject);
-Var errors : AnsiString;
+Var errors : String;
   P : PAccount;
   i,iAcc : Integer;
   wk : TWalletKey;

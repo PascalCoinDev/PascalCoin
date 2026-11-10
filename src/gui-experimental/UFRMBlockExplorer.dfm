@@ -1,0 +1,102 @@
+﻿object FRMBlockExplorer: TFRMBlockExplorer
+  Left = 87
+  Height = 424
+  Top = 135
+  Width = 864
+  ActiveControl = ebBlockChainBlockEnd
+  Caption = 'Block Explorer'
+  ClientHeight = 424
+  ClientWidth = 864
+  Menu = BlockExplorerMenu
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  Position = poOwnerFormCenter
+  Visible = False
+  object Panel2: TPanel
+    Left = 0
+    Height = 41
+    Top = 0
+    Width = 864
+    Align = alTop
+    BevelOuter = bvNone
+    TabOrder = 0
+    object Label9: TLabel
+      Left = 11
+      Height = 15
+      Top = 10
+      Width = 112
+      Caption = 'Filter by blocks range'
+      ParentColor = False
+    end
+    object ebBlockChainBlockEnd: TEdit
+      Left = 185
+      Height = 23
+      Top = 7
+      Width = 57
+      OnExit = ebBlockChainBlockStartExit
+      OnKeyPress = ebBlockChainBlockStartKeyPress
+      TabOrder = 0
+    end
+    object lblHashRateBackBlocks: TLabel
+      Left = 264
+      Top = 10
+      Caption = 'Hashrate back blocks'
+    end
+    object ebHashRateBackBlocks: TEdit
+      Left = 392
+      Top = 7
+      Width = 58
+      Height = 23
+      TabOrder = 1
+      OnExit = ebHashRateBackBlocksExit
+      OnKeyPress = ebHashRateBackBlocksKeyPress
+    end
+    object lblHashRateUnits: TLabel
+      Left = 472
+      Top = 10
+      Caption = 'Units'
+    end
+    object cbHashRateUnits: TComboBox
+      Left = 510
+      Top = 7
+      Width = 82
+      Height = 23
+      Style = csDropDownList
+      TabOrder = 2
+      OnChange = cbHashRateUnitsChange
+    end
+  end
+  object dgBlockChainExplorer: TDrawGrid
+    Left = 0
+    Height = 363
+    Top = 41
+    Width = 864
+    Align = alClient
+    TabOrder = 1
+  end
+  object ebBlockChainBlockStart: TEdit
+    Left = 125
+    Height = 23
+    Top = 7
+    Width = 57
+    OnExit = ebBlockChainBlockStartExit
+    OnKeyPress = ebBlockChainBlockStartKeyPress
+    TabOrder = 2
+  end
+  object BlockExplorerMenu: TMainMenu
+    left = 560
+    top = 8
+    object miTools: TMenuItem
+      Caption = '&Tools'
+      object miRefresh: TMenuItem
+        Caption = '&Refresh'
+        ShortCut = 116
+        OnClick = miRefreshClick
+      end
+      object miResetBlockFilters: TMenuItem
+        Caption = 'Reset &block filters'
+        OnClick = miResetBlockFiltersClick
+      end
+    end
+  end
+end

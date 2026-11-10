@@ -1,0 +1,76 @@
+object FRMOperationExplorer: TFRMOperationExplorer
+  Left = 190
+  Height = 424
+  Top = 287
+  Width = 864
+  ActiveControl = dgOperationsExplorer
+  Caption = 'Operations Explorer'
+  ClientHeight = 424
+  ClientWidth = 864
+  Menu = OperationsExplorerMenu
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  Position = poOwnerFormCenter
+  Visible = False
+  object dgOperationsExplorer: TDrawGrid
+    Left = 0
+    Height = 363
+    Top = 41
+    Width = 864
+    Align = alClient
+    TabOrder = 0
+    OnMouseDown = dgOperationsExplorerMouseDown
+    OnMouseUp = dgOperationsExplorerMouseUp
+  end
+  object Panel1: TPanel
+    Left = 0
+    Height = 41
+    Top = 0
+    Width = 864
+    Align = alTop
+    BevelOuter = bvNone
+    TabOrder = 1
+    object Label2: TLabel
+      Left = 11
+      Height = 15
+      Top = 10
+      Width = 112
+      Caption = 'Filter by blocks range'
+      ParentColor = False
+    end
+  end
+  object ebFilterOperationsStartBlock: TEdit
+    Left = 125
+    Height = 23
+    Top = 7
+    Width = 57
+    OnExit = ebFilterOperationsAccountExit
+    OnKeyPress = ebFilterOperationsAccountKeyPress
+    TabOrder = 2
+  end
+  object ebFilterOperationsEndBlock: TEdit
+    Left = 185
+    Height = 23
+    Top = 7
+    Width = 57
+    OnExit = ebFilterOperationsAccountExit
+    OnKeyPress = ebFilterOperationsAccountKeyPress
+    TabOrder = 3
+  end
+  object OperationsExplorerMenu: TMainMenu
+    left = 560
+    object miTools: TMenuItem
+      Caption = 'Tools'
+      object miFindOperationByOpHash: TMenuItem
+        Caption = 'Find Operation by OpHash'
+        ShortCut = 116
+        OnClick = miFindOperationByOpHashClick
+      end
+      object miDecodePayload: TMenuItem
+        Caption = 'Decode Payload'
+        ShortCut = 113
+        OnClick = miDecodePayloadClick
+      end
+    end
+  end
+end

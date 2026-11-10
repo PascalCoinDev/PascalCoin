@@ -17,8 +17,24 @@ unit UWIZEnlistAccountForSale_EnterLockingBlock;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
+
+{ Collects the block height until which a private account sale remains locked.
+}
+
+{ Public types in this unit
+
+  Type                                       | Purpose
+  -------------------------------------------+--------------------------------------------------------------------------
+  TWIZEnlistAccountForSale_EnterLockingBlock | Validates and stores the sale's locking block height.
+}
 
 interface
 
@@ -35,13 +51,17 @@ type
     lblBlockLock: TLabel;
   public
     procedure OnPresent; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 { TWIZEnlistAccountForSale_EnterLockingBlock }
 
@@ -50,7 +70,7 @@ begin
   edtBlockLock.SetFocus;
 end;
 
-function TWIZEnlistAccountForSale_EnterLockingBlock.Validate(out message: ansistring): boolean;
+function TWIZEnlistAccountForSale_EnterLockingBlock.Validate(out message: String): boolean;
 var
   LLockedUntilBlock: cardinal;
 begin

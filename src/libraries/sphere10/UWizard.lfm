@@ -11,7 +11,7 @@ object WizardHostForm: TWizardHostForm
   Position = poOwnerFormCenter
   LCLVersion = '1.8.4.0'
   Visible = False
-  object FHorizonalLine: TPanel
+  object FHorizontalLine: TPanel
     Left = 0
     Height = 1
     Top = 65

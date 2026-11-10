@@ -56,6 +56,7 @@ object WIZOperationSigner_Select: TWIZOperationSigner_Select
       Width = 219
       Caption = 'Sign all transactions with this account'
       Checked = True
+      OnChange = SigningModeChange
       TabOrder = 2
       TabStop = True
     end
@@ -65,6 +66,7 @@ object WIZOperationSigner_Select: TWIZOperationSigner_Select
       Top = 124
       Width = 307
       Caption = 'Only Sign with this account if sender cannot afford fee'
+      OnChange = SigningModeChange
       TabOrder = 1
     end
   end

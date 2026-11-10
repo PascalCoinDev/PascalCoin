@@ -249,7 +249,8 @@ procedure TRawBytesHelper.FromStream(AStream: TStream; AStartPos, ALength: Integ
 begin
   System.SetLength(Self,ALength);
   AStream.Position := AStartPos;
-  AStream.Read(Self[0],ALength);
+  if ALength > 0 then
+    AStream.Read(Self[0],ALength);
 end;
 
 procedure TRawBytesHelper.SaveInsideTBytes(var ADestToWrite: TBytes; var AStartPosition: integer);
@@ -260,7 +261,8 @@ begin
   end;
   Lsize := Length(Self);
   Move(Lsize, ADestToWrite[AStartPosition], 2);
-  Move(Self[0], ADestToWrite[AStartPosition + 2], Lsize);
+  if LSize > 0 then
+    Move(Self[0], ADestToWrite[AStartPosition + 2], Lsize);
   Inc(AStartPosition, 2 + Lsize);
 end;
 
@@ -272,7 +274,8 @@ begin
   Move(ASource[AStartPosition],Lsize,2);
   if (AStartPosition + 2 + Lsize > Length(ASource)) then Exit(False);
   SetLength(Self,Lsize);
-  Move(ASource[AStartPosition + 2],Self[0],Lsize);
+  if LSize > 0 then
+    Move(ASource[AStartPosition + 2],Self[0],Lsize);
   inc(AStartPosition, 2 + Lsize);
   Result := True;
 end;
@@ -284,7 +287,8 @@ begin
   if LSize>65536 then raise Exception.Create('Cannot serialize TBytes due high length '+IntToStr(Length(Self)));
   SetLength(Result, LSize + 2);
   Move(Lsize, Result[0], 2);
-  Move(Self[0], Result[2], Lsize);
+  if LSize > 0 then
+    Move(Self[0], Result[2], Lsize);
 end;
 
 procedure TRawBytesHelper.ToSerialized(const AStream: TStream);
@@ -293,7 +297,8 @@ begin
   LSize := Length(Self);
   if LSize>65536 then raise Exception.Create('Cannot serialize TBytes due high length '+IntToStr(Length(Self)));
   AStream.Write(LSize,2);
-  AStream.Write(Self[0],LSize);
+  if LSize > 0 then
+    AStream.Write(Self[0],LSize);
 end;
 
 function TRawBytesHelper.GetSerializedLength: integer;
@@ -404,7 +409,8 @@ begin
   FillByte(dest[0],20,0);
   i := Length(source);
   if (i>20) then i:=20;
-  move(source[Low(source)],dest[0],i);
+  if i > 0 then
+    move(source[Low(source)],dest[0],i);
 end;
 
 class function TBaseType.To20Bytes(const source: TRawBytes): T20Bytes;
@@ -453,7 +459,8 @@ begin
   FillByte(dest[0],32,0);
   i := length(source);
   if (i>32) then i:=32;
-  move(source[Low(source)],dest[0],i);
+  if i > 0 then
+    move(source[Low(source)],dest[0],i);
 end;
 
 class procedure TBaseType.Fill0(var dest: T32Bytes);

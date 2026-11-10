@@ -1,0 +1,6 @@
+object LanguageTestForm: TLanguageTestForm
+  Caption = 'Options'
+  Width = 320
+  Height = 160
+  Visible = False
+end

@@ -106,7 +106,8 @@ begin
   try
     // Key first
     If EVP_DigestInit_ex(pctx, hash, nil)<>1 then exit;
-    If EVP_DigestUpdate(pctx, @APassword[0], Length(APassword))<>1 then exit;
+    if Length(APassword) > 0 then
+      If EVP_DigestUpdate(pctx, @APassword[0], Length(APassword))<>1 then exit;
     if (ASalt <> nil) then begin
       if EVP_DigestUpdate(pctx, @ASalt[0], Length(ASalt))<>1 then exit;
     end;
@@ -115,7 +116,8 @@ begin
     // Derive IV next
     If EVP_DigestInit_ex(pctx, hash, nil)<>1 then exit;
     If EVP_DigestUpdate(pctx, @Key[0], mds)<>1 then exit;
-    If EVP_DigestUpdate(pctx, @APassword[0], Length(APassword))<>1 then exit;
+    if Length(APassword) > 0 then
+      If EVP_DigestUpdate(pctx, @APassword[0], Length(APassword))<>1 then exit;
     if (ASalt <> nil) then begin
       if EVP_DigestUpdate(pctx, @ASalt[0], Length(ASalt))<>1 then exit;
     end;

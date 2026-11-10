@@ -23,7 +23,7 @@ unit ULog;
 interface
 
 uses
-  Classes, UThread, SyncObjs, UConst,
+  Classes, UThread, UConst,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 
@@ -57,13 +57,15 @@ type
   private
     FLogDataList : TThreadList<Pointer>;
     FOnNewLog: TNewLogEvent;
+    FOnNewLogBatchBegin, FOnNewLogBatchEnd : TNotifyEvent;
     FOnInThreadNewLog : TNewLogEvent;
     FFileStream : TFileStream;
     FFileName: String;
     FSaveTypes: TLogTypes;
     FThreadSafeLogEvent : TThreadSafeLogEvent;
     FProcessGlobalLogs: Boolean;
-    FLock : TCriticalSection;
+    // Log writes and in-thread callbacks are serialized; callbacks may log recursively.
+    FLock : TReadWriteLock;
     procedure SetFileName(const Value: String);
   protected
     Procedure DoLog(logtype : TLogType; const sender, logtext : String); virtual;
@@ -73,6 +75,9 @@ type
     Class Procedure NewLog(logtype : TLogType; Const sender, logtext : String);
     Property OnInThreadNewLog : TNewLogEvent read FOnInThreadNewLog write FOnInThreadNewLog;
     Property OnNewLog : TNewLogEvent read FOnNewLog write FOnNewLog;
+    // Optional main-thread brackets let a receiver repaint once per delivery.
+    Property OnNewLogBatchBegin : TNotifyEvent read FOnNewLogBatchBegin write FOnNewLogBatchBegin;
+    Property OnNewLogBatchEnd : TNotifyEvent read FOnNewLogBatchEnd write FOnNewLogBatchEnd;
     Property FileName : String read FFileName write SetFileName;
     Property SaveTypes : TLogTypes read FSaveTypes write FSaveTypes;
     Property ProcessGlobalLogs : Boolean read FProcessGlobalLogs write FProcessGlobalLogs;
@@ -96,7 +101,7 @@ Type PLogData = ^TLogData;
 
 constructor TLog.Create(AOwner: TComponent);
 begin
-  FLock := TCriticalSection.Create;
+  FLock := TReadWriteLock.Create('TLog.Log',lrpSupportsRecursion);
   FProcessGlobalLogs := true;
   FLogDataList := TThreadList<Pointer>.Create;
   FFileStream := Nil;
@@ -104,6 +109,8 @@ begin
   FSaveTypes := CT_TLogTypes_DEFAULT;
   FOnInThreadNewLog:=Nil;
   FOnNewLog:=Nil;
+  FOnNewLogBatchBegin:=Nil;
+  FOnNewLogBatchEnd:=Nil;
   if (Not assigned(_logs)) then _logs := TList<TLog>.Create;
   _logs.Add(self);
   FThreadSafeLogEvent := TThreadSafeLogEvent.Create(true);
@@ -119,6 +126,8 @@ var
   P : PLogData;
 begin
   FOnNewLog:=Nil;
+  FOnNewLogBatchBegin:=Nil;
+  FOnNewLogBatchEnd:=Nil;
   FOnInThreadNewLog:=Nil;
   FThreadSafeLogEvent.Terminate;
   FThreadSafeLogEvent.WaitFor;
@@ -162,7 +171,7 @@ procedure TLog.NotifyNewLog(logtype: TLogType; Const sender, logtext: String);
 Var s,tid : RawByteString;
   P : PLogData;
 begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   try
     if assigned(FFileStream) And (logType in FSaveTypes) then begin
       if TThread.CurrentThread.ThreadID=MainThreadID then tid := ' MAIN:' else tid:=' TID:';
@@ -183,7 +192,7 @@ begin
       FLogDataList.Add(P);
     end;
   finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   end;
   DoLog(logtype,sender,logtext);
 end;
@@ -213,6 +222,8 @@ begin
   while (not Terminated) do begin
     sleep(100);
     If (Not Terminated) And (Assigned(FLog.OnNewLog)) then begin
+      // Only this delivery helper waits for the GUI. Submitting threads keep
+      // appending to the queue while the detached batch is rendered.
       Synchronize(SynchronizedProcess);
     end;
   end;
@@ -225,28 +236,41 @@ end;
 
 procedure TThreadSafeLogEvent.SynchronizedProcess;
 Var l : TList<Pointer>;
+  LBatch : TArray<Pointer>;
   i : Integer;
   P : PLogData;
 begin
   If Not Assigned(FLog) then Exit;
   If Not Assigned(FLog.FOnNewLog) then Exit;
-  // This event is thread safe and will do OnNewLog on main thread
+  // Transfer ownership of the queued pointers, not copies of their messages.
+  // Never retain the producer queue lock while invoking GUI callbacks.
   l := FLog.FLogDataList.LockList;
   try
+    if l.Count=0 then Exit;
+    LBatch := l.ToArray;
+    l.Clear;
+  finally
+    FLog.FLogDataList.UnlockList;
+  end;
+  try
+    if Assigned(FLog.FOnNewLogBatchBegin) then FLog.FOnNewLogBatchBegin(FLog);
     try
-      for i := 0 to l.Count - 1 do begin
-        P := PLogData(l[i]);
+      for i := Low(LBatch) to High(LBatch) do begin
+        P := PLogData(LBatch[i]);
         if Assigned(FLog.FOnNewLog) then begin
           FLog.OnNewLog( P^.Logtype,P^.Time,P^.ThreadID,P^.Sender,P^.Logtext );
         end;
-        Dispose(P);
       end;
     finally
-      // Protection for possible raise
-      l.Clear;
+      if Assigned(FLog.FOnNewLogBatchEnd) then FLog.FOnNewLogBatchEnd(FLog);
     end;
   finally
-    FLog.FLogDataList.UnlockList;
+    // The detached batch is ours even if a receiver raises or unsubscribes.
+    // New/reentrant log entries stay in the shared queue for the next delivery.
+    for i := Low(LBatch) to High(LBatch) do begin
+      P := PLogData(LBatch[i]);
+      Dispose(P);
+    end;
   end;
 end;
 

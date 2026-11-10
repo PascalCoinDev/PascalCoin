@@ -176,7 +176,7 @@ Uses
   UEPasaDecoder,
   UPCRPCSend,
   UOrderedList,
-  UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks, UPCRPCFileUtils;
+  UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks, UPCRPCFileUtils, UProgressDisplay;
 
 Type
   TRegisteredRPCProcessMethod = Record
@@ -1331,7 +1331,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   Function GetBlock(nBlock : Cardinal; jsonObject : TPCJSONObject) : Boolean;
   begin
-    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    FNode.OperationSequenceLock.AcquireWriteLock; // Added to prevent high concurrent API calls
     try
     If FNode.Bank.BlocksCount<=nBlock then begin
       ErrorNum := CT_RPC_ErrNum_InvalidBlock;
@@ -1342,7 +1342,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     TPascalCoinJSONComp.FillBlockObject(nBlock,FNode,jsonObject);
     Result := True;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   end;
 
@@ -1352,7 +1352,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     LOperationsCount : Integer;
     LOperationsAmount : Int64;
   begin
-    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    FNode.OperationSequenceLock.AcquireWriteLock; // Added to prevent high concurrent API calls
     try
     LOpResumeList := TOperationsResumeList.Create;
     Try
@@ -1372,7 +1372,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       LOpResumeList.Free;
     End;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   end;
 
@@ -1384,7 +1384,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     LOperationsAmount : Int64;
     i : Integer;
   begin
-    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    FNode.OperationSequenceLock.AcquireWriteLock; // Added to prevent high concurrent API calls
     try
     LOpResumeList := TOperationsResumeList.Create;
     Try
@@ -1404,7 +1404,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       LOpResumeList.Free;
     End;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   end;
 
@@ -1425,7 +1425,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     LLockedMempool : TPCOperationsComp;
   Begin
     Result := false;
-    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    FNode.OperationSequenceLock.AcquireWriteLock; // Added to prevent high concurrent API calls
     try
     if (startReg<-1) or (maxReg<=0) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidData;
@@ -1476,7 +1476,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       OperationsResume.Free;
     end;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   end;
 
@@ -1650,7 +1650,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : String;
     opr : TOperationResume;
   begin
-    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    FNode.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
       Result := false;
       if (account_signer<0) or (account_signer>=FNode.Bank.AccountsCount) then begin
@@ -1675,7 +1675,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         opck.free;
       end;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   end;
 
@@ -1820,7 +1820,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     operationsht : TOperationsHashTree;
     OperationsResumeList : TOperationsResumeList;
   begin
-    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    FNode.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
       Result := false;
       accountsnumber := TOrderedCardinalList.Create;
@@ -1872,7 +1872,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         accountsnumber.Free;
       end;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   end;
 
@@ -2527,7 +2527,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : String;
     c_account : Cardinal;
   Begin
-    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    FNode.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
       Result := False;
       OperationsHashTree := TOperationsHashTree.Create;
@@ -2560,7 +2560,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         OperationsHashTree.Free;
       end;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   End;
 
@@ -2572,7 +2572,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : String;
     c_account : Cardinal;
   Begin
-    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    FNode.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
       Result := False;
       OperationsHashTree := TOperationsHashTree.Create;
@@ -2605,7 +2605,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         OperationsHashTree.Free;
       end;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   End;
 
@@ -2617,7 +2617,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : String;
     c_account : Cardinal;
   Begin
-    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    FNode.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
       Result := False;
       OperationsHashTree := TOperationsHashTree.Create;
@@ -2656,7 +2656,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         OperationsHashTree.Free;
       end;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   End;
 
@@ -2668,7 +2668,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : String;
     c_account : Cardinal;
   Begin
-    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    FNode.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
       Result := False;
       OperationsHashTree := TOperationsHashTree.Create;
@@ -2701,7 +2701,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         OperationsHashTree.Free;
       end;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   End;
 
@@ -2712,7 +2712,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     jsonarr : TPCJSONArray;
     i : Integer;
   begin
-    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    FNode.OperationSequenceLock.AcquireWriteLock; // Added to prevent high concurrent API calls
     try
     Result := False;
     oprl := TOperationsResumeList.Create;
@@ -2754,7 +2754,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       oprl.Free;
     end;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   end;
 
@@ -3156,7 +3156,8 @@ Var c,c2,c3 : Cardinal;
   i,j,k,l : Integer;
   account : TAccount;
   senderpubkey,destpubkey : TAccountKey;
-  ansistr : String;
+  ansistr, LBankDiagnostic : String;
+  LProgress : TProgressInfo;
   nsaarr : TNodeServerAddressArray;
   pcops : TPCOperationsComp;
   ecpkey : TECPrivateKey;
@@ -3483,24 +3484,20 @@ begin
     // Create result
     k := params.AsInteger('max',100);
     j := params.AsInteger('start',0);
-    If FNode.TryLockNode(5000) then begin
+    // Formatting a pending snapshot shares read ownership with wallet readers.
+    If FNode.TryLockMempoolRead(5000, pcops) then begin
       Try
         jsonarr := GetResultArray;
-        pcops := FNode.LockMempoolRead;
-        try
-          for i := j to pcops.Count-1 do begin
-            If TPCOperation.OperationToOperationResume(0,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
-              opr.NOpInsideBlock:=i;
-              opr.Balance := -1; // Don't include!
-              FillOperationResumeToJSONObject(opr,jsonarr.GetAsObject(jsonarr.Count));
-            end;
-            if (k>0) And (jsonarr.Count>=k) then break;
+        for i := j to pcops.Count-1 do begin
+          If TPCOperation.OperationToOperationResume(0,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
+            opr.NOpInsideBlock:=i;
+            opr.Balance := -1; // Don't include!
+            FillOperationResumeToJSONObject(opr,jsonarr.GetAsObject(jsonarr.Count));
           end;
-        finally
-          FNode.UnlockMempoolRead;
+          if (k>0) And (jsonarr.Count>=k) then break;
         end;
       finally
-        FNode.UnlockNode;
+        FNode.UnlockMempoolRead;
       end;
       Result := true;
     end else begin
@@ -3541,7 +3538,7 @@ begin
       ErrorDesc:='param ophash with invalid length (Expected 64 chars for a 32bytes hexadecimal) value length = '+IntToStr(Length(r1));
       exit;
     end;
-    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    FNode.OperationSequenceLock.AcquireWriteLock; // Added to prevent high concurrent API calls
     try
       Case FNode.FindOperation(r1,opr) of
         OpHash_found : ;
@@ -3561,7 +3558,7 @@ begin
       FillOperationResumeToJSONObject(opr,GetResultObject);
       Result := True;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   end else if (method='findnoperation') then begin
     // Search for an operation signed by "account" and with "n_operation", start searching "block" (0=all)
@@ -3570,7 +3567,7 @@ begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
       Exit;
     end;
-    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    FNode.OperationSequenceLock.AcquireWriteLock; // Added to prevent high concurrent API calls
     try
     Case FNode.FindNOperation(params.AsCardinal('block',0),c,params.AsCardinal('n_operation',0),opr) of
       OpHash_found : ;
@@ -3587,7 +3584,7 @@ begin
     else Raise Exception.Create('ERROR DEV 20171120-5');
     end;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
     FillOperationResumeToJSONObject(opr,GetResultObject);
     Result := True;
@@ -3811,8 +3808,8 @@ begin
         GetResultObject.GetAsVariant('ready').Value := True;
         if TNetData.NetData.IsDiscoveringServers then begin
           GetResultObject.GetAsVariant('status_s').Value := 'Discovering servers';
-        end else if TNetData.NetData.IsGettingNewBlockChainFromClient(ansistr) then begin
-          GetResultObject.GetAsVariant('status_s').Value := ansistr;
+        end else if TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then begin
+          GetResultObject.GetAsVariant('status_s').Value := FormatProgressInfo(LProgress);
         end else begin
           GetResultObject.GetAsVariant('status_s').Value := 'Running';
         end;
@@ -3820,6 +3817,11 @@ begin
         GetResultObject.GetAsVariant('ready_s').Value := 'Alone in the world...';
       end;
     end else begin
+      // ready_s historically exposed the complete network progress text.
+      if FNode.Bank.IsReady(LBankDiagnostic) then
+        if FNode.NetServer.Active then
+          if TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then
+            ansistr := FormatProgressInfo(LProgress);
       GetResultObject.GetAsVariant('ready_s').Value := ansistr;
     end;
     GetResultObject.GetAsVariant('port').Value:=FNode.NetServer.Port;
@@ -3961,11 +3963,11 @@ begin
       ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
       Exit;
     end;
-    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    FNode.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
       jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.LockWallet;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
     Result := true;
   end else if (method='unlock') then begin
@@ -3981,7 +3983,7 @@ begin
       ErrorDesc := 'Need param "pwd"';
       exit;
     end;
-    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    FNode.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
       If Not _RPCServer.WalletKeys.IsValidPassword then begin
         _RPCServer.WalletKeys.WalletPassword:=params.AsString('pwd','');
@@ -3989,7 +3991,7 @@ begin
       jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.IsValidPassword;
       Result := true;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   end else if (method='setwalletpassword') then begin
     // Changes the Wallet password with "pwd" param
@@ -4011,13 +4013,13 @@ begin
       ErrorDesc := 'Need param "pwd"';
       exit;
     end;
-    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    FNode.OperationSequenceLock.AcquireWriteLock;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
       _RPCServer.WalletKeys.WalletPassword:=params.AsString('pwd','');
       jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.IsValidPassword;
       Result := true;
     finally
-      FNode.OperationSequenceLock.Release;
+      FNode.OperationSequenceLock.ReleaseWriteLock;
     end;
   end else if (method='stopnode') then begin
     // Stops communications to other nodes

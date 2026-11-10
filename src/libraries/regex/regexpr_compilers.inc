@@ -327,7 +327,10 @@
   {$DEFINE D2}
 {$ENDIF} // D 10.4
 
-{$IFDEF VER350}
+{ PascalCoin compatibility: retain these features for Delphi 11 and later. }
+{$IFNDEF FPC}
+{$IFDEF CONDITIONALEXPRESSIONS}
+{$IF CompilerVersion >= 35.0}
   {$DEFINE D_105}
   {$DEFINE D_104}
   {$DEFINE D_103}
@@ -351,7 +354,9 @@
   {$DEFINE D4}
   {$DEFINE D3}
   {$DEFINE D2}
-{$ENDIF} // D 10.5
+{$IFEND} // Delphi 11 and later
+{$ENDIF}
+{$ENDIF}
 
 
 {$IFDEF D6}

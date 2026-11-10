@@ -397,6 +397,9 @@ type
       momemory: PAnsiChar;
       function autoswap32(i: cardinal): cardinal;
       function CardinalInMem(baseptr: PAnsiChar; Offset: Cardinal): Cardinal;
+    public
+      // PascalCoin: expose parsed catalog metadata without duplicating the MO reader.
+      property StringCount: Cardinal read N;
     end;
 
 {*------------------------------------------------------------------------------
@@ -4005,7 +4008,10 @@ begin
 {$ENDIF}
 asm
   {$IFDEF CPU386}
-//  lea eax, eax + VMTOFFSET TObject.BeforeDestruction   TO-DO
+  {$IFNDEF FPC}
+  // Hook the actual destructor slot so freed objects leave the registry before finalization.
+  lea eax, eax + VMTOFFSET TObject.BeforeDestruction
+  {$ENDIF}
   {$ENDIF CPU386}
   {$IFDEF CPUx64}
   lea rax, rcx + VMTOFFSET TObject.BeforeDestruction

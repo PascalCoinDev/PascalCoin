@@ -16,16 +16,29 @@ unit UFRMNodes;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+{ Displays peer connections, known node addresses and network statistics.
+  Refreshes the lists from network-change events. }
+
+{ Public types in this unit
+
+  Type      | Purpose
+  ----------+-------------------------------------------------------------------------
+  TFRMNodes | Shows peer connections, known nodes and network statistics.
+}
 
 interface
 
 {$I ..\config.inc}
 
 uses
-  LCLIntf, LCLType,
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+  {$IFDEF FPC}LCLIntf,{$ENDIF} {$IFDEF FPC}LCLType,{$ENDIF}
   Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, StdCtrls, LMessages, UCommon.UI,
+  Dialogs, ExtCtrls, StdCtrls, {$IFDEF FPC}LMessages,{$ENDIF} UCommon.UI,
   ULog,  UBlockChain, UNode, Menus,  UNetProtocol;
 
 Const
@@ -62,7 +75,11 @@ implementation
 
 uses UCommon, UUserInterface, UTime, Generics.Collections;
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 { TFRMNodes }
 
@@ -227,7 +244,7 @@ begin
 end;
 
 procedure TFRMNodes.CM_BlackListUpdated(var Msg: TMessage);
-Const CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
+Const CT_TRUE_FALSE : Array[Boolean] Of String = ('FALSE','TRUE');
 Var i,j,n : integer;
  P : PNodeServerAddress;
  l : TList<Pointer>;

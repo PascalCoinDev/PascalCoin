@@ -17,6 +17,18 @@ unit UFRMRandomOperations;
 
   }
 
+{ Generates randomized transactions and multioperation batches for node
+  testing. The form controls the worker and reports generation and execution
+  results. }
+
+{ Public types in this unit
+
+  Type                     | Purpose
+  -------------------------+-------------------------------------------------------------------------
+  TFRMRandomOperations     | Controls random-operation generation and displays its results.
+  TRandomGenerateOperation | Builds randomized operations from available accounts and keys.
+}
+
 interface
 
 {$I ../config.inc}
@@ -111,10 +123,10 @@ type
 
 implementation
 
-{$IFnDEF FPC}
-  {$R *.dfm}
+{$IFDEF FPC}
+{$R *.lfm}
 {$ELSE}
-  {$R *.lfm}
+{$R *.dfm}
 {$ENDIF}
 
 Uses ULog;
@@ -130,7 +142,7 @@ procedure TRandomGeneratorThread.BCExecute;
 Var nCounter, nTotalRound, iLastSend, i : Integer;
   operationsComp : TPCOperationsComp;
   ohtToAdd : TOperationsHashTree;
-  errors : AnsiString;
+  errors : String;
   nAddedOperations : Integer;
 begin
   operationsComp := TPCOperationsComp.Create(Nil);
@@ -292,7 +304,7 @@ var nAccount, nAccountTarget : Cardinal;
   opTx : TOpTransaction;
   senderAcc : TAccount;
   amount,fees : Int64;
-  errors : AnsiString;
+  errors : String;
 begin
   Result := 0;
   If Not GetRandomSigner(operationsComp,aWalletKeys,iKey,nAccount) then Exit;
@@ -350,7 +362,7 @@ Var opMulti : TOpMultiOperation;
   receiver : TMultiOpReceiver;
   changer: TMultiOpChangeInfo;
   acc : TAccount;
-  errors : AnsiString;
+  errors : String;
 begin
   Result := False;
   opMulti := TOpMultiOperation.Create;

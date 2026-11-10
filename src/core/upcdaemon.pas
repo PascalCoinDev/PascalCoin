@@ -72,7 +72,7 @@ Type
     FLogsDate : TDate;
     function GetDataFolder : String;
     procedure OnNetDataReceivedHelloMessage(Sender : TObject);
-    procedure OnInitSafeboxProgressNotify(sender : TObject; const message : String; curPos, totalCount : Int64);
+    procedure OnInitSafeboxProgressNotify(sender : TObject; const AProgress : TProgressInfo);
     procedure UpdateLogFilenames;
   protected
     Procedure BCExecute; override;
@@ -113,7 +113,7 @@ Type
 
 implementation
 
-uses UPCTNetDataExtraMessages;
+uses UPCTNetDataExtraMessages, UProgressDisplay;
 
 Var _FLog : TLog;
 
@@ -151,9 +151,11 @@ begin
 end;
 
 procedure TPCDaemonThread.OnInitSafeboxProgressNotify(sender: TObject;
-  const message: String; curPos, totalCount: Int64);
+  const AProgress: TProgressInfo);
+var LMessage: String;
 begin
-  TLog.NewLog(ltdebug,ClassName,Format('Progress (%d/%d): %s',[curPos,totalCount,message]));
+  LMessage := FormatProgressLogInfo(AProgress);
+  if LMessage <> '' then TLog.NewLog(ltdebug, ClassName, LMessage);
 end;
 
 procedure TPCDaemonThread.UpdateLogFilenames;

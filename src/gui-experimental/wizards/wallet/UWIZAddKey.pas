@@ -13,7 +13,22 @@ unit UWIZAddKey;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+{ Coordinates wallet key generation and private or public key import through a
+  shared wizard model.
+}
+
+{ Public types in this unit
+
+  Type             | Purpose
+  -----------------+--------------------------------------------------------------------------
+  TWIZAddKeyAction | Selects key generation, private-key import or public-key import.
+  TWIZAddKeyModel  | Stores the key name, import text, password, curve and chosen action.
+  TWIZAddKeyWizard | Runs the Add Key workflow and commits the selected key action.
+}
 
 interface
 
@@ -45,8 +60,8 @@ type
       constructor Create(AOwner: TComponent); override;
       function DetermineHasNext : boolean; override;
       function DetermineHasPrevious : boolean;  override;
-      function FinishRequested(out message : AnsiString) : boolean; override;
-      function CancelRequested(out message : AnsiString) : boolean; override;
+      function FinishRequested(out message : String) : boolean; override;
+      function CancelRequested(out message : String) : boolean; override;
   end;
 
 implementation
@@ -77,7 +92,7 @@ begin
   Result := inherited DetermineHasPrevious;
 end;
 
-function TWIZAddKeyWizard.FinishRequested(out message : AnsiString) : boolean;
+function TWIZAddKeyWizard.FinishRequested(out message : String) : boolean;
 begin
   // Execute the key addition here
   try
@@ -95,7 +110,7 @@ begin
   end;
 end;
 
-function TWIZAddKeyWizard.CancelRequested(out message : AnsiString) : boolean;
+function TWIZAddKeyWizard.CancelRequested(out message : String) : boolean;
 begin
   Result := true;
 end;

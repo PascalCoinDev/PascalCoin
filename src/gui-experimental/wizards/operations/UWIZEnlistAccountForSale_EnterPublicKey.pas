@@ -17,8 +17,25 @@ unit UWIZEnlistAccountForSale_EnterPublicKey;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
+
+{ Collects the permitted buyer public key for a private sale before its
+  locking-block step.
+}
+
+{ Public types in this unit
+
+  Type                                    | Purpose
+  ----------------------------------------+--------------------------------------------------------------------------
+  TWIZEnlistAccountForSale_EnterPublicKey | Validates the buyer key and inserts the private-sale lock step.
+}
 
 interface
 
@@ -37,13 +54,17 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UAccounts,
@@ -61,16 +82,17 @@ begin
   UpdatePath(ptInject, [TWIZEnlistAccountForSale_EnterLockingBlock]);
 end;
 
-function TWIZEnlistAccountForSale_EnterPublicKey.Validate(out message: ansistring): boolean;
+function TWIZEnlistAccountForSale_EnterPublicKey.Validate(out message: String): boolean;
 var
+  LMessage: String;
   LIdx: integer;
 begin
   Result := True;
 
   if not TAccountComp.AccountKeyFromImport(Trim(mmoPublicKey.Lines.Text),
-    Model.EnlistAccountForSale.NewOwnerPublicKey, message) then
+    Model.EnlistAccountForSale.NewOwnerPublicKey, LMessage) then
   begin
-    message := Format('Error Importing Public Key, Specific Error: %s', [message]);
+    message := Format('Error Importing Public Key, Specific Error: %s', [LMessage]);
     Exit(False);
   end;
 

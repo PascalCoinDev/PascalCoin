@@ -1,13 +1,13 @@
 object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   Left = -1385
-  Height = 551
+  Height = 601
   Top = 29
   Width = 370
   ActiveControl = bbUpdatePassword
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'Options'
-  ClientHeight = 551
+  ClientHeight = 601
   ClientWidth = 370
   Color = clBtnFace
   Font.Color = clWindowText
@@ -118,7 +118,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   object bbOk: TBitBtn
     Left = 184
     Height = 30
-    Top = 500
+    Top = 550
     Width = 75
     Kind = bkOK
     ModalResult = 1
@@ -129,7 +129,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   object bbCancel: TBitBtn
     Left = 278
     Height = 30
-    Top = 500
+    Top = 550
     Width = 75
     Cancel = True
     Kind = bkCancel
@@ -319,7 +319,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   object bbOpenDataFolder: TBitBtn
     Left = 15
     Height = 30
-    Top = 500
+    Top = 550
     Width = 131
     Caption = 'Open Data Folder'
     Glyph.Data = {
@@ -418,5 +418,25 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Alignment = taRightJustify
     TabOrder = 19
     Text = '0'
+  end
+  object lblInterfaceLanguage: TLabel
+    Left = 15
+    Top = 502
+    Caption = 'Language'
+  end
+  object cbInterfaceLanguage: TComboBox
+    Left = 90
+    Top = 498
+    Width = 263
+    Height = 23
+    Style = csDropDownList
+    TabOrder = 20
+    OnChange = cbInterfaceLanguageChange
+  end
+  object lblLanguageRestart: TLabel
+    Left = 90
+    Top = 526
+    Caption = 'Takes effect after restarting PascalCoin.'
+    Visible = False
   end
 end

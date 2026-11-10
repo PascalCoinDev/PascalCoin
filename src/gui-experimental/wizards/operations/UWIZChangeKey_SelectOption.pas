@@ -17,8 +17,25 @@ unit UWIZChangeKey_SelectOption;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
+
+{ Chooses whether to transfer accounts to an imported public key or select an
+  existing wallet key.
+}
+
+{ Public types in this unit
+
+  Type                       | Purpose
+  ---------------------------+--------------------------------------------------------------------------
+  TWIZChangeKey_SelectOption | Selects the key-change mode and inserts its key-entry screen.
+}
 
 interface
 
@@ -44,7 +61,11 @@ type
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UCoreObjects,

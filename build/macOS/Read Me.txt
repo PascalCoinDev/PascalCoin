@@ -1,0 +1,27 @@
+PascalCoin for macOS
+
+Install
+1. Drag PascalCoin Wallet onto the Applications folder in this window.
+   PascalCoin Wallet Experimental is the newer interface; install it too if you
+   want to try it.
+2. Eject this disk and open the wallet from Applications or Launchpad.
+
+First start
+These apps are not notarized by Apple, so macOS asks for confirmation once.
+- macOS 15 or later: when the warning appears, click Done. Open System Settings,
+  choose Privacy & Security, scroll to Security and click Open Anyway next to
+  the PascalCoin app. Confirm with your password.
+- macOS 14 or earlier: Control-click the app in Applications, choose Open, then
+  click Open in the dialog.
+
+The apps run natively on Macs with Apple silicon (M1 and later) and on Intel
+Macs.
+
+Your data
+Both wallets keep their keys and blockchain data in the PascalCoin folder in
+your home folder. Back up your wallet keys from the wallet before reinstalling
+or moving to another computer.
+
+The daemon and reference miner command-line programs are in the separate
+x86_64-darwin.tar.gz release package. They are Intel builds, so on Apple
+silicon macOS runs them through Rosetta.

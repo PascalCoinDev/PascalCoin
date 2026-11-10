@@ -17,7 +17,20 @@ unit UWIZBuyAccount;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+{ Coordinates account purchase details, optional fee and payload steps,
+  confirmation and execution.
+}
+
+{ Public types in this unit
+
+  Type                 | Purpose
+  ---------------------+--------------------------------------------------------------------------
+  TWIZBuyAccountWizard | Runs the account purchase workflow and submits the confirmed purchase.
+}
 
 interface
 
@@ -33,8 +46,8 @@ type
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;
     function DetermineHasPrevious: boolean; override;
-    function FinishRequested(out message: ansistring): boolean; override;
-    function CancelRequested(out message: ansistring): boolean; override;
+    function FinishRequested(out message: String): boolean; override;
+    function CancelRequested(out message: String): boolean; override;
   end;
 
 implementation
@@ -70,16 +83,17 @@ begin
   Result := inherited DetermineHasPrevious;
 end;
 
-function TWIZBuyAccountWizard.FinishRequested(out message: ansistring): boolean;
+function TWIZBuyAccountWizard.FinishRequested(out message: String): boolean;
 begin
   // Execute Buy Account here
   Result := TWIZOperationsHelper.ExecuteBuyAccount(Model.Account.SelectedAccounts, Model.BuyAccount.AccountToBuy, Model.Fee.SingleOperationFee, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, Model.BuyAccount.Amount, Model.BuyAccount.NewOwnerPublicKey, message);
-  if TWIZOperationsModel.RelockOnFinish then
-    TWallet.Keys.LockWallet;
+  if Result then
+    Model.RelockWallet;
 end;
 
-function TWIZBuyAccountWizard.CancelRequested(out message: ansistring): boolean;
+function TWIZBuyAccountWizard.CancelRequested(out message: String): boolean;
 begin
+  Model.RelockWallet;
   Result := True;
 end;
 

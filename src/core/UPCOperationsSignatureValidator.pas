@@ -52,7 +52,7 @@ type
 
   TPCOperationsSignatureValidator = Class
   private
-    FLock : TPCCriticalSection;
+    FLock : TReadWriteLock;
     //
     FOperationsList : TList<TPCOperation>;
     FLastIndexOperations : Integer;
@@ -88,7 +88,7 @@ constructor TPCOperationsSignatureValidator.Create(ASafeBoxTransaction: TPCSafeB
 begin
   FSafeBoxTransaction := ASafeBoxTransaction;
   FLastIndexOperations := -1;
-  FLock := TPCCriticalSection.Create('');
+  FLock := TReadWriteLock.Create('',lrpSupportsRecursion);
   FValidatedOkCount := 0;
   FValidatedErrorCount := 0;
   FProgressNotify := AProgressNotify;
@@ -103,7 +103,7 @@ end;
 function TPCOperationsSignatureValidator.GetNextOperation(AValidatorThread : TPCOperationsSignatureValidatorThread) : TPCOperation;
 var LOp : TPCOperation;
 begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   try
     Result := Nil;
     // Search next Operation without valid signature
@@ -115,7 +115,7 @@ begin
       end else Break;
     end;
   finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   end;
 end;
 
@@ -233,33 +233,36 @@ procedure TPCOperationsSignatureValidator.SetOperationCheckResult(
   AValidatorThread: TPCOperationsSignatureValidatorThread;
   APCOperation: TPCOperation; AValidated: Boolean);
 begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   try
     if AValidated then inc(FValidatedOkCount)
     else inc(FValidatedErrorCount);
   finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   end;
 end;
 
 function TPCOperationsSignatureValidator.Validate(AOperationsList : TList<TPCOperation>) : Integer;
 var LLastTC : TTickCount;
   procedure DoNotify;
-  var LMsg : String;
-    LCurPos,LTotal : Int64;
+  var LProgress: TProgressInfo;
   begin
     if (Assigned(FProgressNotify)) and (TPlatform.GetElapsedMilliseconds(LLastTC)>200) then begin
       LLastTC := TPlatform.GetTickCount;
-      FLock.Acquire;
+      // Snapshot assignment progress without excluding other snapshot readers;
+      // work reservation and completion counters still acquire write ownership.
+      FLock.AcquireReadLock;
       try
-        LMsg := Format('Validating signatures %d/%d',[FLastIndexOperations,FOperationsList.Count]);
-        LCurPos := FLastIndexOperations;
-        LTotal := FOperationsList.Count;
+        // Preserve the existing assigned-operation index, not a fabricated
+        // completed-signature count. Presentation belongs to the consumer.
+        LProgress := TProgressInfo.Create(psValidatingSignatures,
+          FLastIndexOperations, FOperationsList.Count);
+        LProgress.OperationsCount := FOperationsList.Count;
       finally
-        FLock.Release;
+        FLock.ReleaseReadLock;
       end;
       //
-      FProgressNotify(Self,LMsg,LCurPos,LTotal);
+      FProgressNotify(Self, LProgress);
     end;
   end;
 var LMaxThreads : Integer;

@@ -60,11 +60,12 @@ type
     FTcpBlockSocket : TTCPBlockSocket;
     FBytesReceived, FBytesSent : Int64;
     FConnected : Boolean;
-    FLock : TPCCriticalSection;
+    // Receive/connect failures can call Disconnect while already owning this writer.
+    FLock : TReadWriteLock;
     {$IFDEF Synapse}
     FRemoteHost : String;
     FRemotePort : Word;
-    FSendBufferLock : TPCCriticalSection;
+    FSendBufferLock : TReadWriteLock;
     {$ENDIF}
     FOnConnect: TNotifyEvent;
     FOnDisconnect: TNotifyEvent;
@@ -85,7 +86,9 @@ type
     FNetTcpIpServer : TNetTcpIpServer;
     Procedure DoOnDisconnect; Virtual;
     Procedure DoOnConnect; Virtual;
-    function ReceiveBuf(var Buf; BufSize: Integer): Integer;
+    // Transport specializations can observe an inherited read before buffered
+    // publication without replacing the socket implementation.
+    function ReceiveBuf(var Buf; BufSize: Integer): Integer; virtual;
     Function SendStream(Stream : TStream) : Int64;
     Procedure DoWaitForData(WaitMilliseconds : Integer; var HasData : Boolean); virtual;
   public
@@ -124,10 +127,15 @@ type
   private
     FSendBuffer : TMemoryStream;
     FReadBuffer : TMemoryStream;
-    FCritical : TPCCriticalSection;
+    // Mutable stream leases stay exclusive even when their caller is reading bytes.
+    FCritical : TReadWriteLock;
     FLastReadTC : TTickCount;
     FBufferedNetTcpIpClientThread : TBufferedNetTcpIpClientThread;
     FOnReceivedData: TNotifyEvent;
+    FReceivePauseDepth: Integer;
+    FReceiveIdle: TEvent;
+    function BeginReceiveCycle: Boolean;
+    procedure EndReceiveCycle;
   protected
     Procedure DoReceivedData; virtual;
     Function DoWaitForDataInherited(WaitMilliseconds : Integer) : Boolean;
@@ -138,6 +146,11 @@ type
     Procedure WriteBufferToSend(SendData : TStream);
     Function ReadBufferLock : TMemoryStream;
     Procedure ReadBufferUnlock;
+    // The processing owner pauses admission before disconnecting, then waits
+    // without holding buffer/socket/registry locks for the last read to publish.
+    procedure PauseReceiving;
+    procedure WaitForReceiveIdle;
+    procedure ResumeReceiving;
     Property LastReadTC : TTickCount read FLastReadTC;
     Property OnReceivedData : TNotifyEvent read FOnReceivedData write FOnReceivedData;
   End;
@@ -198,6 +211,7 @@ type
     Procedure DoRemoveClient(AClient : TNetTcpIpClient); virtual;
     Procedure OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient); virtual;
     procedure SetActive(const Value: Boolean); virtual;
+    function DrainClientBuffersOnStop: Boolean; virtual;
     procedure SetMaxConnections(AValue: Integer); virtual;
     function GetNewClient : TNetTcpIpClient; virtual;
   public
@@ -259,7 +273,7 @@ end;
 
 function TNetTcpIpClient.Connect: Boolean;
 begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   try
     {$IFDEF DelphiSockets}
     FSocketError := 0;
@@ -292,7 +306,7 @@ begin
     End;
     {$ENDIF}
   finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   end;
   if FConnected then begin
     DoOnConnect;
@@ -316,9 +330,9 @@ begin
   TIdTCPClient(FTcpBlockSocket).ConnectTimeout := 5000;
   TIdTCPClient(FTcpBlockSocket).ReadTimeout := 5000;
   {$ENDIF}
-  FLock := TPCCriticalSection.Create('TNetTcpIpClient_Lock');
+  FLock := TReadWriteLock.Create('TNetTcpIpClient_Lock',lrpSupportsRecursion);
   {$IFDEF Synapse}
-  FSendBufferLock := TPCCriticalSection.Create('TNetTcpIpClient_SendBufferLock');
+  FSendBufferLock := TReadWriteLock.Create('TNetTcpIpClient_SendBufferLock',lrpSupportsRecursion);
   FTcpBlockSocket := TTCPBlockSocket.Create;
   FTcpBlockSocket.OnAfterConnect := OnConnect;
   FTcpBlockSocket.SocksTimeout := 5000; //Build 1.5.0 was 10000;
@@ -333,11 +347,11 @@ end;
 
 destructor TNetTcpIpClient.Destroy;
 begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   try
     Disconnect;
   finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   end;
   {$IFDEF Synapse}  // Memory leak on 1.5.0
   FreeAndNil(FSendBufferLock);
@@ -354,7 +368,7 @@ begin
   if Not FConnected then exit;
   Try
     DebugStep := '';
-    FLock.Acquire;
+    FLock.AcquireWriteLock;
     Try
       if Not FConnected then begin
         exit; // Protection inside lock thread to prevent double disconnect sessions
@@ -376,7 +390,7 @@ begin
       DebugStep := 'Calling OnDisconnect';
       {$ENDIF}
     Finally
-      FLock.Release;
+      FLock.ReleaseWriteLock;
     End;
     DoOnDisconnect;
   Except
@@ -399,7 +413,7 @@ end;
 
 procedure TNetTcpIpClient.DoWaitForData(WaitMilliseconds: Integer; var HasData: Boolean);
 Begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   Try
     if Not FConnected then begin
       HasData := False;
@@ -426,7 +440,7 @@ Begin
     End;
     {$ENDIF}
   Finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   End;
 end;
 
@@ -476,7 +490,7 @@ var LBytes : TIdBytes;
 {$ENDIF}
 begin
   Result := 0;
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   Try
     {$IFDEF DelphiSockets}
     FSocketError := 0;
@@ -509,7 +523,7 @@ begin
     End;
     {$ENDIF}
   Finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   End;
   if Result>0 then FLastCommunicationTime := Now;
 end;
@@ -529,7 +543,7 @@ begin
   Result := 0;
   unlocked := false;
   // In order to allow a big stream sending, will cut up in small blocks
-  FSendBufferLock.Acquire;
+  FSendBufferLock.AcquireWriteLock;
   Try
     Try
       FTcpBlockSocket.SendStreamRaw(Stream);
@@ -537,7 +551,7 @@ begin
         TLog.NewLog(ltDebug,ClassName,'Closing connection from '+ClientRemoteAddr+' (Sending error): '+Inttostr(FTcpBlockSocket.LastError)+' '+FTcpBlockSocket.GetErrorDescEx);
         Result := -1;
         unlocked := true;
-        FSendBufferLock.Release;
+        FSendBufferLock.ReleaseWriteLock;
         Disconnect;
       end else begin
         Result := Stream.Position - sp;
@@ -548,12 +562,12 @@ begin
         SocketError := FTcpBlockSocket.LastError;
         TLog.NewLog(lterror,ClassName,'Exception sending stream to '+ClientRemoteAddr+': '+FTcpBlockSocket.GetErrorDescEx);
         unlocked := true;
-        FSendBufferLock.Release;
+        FSendBufferLock.ReleaseWriteLock;
         Disconnect;
       end;
     End;
   Finally
-    If not unlocked then FSendBufferLock.Release;
+    If not unlocked then FSendBufferLock.ReleaseWriteLock;
   end;
   {$ENDIF}
   if Result>0 then FLastCommunicationTime := Now;
@@ -623,6 +637,7 @@ end;
 procedure TBufferedNetTcpIpClientThread.BCExecute;
 var SendBuffStream : TStream;
   ReceiveBuffer : Array[0..4095] of byte;
+  LReceivedData: Boolean;
   Procedure DoReceiveBuf;
   var last_bytes_read : Integer;
     total_read, total_size : Int64;
@@ -643,6 +658,9 @@ var SendBuffStream : TStream;
 
 
         last_bytes_read := FBufferedNetTcpIpClient.ReceiveBuf(ReceiveBuffer,sizeof(ReceiveBuffer));
+        // A readable socket returning zero bytes has reached orderly EOF.
+        // Its already returned bytes still belong to the buffered owner.
+        if last_bytes_read=0 then FBufferedNetTcpIpClient.Disconnect;
         if (last_bytes_read>0) then begin
           ms := FBufferedNetTcpIpClient.ReadBufferLock;
           Try
@@ -660,7 +678,7 @@ var SendBuffStream : TStream;
       until (last_bytes_read<sizeof(ReceiveBuffer)) Or (Terminated) Or (Not FBufferedNetTcpIpClient.Connected);
       {$IFDEF HIGHLOG}If total_read>0 then TLog.NewLog(ltdebug,ClassName,Format('Received %d bytes. Buffer length: %d bytes',[total_read,total_size]));{$ENDIF}
       if (total_read>0) and (Not Terminated) and (FBufferedNetTcpIpClient.Connected) then begin
-        FBufferedNetTcpIpClient.DoReceivedData;
+        LReceivedData := True;
       end;
     end else begin
       if FBufferedNetTcpIpClient.SocketError<>0 then FBufferedNetTcpIpClient.Disconnect;
@@ -668,7 +686,7 @@ var SendBuffStream : TStream;
   end;
   Procedure DoSendBuf;
   begin
-    FBufferedNetTcpIpClient.FCritical.Acquire;
+    FBufferedNetTcpIpClient.FCritical.AcquireWriteLock;
     Try
       if FBufferedNetTcpIpClient.FSendBuffer.Size>0 then begin
         SendBuffStream.Size := 0;
@@ -676,7 +694,7 @@ var SendBuffStream : TStream;
         FBufferedNetTcpIpClient.FSendBuffer.Size := 0;
       end;
     Finally
-      FBufferedNetTcpIpClient.FCritical.Release;
+      FBufferedNetTcpIpClient.FCritical.ReleaseWriteLock;
     End;
     if (SendBuffStream.Size>0) then begin
        SendBuffStream.Position := 0;
@@ -692,7 +710,19 @@ begin
       while (Not Terminated) And (Not FBufferedNetTcpIpClient.Connected) do sleep(100);
       if (FBufferedNetTcpIpClient.Connected) then begin
         // Receive data
-        If (Not Terminated) And (FBufferedNetTcpIpClient.Connected) then DoReceiveBuf;
+        LReceivedData := False;
+        if (not Terminated) and FBufferedNetTcpIpClient.BeginReceiveCycle then begin
+          try
+            // Reserve the whole wait/read/publication sequence, including
+            // bytes an Indy wait may acquire internally. No admission gate is
+            // held across socket operations or their disconnect callbacks.
+            DoReceiveBuf;
+          finally
+            FBufferedNetTcpIpClient.EndReceiveCycle;
+          end;
+        end;
+        if LReceivedData and (not Terminated) and FBufferedNetTcpIpClient.Connected then
+          FBufferedNetTcpIpClient.DoReceivedData;
         // Send Data
         If (Not Terminated) And (FBufferedNetTcpIpClient.Connected) then DoSendBuf;
       end else FBufferedNetTcpIpClient.FLastReadTC := TPlatform.GetTickCount;
@@ -717,9 +747,10 @@ begin
   inherited;
   FOnReceivedData := Nil;
   FLastReadTC := TPlatform.GetTickCount;
-  FCritical := TPCCriticalSection.Create('TBufferedNetTcpIpClient_Critical');
+  FCritical := TReadWriteLock.Create('TBufferedNetTcpIpClient_Critical',lrpSupportsRecursion);
   FSendBuffer := TMemoryStream.Create;
   FReadBuffer := TMemoryStream.Create;
+  FReceiveIdle := TEvent.Create(nil,True,True,'');
   FBufferedNetTcpIpClientThread := TBufferedNetTcpIpClientThread.Create(Self);
 end;
 
@@ -728,6 +759,7 @@ begin
   FBufferedNetTcpIpClientThread.Terminate;
   FBufferedNetTcpIpClientThread.WaitFor;
   FreeAndNil(FBufferedNetTcpIpClientThread);
+  FreeAndNil(FReceiveIdle);
   FreeAndNil(FCritical);
   FreeAndNil(FReadBuffer);
   FreeAndNil(FSendBuffer);
@@ -741,14 +773,15 @@ end;
 
 procedure TBufferedNetTcpIpClient.DoWaitForData(WaitMilliseconds: Integer; var HasData: Boolean);
 begin
-  FCritical.Acquire;
+  // Inspecting buffer size does not move its cursor; release before the socket wait.
+  FCritical.AcquireReadLock;
   try
     if FReadBuffer.Size>0 then begin
       HasData := True;
       exit;
     end;
   finally
-    FCritical.Release;
+    FCritical.ReleaseReadLock;
   end;
   inherited DoWaitForData(WaitMilliseconds,HasData);
 end;
@@ -760,19 +793,74 @@ end;
 
 function TBufferedNetTcpIpClient.ReadBufferLock: TMemoryStream;
 begin
-  FCritical.Acquire;
+  // Callers may consume, clear or reposition this shared stream until Unlock.
+  FCritical.AcquireWriteLock;
   Result := FReadBuffer;
 end;
 
 procedure TBufferedNetTcpIpClient.ReadBufferUnlock;
 begin
-  FCritical.Release;
+  FCritical.ReleaseWriteLock;
+end;
+
+function TBufferedNetTcpIpClient.BeginReceiveCycle: Boolean;
+begin
+  FCritical.AcquireWriteLock;
+  try
+    Result := (FReceivePauseDepth=0) and Connected;
+    if Result then begin
+      FReceiveIdle.ResetEvent;
+    end;
+  finally
+    FCritical.ReleaseWriteLock;
+  end;
+end;
+
+procedure TBufferedNetTcpIpClient.EndReceiveCycle;
+begin
+  FCritical.AcquireWriteLock;
+  try
+    FReceiveIdle.SetEvent;
+  finally
+    FCritical.ReleaseWriteLock;
+  end;
+end;
+
+procedure TBufferedNetTcpIpClient.PauseReceiving;
+begin
+  FCritical.AcquireWriteLock;
+  try
+    Inc(FReceivePauseDepth);
+  finally
+    FCritical.ReleaseWriteLock;
+  end;
+end;
+
+procedure TBufferedNetTcpIpClient.WaitForReceiveIdle;
+begin
+  if TThread.CurrentThread.ThreadID=FBufferedNetTcpIpClientThread.ThreadID then
+    raise Exception.Create('The receive worker cannot wait for itself');
+  // PauseReceiving closes new admission; an admitted read keeps the event
+  // unsignalled until its bytes are appended, even if Disconnect has returned.
+  if FReceiveIdle.WaitFor(Cardinal($FFFFFFFF))<>wrSignaled then
+    raise Exception.Create('Cannot wait for buffered receive publication');
+end;
+
+procedure TBufferedNetTcpIpClient.ResumeReceiving;
+begin
+  FCritical.AcquireWriteLock;
+  try
+    if FReceivePauseDepth<=0 then raise Exception.Create('Unbalanced receive resume');
+    Dec(FReceivePauseDepth);
+  finally
+    FCritical.ReleaseWriteLock;
+  end;
 end;
 
 procedure TBufferedNetTcpIpClient.WriteBufferToSend(SendData: TStream);
 var lastpos : Int64;
 begin
-  FCritical.Acquire;
+  FCritical.AcquireWriteLock;
   try
     lastpos := FSendBuffer.Position;
     FSendBuffer.Position := FSendBuffer.Size;
@@ -780,7 +868,7 @@ begin
     FSendBuffer.CopyFrom(SendData,SendData.Size);
     FSendBuffer.Position := lastpos;
   finally
-    FCritical.Release;
+    FCritical.ReleaseWriteLock;
   end;
 end;
 
@@ -884,7 +972,7 @@ Var n : TNetTcpIpClient;
 begin
   n := GetNewClient;
   Try
-    n.FLock.Acquire;
+    n.FLock.AcquireWriteLock;
     try
       n.FNetTcpIpServer := Self;
       oldSocket := n.FTcpBlockSocket;
@@ -901,7 +989,7 @@ begin
       ClientSocket.ConnectionTimeout := 5000; // New 1.5.1
       {$ENDIF}
     finally
-      n.FLock.Release;
+      n.FLock.ReleaseWriteLock;
     end;
     DoAddClient(n);
     try
@@ -932,6 +1020,13 @@ begin
     FreeAndNil(FTcpIpServer);
   end;
   {$ENDIF}
+end;
+
+function TNetTcpIpServer.DrainClientBuffersOnStop: Boolean;
+begin
+  // Existing server types retain their cancellation policy. Protocol servers
+  // can instead finish the received unit before their accepted callback exits.
+  Result := False;
 end;
 
 procedure TNetTcpIpServer.SetNetTcpIpClientClass(const Value: TNetTcpIpClientClass);
@@ -1013,7 +1108,11 @@ begin
     // Finalize all threads
     for i := 0 to lSockets.Count - 1 do begin
       TTcpIpSocketThread(lSockets[i]).FListenerThread := Nil;
-      TTcpIpSocketThread(lSockets[i]).Terminate;
+      // Network-off must not turn an already received blockchain batch into
+      // application cancellation. The protocol callback exits when Active is
+      // false after draining its current buffer; shutdown has a separate latch.
+      if not FNetTcpIpServerServer.DrainClientBuffersOnStop then
+        TTcpIpSocketThread(lSockets[i]).Terminate;
     end;
     // Wait until terminated...
     for i := 0 to lSockets.Count - 1 do begin

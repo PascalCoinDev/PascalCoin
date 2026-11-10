@@ -24,7 +24,7 @@ interface
 
 uses
   Classes, SysUtils, CL_Platform, CL, CL_GL, DelphiCL, dglOpenGL, USha256, UPoolMinerThreads, UPoolMining,
-  UThread, UTime, SyncObjs, UCrypto, ULog;
+  UThread, UTime, UCrypto, ULog;
 
 Type
 
@@ -35,7 +35,8 @@ Type
     FNeedNewDevice : Boolean;
     FDevice: Integer;
     FPlatform: Integer;
-    FLock : TCriticalSection;
+    // Kernel/buffer updates share one recursive writer, including nested UpdateBuffers.
+    FLock : TReadWriteLock;
     FDCLDevice : TDCLDevice;
     FDCLProgram: TDCLProgram;
     FDCLCommandQueue: TDCLCommandQueue;
@@ -149,7 +150,7 @@ begin
       sleep(1);
     end else begin
       baseRealTC := GetTickCount;
-      FLock.Acquire;
+      FLock.AcquireWriteLock;
       try
         cMVFW := MinerValuesForWork;
       //  AuxStats := CT_TMinerStats_NULL;
@@ -180,18 +181,18 @@ begin
             FKernelOutputBuffer := FDCLDevice.CreateBuffer(4,@FKernelArg2,[mfReadWrite, mfCopyHostPtr {mfCopyHostPtr mfUseHostPtr}]);
             // FOUND A NONCE !!!
             inc(AuxStats.WinsCount);
-            FLock.Release;
+            FLock.ReleaseWriteLock;
             try
               FoundNOnce(cMVFW,Timestamp,nOnce);
             finally
-              FLock.Acquire;
+              FLock.AcquireWriteLock;
             end;
           end;
           if (nLap<CT_MAX_LAPS) then inc(nLap) else nLap := 0;
           inc(AuxStats.RoundsCount,CT_LAPS_ROUND);
         end else sleep(1);
       finally
-        FLock.Release;
+        FLock.ReleaseWriteLock;
       end;
       If (AuxStats.RoundsCount>0) then begin
         inc(AuxStats.WorkingMillisecondsTotal,GetTickCount - baseRealTC);
@@ -214,7 +215,7 @@ begin
   FPlatform:=-1;
   FNeedNewDevice:=false;
   FProgramFileName:='';
-  FLock := TCriticalSection.Create;
+  FLock := TReadWriteLock.Create('TGPUDeviceThread.Work',lrpSupportsRecursion);
   FDCLDevice := Nil;
   FDCLProgram := Nil;
   FDCLCommandQueue := Nil;
@@ -282,7 +283,7 @@ end;
 
 procedure TGPUDeviceThread.UpdateState;
 begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   try
     If FNeedNewDevice then begin
       FDCLDevice := Nil;
@@ -309,7 +310,7 @@ begin
     end;
     UpdateBuffers;
   finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   end;
   inherited;
 end;
@@ -322,7 +323,7 @@ Var stateforlastchunk : TSHA256HASH;
   b : Byte;
   c1,c2 : Cardinal;
 begin
-  FLock.Acquire;
+  FLock.AcquireWriteLock;
   try
     FReadyToGPU := (Length(MinerValuesForWork.part1)>0) And (Assigned(FDCLKernel));
     if (FReadyToGPU) And (TPoolMinerThread.UseRandomHash(MinerValuesForWork.version)) then begin
@@ -362,7 +363,7 @@ begin
     end;
     IsMining := true;
   finally
-    FLock.Release;
+    FLock.ReleaseWriteLock;
   end;
 end;
 

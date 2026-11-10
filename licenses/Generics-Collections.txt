@@ -1,0 +1,25 @@
+{
+    This file is part of the Free Pascal run time library.
+    Copyright (c) 2014 by Maciej Izak (hnb)
+    member of the Free Sparta development team (http://freesparta.com)
+
+    Copyright(c) 2004-2014 DaThoX
+
+    It contains the Free Pascal generics library
+
+    See the file COPYING.FPC, included in this distribution,
+    for details about the copyright.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+    Acknowledgment
+
+    Thanks to Sphere 10 Software (http://sphere10.com) for sponsoring
+    many new types and major refactoring of entire library
+
+    Thanks to mORMot (http://synopse.info) project for the best implementations
+    of hashing functions like crc32c and xxHash32 :)
+
+ **********************************************************************}

@@ -30,7 +30,7 @@ uses
   UCommon,
   UCrypto,
   UEncoding,
-  SyncObjs;
+  UThread;
 
 type
 
@@ -142,7 +142,7 @@ type
   TEPasaParser = class
     strict private
       class var FEPasaRegex: TCustomRegex;
-      class var FEPasaLocker : TCriticalSection;
+      class var FEPasaLocker : TReadWriteLock;
       class constructor CreateRegexEPasaParser();
       class destructor DestroyRegexEPasaParser();
 
@@ -506,7 +506,7 @@ end;
 class constructor TEPasaParser.CreateRegexEPasaParser;
 begin
   FEPasaRegex := TCustomRegex.Create(EPasaPattern);
-  FEPasaLocker := TCriticalSection.Create;
+  FEPasaLocker := TReadWriteLock.Create('TEPasaParser.Regex',lrpSupportsRecursion);
 end;
 
 class destructor TEPasaParser.DestroyRegexEPasaParser;
@@ -552,7 +552,8 @@ begin
     Exit(False);
   end;
 
-  FEPasaLocker.Acquire; // Protect against multithread
+  // Matching updates the shared regex capture state, so parsing owns a write.
+  FEPasaLocker.AcquireWriteLock;
   Try
 
   FEPasaRegex.Match(AEPasaText);
@@ -576,7 +577,7 @@ begin
   end;
 
   Finally
-    FEPasaLocker.Release;
+    FEPasaLocker.ReleaseWriteLock;
   End;
 
   if (LAccountName <> #0) then begin

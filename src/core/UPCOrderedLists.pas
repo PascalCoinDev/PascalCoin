@@ -98,6 +98,9 @@ Type
     Function Count : Integer;
     Function Get(index : Integer) : TRawBytes;
     Procedure Delete(index : Integer);
+    // Indexes refer to the original list and must be strictly increasing.
+    // Validate first, then dispose removed entries and compact survivors once.
+    Procedure DeleteIndexes(const AIndexes : array of Integer);
     procedure SetTag(Const RawData : TRawBytes; newTagValue : Integer);
     function GetTag(Const RawData : TRawBytes) : Integer; overload;
     function GetTag(index : Integer) : Integer; overload;
@@ -336,6 +339,32 @@ begin
   P := PRawListData(FList[index]);
   FList.Delete(index);
   Dispose(P);
+end;
+
+procedure TOrderedRawList.DeleteIndexes(const AIndexes: array of Integer);
+var i, LRead, LWrite, LDelete : Integer;
+begin
+  if Length(AIndexes)=0 then Exit;
+  // Reject the whole request before releasing any owned entry.
+  for i := Low(AIndexes) to High(AIndexes) do begin
+    if (AIndexes[i]<0) or (AIndexes[i]>=FList.Count) then
+      raise EOrderedList.Create(Format('Index %d out of range 0..%d',[AIndexes[i],FList.Count-1]));
+    if (i>Low(AIndexes)) and (AIndexes[i]<=AIndexes[i-1]) then
+      raise EOrderedList.Create('Indexes must be strictly increasing');
+  end;
+  LWrite := 0;
+  LDelete := Low(AIndexes);
+  for LRead := 0 to FList.Count-1 do begin
+    if (LDelete<=High(AIndexes)) and (AIndexes[LDelete]=LRead) then begin
+      Dispose(PRawListData(FList[LRead]));
+      Inc(LDelete);
+    end else begin
+      if LWrite<>LRead then FList[LWrite] := FList[LRead];
+      Inc(LWrite);
+    end;
+  end;
+  // TList<Pointer> owns only its array; the entries above own their raw bytes.
+  FList.Count := LWrite;
 end;
 
 destructor TOrderedRawList.Destroy;

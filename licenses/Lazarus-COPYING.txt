@@ -1,0 +1,46 @@
+This is the file COPYING. It gives an overview of the licenses used in the
+Lazarus sources.
+
+The Lazarus sources consists of several parts and each part has its own
+license. Three main licenses are in use:
+* the GNU General Public License, version 2 (GPLv2)
+* a modified LGPL (as described in COPYING.modifiedLGPL)
+* the MPL
+In general, each file contains a header, describing the license of the file.
+
+The license directory tree:
+
+<lazarus>/
+ |
+ +- ide             (GPLv2)
+ |
+ +- designer        (GPLv2)
+ |
+ +- debugger        (GPLv2)
+ |
+ +- examples        (GPLv2)
+ |
+ +- packager        (GPLv2)
+ |
+ +- tools           (GPLv2)
+ |
+ +- lcl             (modified LGPL)
+ |                  With the exception of the customdrawn/android interface,
+ |                  where some files are licensed under the
+ |                  Apache Licence, Version 2.
+ |
+ +- components/
+    |
+    +- codetools    (GPLv2)
+    |
+    +- synedit      (MPL - Mozilla public license)
+    |
+    +- xxx There are various packages under various licenses. Mostly the
+           modified LGPL. See the license in the package files for details.
+           Some are not free for commercial use.
+           
+The IDE files are the files in the ide, designer, packager and debugger
+directory. They are under the GPLv2, with the following exceptions:
+transfermacros.pp, wordcompletion.pp, patheditordlg.pas, outputfilter.pas,
+inputfiledialog.pas, findreplacedialog.pp, findinfilesdlg.pas
+These files are under the modified LGPL as described in COPYING.modifiedLGPL.

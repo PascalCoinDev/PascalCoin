@@ -31,6 +31,7 @@ object CTRLNoAccounts: TCTRLNoAccounts
     Width = 163
     Anchors = []
     Caption = 'Get An Account'
+    OnClick = btnGetAccClick
     Font.Style = [fsBold]
     Glyph.Data = {
       36240000424D3624000000000000360000002800000030000000300000000100

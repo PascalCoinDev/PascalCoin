@@ -336,6 +336,7 @@ Type
     FTotalFee : Int64;
     FMax0feeOperationsBySigner : Integer;
     FHasOpRecoverOperations : Boolean;
+    FDeferLookupIndexes : Boolean; // Only an unpublished sanitizer scratch tree may defer these indexes.
     function InternalCanAddOperationToHashTree(lockedThreadList : TList<Pointer>; op : TPCOperation) : Boolean;
     function InternalAddOperationToHashTree(list : TList<Pointer>; op : TPCOperation; CalcNewHashTree : Boolean) : Boolean;
     Function FindOrderedByOpReference(lockedThreadList : TList<Pointer>; const Value: TOpReference; var Index: Integer): Boolean;
@@ -343,6 +344,9 @@ Type
     Function FindOrderedByAccountData(lockedThreadList : TList<Pointer>; const account_number : Cardinal; var Index: Integer): Boolean;
     function GetHashTree: TRawBytes;
     procedure SetMax0feeOperationsBySigner(const Value: Integer);
+    procedure MaterializeLookupIndexes;
+    function CanReuseLookupIndexes(AReplayed : TOperationsHashTree; const AOriginalHash : TRawBytes) : Boolean;
+    procedure AdoptReplayedMetadata(AReplayed : TOperationsHashTree);
   public
     Constructor Create;
     Destructor Destroy; Override;
@@ -357,8 +361,8 @@ Type
     Property TotalAmount : Int64 read FTotalAmount;
     Property TotalFee : Int64 read FTotalFee;
     function SaveOperationsHashTreeToStream(AStream: TStream; ASaveToStorage : Boolean): Boolean;
-    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean; overload;
-    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; AAllow0FeeOperations : Boolean; var AOperationsCount, AProcessedCount : Integer; var AErrors : String): Boolean; overload;
+    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String; AProgressNotify : TProgressNotify = Nil): Boolean; overload;
+    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; AAllow0FeeOperations : Boolean; var AOperationsCount, AProcessedCount : Integer; var AErrors : String; AProgressNotify : TProgressNotify = Nil): Boolean; overload;
     function IndexOfOperation(op : TPCOperation) : Integer;
     function CountOperationsBySameSignerWithoutFee(account_number : Cardinal) : Integer;
     Procedure Delete(index : Integer);
@@ -386,7 +390,7 @@ Type
     FIsOnlyOperationBlock: Boolean;
     FStreamPoW : TMemoryStream;
     FDisableds : Integer;
-    FOperationsLock : TPCCriticalSection;
+    FOperationsLock : TReadWriteLock;
     FPreviousUpdatedBlocks : TAccountPreviousBlockInfo; // New Protocol V3 struct to store previous updated blocks
     FHasValidOperationBlockInfo : Boolean;
     function GetOperation(index: Integer): TPCOperation;
@@ -487,9 +491,10 @@ Type
   private
     FBank : TPCBank;
     FReadOnly: Boolean;
-    FPendingBufferOperationsStream : TFileStream;
+    FPendingBufferOperationsStream : TStream;
+    FPendingLoadProgressNotify : TProgressNotify;
     procedure SetBank(const Value: TPCBank);
-    Function GetPendingBufferOperationsStream : TFileStream;
+    Function GetPendingBufferOperationsStream : TStream;
   protected
     FIsMovingBlockchain : Boolean;
     FStorageFilename: String;
@@ -524,7 +529,7 @@ Type
     Function Initialize : Boolean;
     Procedure EraseStorage; // Erase Blockchain storage
     Procedure SavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
-    Procedure LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
+    Procedure LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree; AProgressNotify : TProgressNotify = Nil);
     Function BlockExists(Block : Cardinal) : Boolean;
 
     function Orphan : String;
@@ -547,7 +552,7 @@ Type
     FLastOperationBlock: TOperationBlock;
     FIsRestoringFromFile: Boolean;
     FOnLog: TPCBankLog;
-    FBankLock: TPCCriticalSection;
+    FBankLock: TReadWriteLock;
     FNotifyList : TList<TPCBankNotify>;
     FStorageClass: TStorageClass;
     FOrphan: TOrphan;
@@ -603,12 +608,14 @@ Const
 implementation
 
 uses
+  {$IFDEF FPC}{$IFDEF MSWINDOWS}Windows,{$ENDIF}{$ENDIF}
+  {$IFDEF FPC}Generics.Defaults,{$ELSE}System.Generics.Defaults,{$ENDIF}
   Variants,
   UTime, UConst, UOpTransaction, UPCOrderedLists,
   UPCOperationsSignatureValidator,
   UPCOperationsBlockValidator,
-  UAbstractMemBlockchainStorage,
-  UNode;
+  UAbstractMemBlockchainStorage, UFileMem, UAbstractMem, {$IFNDEF USE_ABSTRACTMEM}UPCAbstractMem,{$ENDIF}
+  UNode, UStreams;
 
 { TPCOperationsStorage }
 
@@ -700,6 +707,10 @@ var P : PPCOperationTStorage;
   list : TList<Pointer>;
   iPos : Integer;
 begin
+  // Published operations may be shared by several trees and read concurrently.
+  // Fill both lazy digest caches before exposing the object to other readers.
+  APCOperation.Sha256;
+  APCOperation.RipeMD160;
   list := LockPCOperationsStorage;
   try
     if FindOrderedByPtrPCOperation(list,APCOperation,iPos) then begin
@@ -813,12 +824,18 @@ begin
 end;
 
 function TPCBank.AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var errors: String): Boolean;
-Var i : Integer;
+var i: Integer; LPersistenceFailed: Boolean;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
   Try
     Result := False;
     errors := '';
+    LPersistenceFailed := False;
+    // Once canonical storage fails, no later buffered/mined block may mutate it.
+    if TNode.NodeExists and (TNode.Node.Bank=Self) and TNode.Node.HasStorageFailure then begin
+      errors := 'Block processing paused after a storage failure; restart required';
+      Exit;
+    end;
     Operations.Lock; // New Protection
     Try
       If Not Operations.ValidateOperationBlock(errors) then begin
@@ -834,8 +851,20 @@ begin
       // WINNER !!!
       // Congrats!
 
-      if Not Operations.SafeBoxTransaction.Commit(Operations.OperationBlock,errors) then begin
-        exit;
+      try
+        if Not Operations.SafeBoxTransaction.Commit(Operations.OperationBlock,errors) then Exit;
+      except
+        on E: Exception do begin
+          // A file-backed commit can evict dirty pages before the later explicit
+          // flush. This is a storage failure, not an invalid peer block.
+          if (E is EStreamError) or (E is EOSError) or (E is EFileMem) or
+            (E is EAbstractMem) or (E is EPCAbstractMem) then begin
+            LPersistenceFailed := True;
+            if TNode.NodeExists and (TNode.Node.Bank=Self) then
+              TNode.Node.ReportStorageFailure(sfsSafeboxFlush,{$IFDEF USE_ABSTRACTMEM}SafeBox.PCAbstractMem.FileName{$ELSE}'safebox'{$ENDIF},E);
+          end;
+          raise;
+        end;
       end;
 
       // Initialize values
@@ -853,19 +882,26 @@ begin
             TCrypto.ToHexaString(SafeBox.SafeBoxHash)]));
       // Save Operations to disk
       if Not FIsRestoringFromFile then begin
-        Storage.SaveBlockChainBlock(Operations);
+        try
+          Storage.SaveBlockChainBlock(Operations);
+        except
+          LPersistenceFailed := True;
+          raise;
+        end;
       end;
       FLastBlockCache.CopyFrom(Operations);
       Operations.Clear(true);
       Result := true;
     Finally
       if Not Result then begin
-        NewLog(Operations, lterror, 'Invalid new block '+inttostr(Operations.OperationBlock.block)+': ' + errors+ ' > '+TPCOperationsComp.OperationBlockToText(Operations.OperationBlock));
+        if LPersistenceFailed then
+          NewLog(Operations,ltError,'Cannot persist block '+IntToStr(Operations.OperationBlock.block)+'; block processing is paused')
+        else NewLog(Operations, lterror, 'Invalid new block '+inttostr(Operations.OperationBlock.block)+': ' + errors+ ' > '+TPCOperationsComp.OperationBlockToText(Operations.OperationBlock));
       end;
       Operations.Unlock;
     End;
   Finally
-    FBankLock.Release;
+    FBankLock.ReleaseWriteLock;
   End;
   if Result then begin
     for i := 0 to FNotifyList.Count - 1 do begin
@@ -909,7 +945,9 @@ begin
   inherited;
   FStorage := Nil;
   FStorageClass := Nil;
-  FBankLock := TPCCriticalSection.Create('TPCBank_BANKLOCK');
+  // Load/commit paths can call other bank operations while holding this lease.
+  // Preserve recursive write ownership across those existing callbacks.
+  FBankLock := TReadWriteLock.Create('TPCBank_BANKLOCK',lrpSupportsRecursion);
   FIsRestoringFromFile := False;
   FOnLog := Nil;
   FSafeBox := TPCSafeBox.Create;
@@ -955,6 +993,7 @@ Var
   i,j, LProgressBlock, LProgressEndBlock, LOpsInBlocks : Integer;
   LSafeboxTransaction : TPCSafeBoxTransaction;
   LTempSafebox : TPCSafeBox;
+  LProgress : TProgressInfo;
 begin
   if FIsRestoringFromFile then begin
     TLog.NewLog(lterror,Classname,'Is Restoring!!!');
@@ -962,7 +1001,7 @@ begin
   end;
   tc := TPlatform.GetTickCount;
   LStartProcessTC := tc;
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
   try
     FIsRestoringFromFile := true;
     try
@@ -1015,7 +1054,11 @@ begin
             if (LBlocks.Count=0) then Exit;
 
             if Assigned(restoreProgressNotify) then begin
-              restoreProgressNotify(Self,Format('Reading blocks from %d to %d with %d operations',[BlocksCount,i,LOpsInBlocks]),0,0);
+              LProgress := TProgressInfo.Create(psReadingBlockBatch);
+              LProgress.StartBlock := BlocksCount;
+              LProgress.EndBlock := i;
+              LProgress.OperationsCount := LOpsInBlocks;
+              restoreProgressNotify(Self,LProgress);
             end;
 
             TPCOperationsBlockValidator.MultiThreadValidateOperationsBlock(LBlocks);
@@ -1040,7 +1083,10 @@ begin
                 end;
                 if (Assigned(restoreProgressNotify)) And (TPlatform.GetElapsedMilliseconds(tc)>1000) then begin
                   tc := TPlatform.GetTickCount;
-                  restoreProgressNotify(Self,Format('Reading blockchain block %d/%d',[LBlocks[i].OperationBlock.block,Storage.LastBlock]),LProgressBlock,LProgressEndBlock);
+                  LProgress := TProgressInfo.Create(psReadingBlockchain,LProgressBlock,LProgressEndBlock);
+                  LProgress.BlockNumber := LBlocks[i].OperationBlock.block;
+                  LProgress.BlockCount := Storage.LastBlock;
+                  restoreProgressNotify(Self,LProgress);
                 end;
               end;
             end;
@@ -1069,7 +1115,7 @@ begin
     SafeBox.PCAbstractMem.FlushCache;
     {$ENDIF}
   finally
-    FBankLock.Release;
+    FBankLock.ReleaseWriteLock;
   end;
 end;
 
@@ -1100,6 +1146,7 @@ var fs: TFileStream;
 begin
   Result := true;
   LBankfilename := GetSafeboxCheckpointingFileName(GetStorageFolder(Orphan),BlocksCount);
+  if LBankfilename='' then raise EWriteError.Create('Cannot create safebox checkpoint directory');
   if (LBankfilename<>'') then begin
     LTC := TPlatform.GetTickCount;
     {$IFDEF USE_ABSTRACTMEM}
@@ -1130,14 +1177,20 @@ begin
     if (Orphan='') And ((BlocksCount MOD (CT_BankToDiskEveryNBlocks*100))=0) then begin
       Laux_newfilename := GetStorageFolder('') + PathDelim+'checkpoint_'+ inttostr(BlocksCount)+CT_Safebox_Extension;
       try
-        {$IFDEF FPC}
-        DoCopyFile(LBankfilename,Laux_newfilename);
+        {$IFDEF USE_ABSTRACTMEM}
+        // Monthly copies have the same publication guarantees as rotating ones.
+        SafeBox.SaveCheckpointing(Laux_newfilename);
         {$ELSE}
-        CopyFile(PWideChar(LBankfilename),PWideChar(Laux_newfilename),False);
+          {$IFDEF FPC}
+          DoCopyFile(LBankfilename,Laux_newfilename);
+          {$ELSE}
+          if not CopyFile(PWideChar(LBankfilename),PWideChar(Laux_newfilename),False) then RaiseLastOSError;
+          {$ENDIF}
         {$ENDIF}
       Except
         On E:Exception do begin
           TLog.NewLog(lterror,ClassName,'Exception copying extra safebox file '+Laux_newfilename+' ('+E.ClassName+'):'+E.Message);
+          raise;
         end;
       end;
     end;
@@ -1151,7 +1204,7 @@ begin
   { Will update current Bank state based on Safebox state
     Used when commiting a Safebox or rolling back }
   Try
-    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+    TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
     try
       FLastBlockCache.Clear(True);
       FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
@@ -1168,7 +1221,7 @@ begin
       end;
       TLog.NewLog(ltinfo,ClassName,Format('Updated Bank with Safebox values. Current block:%d ',[FLastOperationBlock.block]));
     finally
-      FBankLock.Release;
+      FBankLock.ReleaseWriteLock;
     end;
   finally
     for i := 0 to FNotifyList.Count - 1 do begin
@@ -1346,7 +1399,7 @@ begin
       LMemStream.Free;
     end;
     Result := True;
-    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+    TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
     try
       If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.GetBlockInfo(SafeBox.BlocksCount-1)
       else begin
@@ -1354,7 +1407,7 @@ begin
         FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash
       end;
     finally
-      FBankLock.Release;
+      FBankLock.ReleaseWriteLock;
     end;
     for i := 0 to FNotifyList.Count - 1 do begin
       TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
@@ -1384,7 +1437,7 @@ begin
       Result := auxSB.LoadSafeBoxFromStream(Stream,true,checkSafeboxHash,progressNotify,previousCheckedSafebox,LastReadBlock,errors);
       If Not Result then Exit;
     end;
-    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+    TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
     try
       If Assigned(auxSB) then begin
         SafeBox.CopyFrom(auxSB);
@@ -1402,7 +1455,7 @@ begin
         FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash
       end;
     finally
-      FBankLock.Release;
+      FBankLock.ReleaseWriteLock;
     end;
     for i := 0 to FNotifyList.Count - 1 do begin
       TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
@@ -1414,7 +1467,7 @@ end;
 
 function TPCBank.LoadOperations(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  TPCThread.ProtectAcquireWriteLock(Self,FBankLock);
   try
     if (Block>0) AND (Block=FLastBlockCache.OperationBlock.block) then begin
       // Same as cache, sending cache
@@ -1424,7 +1477,7 @@ begin
       Result := Storage.LoadBlockChainBlock(Operations,Block);
     end;
   finally
-    FBankLock.Release;
+    FBankLock.ReleaseWriteLock;
   end;
 end;
 
@@ -1441,12 +1494,17 @@ end;
 function TPCBank.OpenSafeBoxCheckpoint(ABlockCount: Cardinal): TCheckPointStruct;
 var fn : TFilename;
   err : AnsiString;
+  {$IFDEF USE_ABSTRACTMEM}
+  LBlocksCount: Integer;
+  {$ENDIF}
 begin
   Result := Nil;
   fn := GetSafeboxCheckpointingFileName(GetStorageFolder(''),ABlockCount);
   If (fn<>'') and (FileExists(fn)) then begin
     {$IFDEF USE_ABSTRACTMEM}
-    Result := TPCAbstractMem.Create(fn,True);
+    // A failed copy from an older run may remain on disk; never serve it.
+    if TPCAbstractMem.AnalyzeFile(fn,LBlocksCount) then
+      Result := TPCAbstractMem.Create(fn,True);
     {$ELSE}
     Result := TFileStream.Create(fn,fmOpenRead+fmShareDenyWrite);
     {$ENDIF}
@@ -1457,96 +1515,212 @@ begin
   end;
 end;
 
-function TPCBank.RestoreBank(AMax_block: Int64; AOrphan : String;
-  ARestoreProgressNotify: TProgressNotify): Boolean;
+function TPCBank.RestoreBank(AMax_block: Int64; AOrphan: String; ARestoreProgressNotify: TProgressNotify): Boolean;
 var
-    sr: TSearchRec;
-    FileAttrs: Integer;
-    folder : AnsiString;
-    Lfilename,auxfn : AnsiString;
-    fs : TFileStream;
-    errors : String;
-    LBlockscount : Cardinal;
-    sbHeader, goodSbHeader : TPCSafeBoxHeader;
-    {$IFDEF USE_ABSTRACTMEM}
-    LTempBlocksCount : Integer;
-    LSafeboxFileName : String;
-    {$ELSE}
-    {$ENDIF}
-begin
-  FBankLock.Acquire;
-  Try
-    {$IFDEF USE_ABSTRACTMEM}
-    Lfilename := '';
-    LSafeboxFileName := GetStorageFolder(AOrphan)+PathDelim+'safebox'+CT_Safebox_Extension;
-    if TPCAbstractMem.AnalyzeFile(LSafeboxFileName,LTempBlocksCount) then begin
-      LBlockscount := LTempBlocksCount;
-    end else begin
-      LBlockscount := 0;
-    end;
-    //
-    FileAttrs := faArchive;
-    folder := GetStorageFolder(''); /// Without Orphan folder
-    if SysUtils.FindFirst(folder+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
-      repeat
-        if (sr.Attr and FileAttrs) = FileAttrs then begin
-          auxfn := folder+PathDelim+sr.Name;
-          if TPCAbstractMem.AnalyzeFile(auxfn,LTempBlocksCount) then begin
-            if (((AMax_block<0) Or (LTempBlocksCount<=AMax_block)) AND (LTempBlocksCount>LBlockscount)) then begin
-              Lfilename := auxfn;
-              LBlockscount := LTempBlocksCount;
-            end;
-          end;
-        end;
-      until FindNext(sr) <> 0;
-      FindClose(sr);
-    end;
-    if (Lfilename='') then begin
-      SafeBox.SetSafeboxFileName(LSafeboxFileName);
-    end else begin
-      SafeBox.SetSafeboxFileName(Lfilename);
-      SafeBox.UpdateSafeboxFileName(LSafeboxFileName);
-    end;
-    {$ELSE}
-    LBlockscount := 0;
-    {$ENDIF}
-    FileAttrs := faArchive;
-    folder := GetStorageFolder(AOrphan);
-    Lfilename := '';
-    if SysUtils.FindFirst(folder+PathDelim+'*.safebox', FileAttrs, sr) = 0 then begin
-      repeat
-        if (sr.Attr and FileAttrs) = FileAttrs then begin
-          auxfn := folder+PathDelim+sr.Name;
-          If LoadBankFileInfo(auxfn,sbHeader) then begin
-            if (((AMax_block<0) Or (sbHeader.endBlock<=AMax_block)) AND (sbHeader.blocksCount>LBlockscount)) And
-              (sbHeader.startBlock=0) And (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1) then begin
-              Lfilename := auxfn;
-              LBlockscount := sbHeader.blocksCount;
-              goodSbHeader := sbHeader;
-            end;
-          end;
-        end;
-      until FindNext(sr) <> 0;
-      FindClose(sr);
-    end;
-    if (Lfilename<>'') then begin
-      TLog.NewLog(ltinfo,Self.ClassName,'Loading SafeBox protocol:'+IntToStr(goodSbHeader.protocol)+' with '+inttostr(LBlockscount)+' blocks from file '+Lfilename);
-      fs := TFileStream.Create(Lfilename,fmOpenRead);
+  sr: TSearchRec;
+  folder, LFilename, auxfn, errors: String;
+  fs: TStream;
+  LBlocksCount: Cardinal;
+  sbHeader, goodSbHeader: TPCSafeBoxHeader;
+  LHasUnreadableCandidates, LHeaderValid: Boolean;
+  {$IFDEF USE_ABSTRACTMEM}
+  LTempBlocksCount: Integer;
+  LSafeboxFileName, LAbstractFileName: String;
+  LReadOnlySafebox: TPCAbstractMem;
+  LLiveSafeboxAhead: Boolean;
+  {$ENDIF}
+
+  procedure LogSkippedCheckpoint(const AFileName: String; ALastBlock: Int64);
+  begin
+    TLog.NewLog(ltInfo,ClassName,Format('Skipping safebox checkpoint %s: last block %d exceeds restore limit %d',[AFileName,ALastBlock,AMax_block]));
+  end;
+
+  function LegacyBodyIsReadable(const AFileName: String; AExpectedBlocks: Cardinal): Boolean;
+  var LProbe: TPCBank; LStream: TStream; LErrors: String;
+  begin
+    Result := False;
+    LProbe := TPCBank.Create(Nil);
+    try
       try
-        fs.Position := 0;
-        if not LoadBankFromStream(fs,False,Nil,Nil,ARestoreProgressNotify,errors) then begin
-          TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+Lfilename+ ' Error: '+errors);
+        LStream := TFileStream.Create(AFileName,fmOpenRead+fmShareDenyWrite);
+        try
+          // Read small serialized fields from bounded read-ahead storage. The
+          // wrapper adopts the file only after its construction succeeds.
+          // Writes are denied for this file, so its length can be cached safely.
+          LStream := TBufferedStream.Create(LStream,64*1024,True,True,True);
+          // A complete header is not a complete snapshot. Validate the body in
+          // a separate memory bank before it can displace another good candidate.
+          // This can be the expensive pass: report progress and allow its EAbort
+          // to escape before selecting a candidate or changing the live bank.
+          Result := LProbe.LoadBankFromStream(LStream,True,Nil,Nil,ARestoreProgressNotify,LErrors);
+          if Result and (LProbe.BlocksCount<>AExpectedBlocks) then begin
+            Result := False;
+            LErrors := 'Safebox body block count does not match its header';
+          end;
+          if not Result then TLog.NewLog(ltError,ClassName,'Cannot inspect safebox '+AFileName+': '+LErrors);
+        finally
+          LStream.Free;
         end;
+      except
+        on E: Exception do begin
+          if (E is EStreamError) or (E is EOSError) or (E is EFileMem) or
+            (E is EAbstractMem) or (E is EPCAbstractMem) then
+            TLog.NewLog(ltError,ClassName,'Cannot inspect safebox '+AFileName+': '+E.ClassName+': '+E.Message)
+          else raise;
+        end;
+      end;
+    finally
+      LProbe.Free;
+    end;
+  end;
+
+begin
+  Result := False;
+  LHasUnreadableCandidates := False;
+  LBlocksCount := 0;
+  LFilename := '';
+  FBankLock.AcquireWriteLock;
+  try
+    try
+    {$IFDEF USE_ABSTRACTMEM}
+    LAbstractFileName := '';
+    LLiveSafeboxAhead := False;
+    LSafeboxFileName := GetStorageFolder(AOrphan)+PathDelim+'safebox'+CT_Safebox_Extension;
+    // Inspect every candidate read-only before opening any file for mutation.
+    // One incomplete checkpoint must not prevent use of a healthy live file.
+    if FileExists(LSafeboxFileName) then begin
+      if TPCAbstractMem.AnalyzeFile(LSafeboxFileName,LTempBlocksCount) then begin
+        if (AMax_block<0) or (Int64(LTempBlocksCount)-1<=AMax_block) then begin
+          LAbstractFileName := LSafeboxFileName;
+          LBlocksCount := LTempBlocksCount;
+        end else LLiveSafeboxAhead := True;
+      end else LHasUnreadableCandidates := True;
+    end;
+    folder := GetStorageFolder(''); // Checkpoints are shared with orphan restores.
+    if SysUtils.FindFirst(folder+PathDelim+'checkpoint*'+CT_Safebox_Extension,faAnyFile,sr)=0 then begin
+      try
+        repeat
+          if (sr.Attr and faDirectory)=0 then begin
+            auxfn := folder+PathDelim+sr.Name;
+            if TPCAbstractMem.AnalyzeFile(auxfn,LTempBlocksCount) then begin
+              if (AMax_block>=0) and (Int64(LTempBlocksCount)-1>AMax_block) then
+                LogSkippedCheckpoint(auxfn,Int64(LTempBlocksCount)-1)
+              else if (LAbstractFileName='') or (LTempBlocksCount>LBlocksCount) then begin
+                LAbstractFileName := auxfn;
+                LBlocksCount := LTempBlocksCount;
+              end;
+            end else LHasUnreadableCandidates := True;
+          end;
+        until FindNext(sr)<>0;
+      finally
+        SysUtils.FindClose(sr);
+      end;
+    end;
+    {$ENDIF}
+    folder := GetStorageFolder(AOrphan);
+    if SysUtils.FindFirst(folder+PathDelim+'*.safebox',faAnyFile,sr)=0 then begin
+      try
+        repeat
+          if (sr.Attr and faDirectory)=0 then begin
+            auxfn := folder+PathDelim+sr.Name;
+            LHeaderValid := False;
+            try
+              LHeaderValid := LoadBankFileInfo(auxfn,sbHeader);
+            except
+              on E: EStreamError do
+                TLog.NewLog(ltError,ClassName,'Cannot inspect safebox '+auxfn+': '+E.Message);
+              on E: EOSError do
+                TLog.NewLog(ltError,ClassName,'Cannot inspect safebox '+auxfn+': '+E.Message);
+            end;
+            if LHeaderValid then
+              LHeaderValid := (sbHeader.startBlock=0) and
+                (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1);
+            if not LHeaderValid then
+              LHasUnreadableCandidates := True
+            else if (AMax_block>=0) and (sbHeader.endBlock>AMax_block) then begin
+              // A complete header outside this restore range is not evidence of
+              // corruption. Preserve that unused checkpoint and replay local
+              // history, as before; its body is neither loaded nor trusted.
+              LogSkippedCheckpoint(auxfn,sbHeader.endBlock);
+            end else if sbHeader.blocksCount>LBlocksCount then begin
+              if LegacyBodyIsReadable(auxfn,sbHeader.blocksCount) then begin
+                LFilename := auxfn;
+                LBlocksCount := sbHeader.blocksCount;
+                goodSbHeader := sbHeader;
+              end else LHasUnreadableCandidates := True;
+            end;
+          end;
+        until FindNext(sr)<>0;
+      finally
+        SysUtils.FindClose(sr);
+      end;
+    end;
+    if LFilename<>'' then begin
+      TLog.NewLog(ltInfo,ClassName,'Loading SafeBox protocol:'+IntToStr(goodSbHeader.protocol)+' with '+IntToStr(LBlocksCount)+' blocks from file '+LFilename);
+      {$IFDEF USE_ABSTRACTMEM}
+      // Restore into memory first; malformed input must not rewrite live storage.
+      SafeBox.SetSafeboxFileName('');
+      {$ENDIF}
+      fs := TFileStream.Create(LFilename,fmOpenRead+fmShareDenyWrite);
+      try
+        // Buffer small serialized fields; denied writes keep the cached length valid.
+        fs := TBufferedStream.Create(fs,64*1024,True,True,True);
+        if not LoadBankFromStream(fs,True,Nil,Nil,ARestoreProgressNotify,errors) then
+          raise Exception.Create('Cannot restore safebox '+LFilename+': '+errors);
       finally
         fs.Free;
       end;
+      {$IFDEF USE_ABSTRACTMEM}
+      SafeBox.SaveCheckpointing(LSafeboxFileName);
+      SafeBox.SetSafeboxFileName(LSafeboxFileName);
+      {$ENDIF}
+    end else begin
+      {$IFDEF USE_ABSTRACTMEM}
+      if LAbstractFileName<>'' then begin
+        if not SameFileName(LAbstractFileName,LSafeboxFileName) then begin
+          // Keep the recovery checkpoint read-only and intact. Publish a complete
+          // replacement before opening the recovered live safebox for writing.
+          LReadOnlySafebox := TPCAbstractMem.Create(LAbstractFileName,True);
+          try
+            SafeBox.SetSafeboxFileName('');
+            LReadOnlySafebox.SaveToFile(LSafeboxFileName);
+          finally
+            LReadOnlySafebox.Free;
+          end;
+          TLog.NewLog(ltInfo,ClassName,'Recovered safebox from checkpoint '+LAbstractFileName);
+        end;
+        SafeBox.SetSafeboxFileName(LSafeboxFileName);
+      end else if LHasUnreadableCandidates or LLiveSafeboxAhead then begin
+        // Never initialize over evidence of a failed write. Leave all originals
+        // available for recovery instead of silently starting an empty chain.
+        // An ahead checkpoint must not conceal detected damage or cause an
+        // out-of-range live safebox to be reopened implicitly below.
+        raise Exception.Create('No readable safebox or checkpoint in '+folder+'. Original files have been preserved.');
+      end else begin
+        SafeBox.SetSafeboxFileName(LSafeboxFileName);
+      end;
+      {$ELSE}
+      if LHasUnreadableCandidates then
+        raise Exception.Create('No readable safebox in '+folder+'. Original files have been preserved.');
+      {$ENDIF}
     end;
-  Finally
-    FBankLock.Release;
-  End;
+    Result := True;
+    except
+      on E: Exception do begin
+        // Rejected individual candidates are recoverable; only failure of the
+        // complete restore latches the canonical node's persistent error.
+        if TNode.NodeExists and (TNode.Node.Bank=Self) then
+          TNode.Node.ReportStorageFailure(sfsRestore,folder,E);
+        raise;
+      end;
+    end;
+  finally
+    FBankLock.ReleaseWriteLock;
+  end;
 end;
 
 function TPCBank.SaveBank(forceSave: Boolean): Boolean;
+var LStorageFileName: String;
 begin
   Result := true;
   If Storage.FIsMovingBlockchain then Exit;
@@ -1558,6 +1732,15 @@ begin
     {$ENDIF}
   Except
     On E:Exception do begin
+      if TNode.NodeExists and (TNode.Node.Bank=Self) then begin
+        LStorageFileName := '';
+        try
+          LStorageFileName := GetSafeboxCheckpointingFileName(GetStorageFolder(Orphan),BlocksCount);
+        except
+          // Do not replace the original I/O exception if its directory is unavailable.
+        end;
+        TNode.Node.ReportStorageFailure(sfsCheckpoint,LStorageFileName,E);
+      end;
       TLog.NewLog(lterror,Classname,'Error saving Bank: '+E.Message);
       Raise;
     end;
@@ -1666,9 +1849,14 @@ begin
     Calc_Digest_Parts;
   end;
   FStreamPoW.Position := 0;
-  FStreamPoW.WriteBuffer(FDigest_Part1[Low(FDigest_Part1)],Length(FDigest_Part1));
-  FStreamPoW.WriteBuffer(FDigest_Part2_Payload[Low(FDigest_Part2_Payload)],Length(FDigest_Part2_Payload));
-  FStreamPoW.WriteBuffer(FDigest_Part3[Low(FDigest_Part3)],Length(FDigest_Part3));
+  // Empty payloads are valid. Do not index an empty byte array, even for a
+  // zero-byte write; omitting it preserves the exact proof-of-work byte stream.
+  if Length(FDigest_Part1)>0 then
+    FStreamPoW.WriteBuffer(FDigest_Part1[Low(FDigest_Part1)],Length(FDigest_Part1));
+  if Length(FDigest_Part2_Payload)>0 then
+    FStreamPoW.WriteBuffer(FDigest_Part2_Payload[Low(FDigest_Part2_Payload)],Length(FDigest_Part2_Payload));
+  if Length(FDigest_Part3)>0 then
+    FStreamPoW.WriteBuffer(FDigest_Part3[Low(FDigest_Part3)],Length(FDigest_Part3));
   FStreamPoW.Write(FOperationBlock.timestamp,4);
   FStreamPoW.Write(FOperationBlock.nonce,4);
   if CT_ACTIVATE_RANDOMHASH_V4 AND (FOperationBlock.protocol_version >= CT_PROTOCOL_4) then begin
@@ -1821,7 +2009,7 @@ end;
 
 constructor TPCOperationsComp.Create(ABank: TPCBank);
 begin
-  FOperationsLock := TPCCriticalSection.Create('TPCOperationsComp_OPERATIONSLOCK');
+  FOperationsLock := TReadWriteLock.Create('TPCOperationsComp_OPERATIONSLOCK',lrpSupportsRecursion);
   FDisableds := 0;
   FStreamPoW := TMemoryStream.Create;
   FStreamPoW.Position := 0;
@@ -1839,7 +2027,7 @@ end;
 
 destructor TPCOperationsComp.Destroy;
 begin
-  FOperationsLock.Acquire;
+  FOperationsLock.AcquireWriteLock;
   try
     Clear(true);
     FreeAndNil(FOperationsHashTree);
@@ -1849,6 +2037,9 @@ begin
     FreeAndNil(FStreamPoW);
     FreeAndNil(FPreviousUpdatedBlocks);
   finally
+    // Clear and its callbacks may reacquire this owner. Balance our outer
+    // write before disposing the lock; disposal never releases live ownership.
+    FOperationsLock.ReleaseWriteLock;
     FreeAndNil(FOperationsLock);
   end;
   inherited;
@@ -2090,6 +2281,8 @@ Var i,n,lastn, iUndo : Integer;
   errors, auxs : String;
   aux,aux2 : TOperationsHashTree;
   resetNewTarget : Boolean;
+  LOriginalHash : TRawBytes;
+  LReplayCompleted : Boolean;
 begin
   Lock;
   Try
@@ -2142,12 +2335,19 @@ begin
     //
     SafeBoxTransaction.CleanTransaction;
     FPreviousUpdatedBlocks.Clear;
+    lastn := FOperationsHashTree.OperationsCount;
+    LOriginalHash := FOperationsHashTree.HashTree;
+    LOriginalHash := Copy(LOriginalHash,0,Length(LOriginalHash));
+    LReplayCompleted := False;
     aux := TOperationsHashTree.Create;
     Try
       if (FOperationBlock.protocol_version>=CT_PROTOCOL_4) then begin
         aux.Max0feeOperationsBySigner := 1;
       end else aux.Max0feeOperationsBySigner := -1;
-      lastn := FOperationsHashTree.OperationsCount;
+      // Replay eligibility and account/fee metadata remain exact. The scratch
+      // tree is private, so its two expensive lookup indexes can wait until we
+      // know whether replay changed the accepted sequence.
+      aux.FDeferLookupIndexes := True;
       for i:=0 to lastn-1 do begin
         op := FOperationsHashTree.GetOperation(i);
           if (aux.CanAddOperationToHashTree(op)) then begin
@@ -2165,10 +2365,30 @@ begin
             end;
           end;
       end;
+      LReplayCompleted := True;
     Finally
-      aux2 := FOperationsHashTree;
-      FOperationsHashTree := aux;
-      aux2.Free;
+      try
+        // A raised validator must not publish only the accepted prefix and
+        // truncate the saved pending package. Ordinary False results still
+        // filter invalid operations after the entire replay completes. The
+        // node keeps an interrupted account overlay unavailable until retry.
+        if LReplayCompleted then begin
+          if (n=lastn) And FOperationsHashTree.CanReuseLookupIndexes(aux,LOriginalHash) then begin
+            // Keep the original operation registrations and valid first-occurrence
+            // indexes. Only metadata recomputed by the exact replay is adopted.
+            FOperationsHashTree.AdoptReplayedMetadata(aux);
+          end else begin
+            // A rejected operation or an incompatible old index takes the legacy
+            // replacement path. Never publish the private, unindexed scratch tree.
+            aux.MaterializeLookupIndexes;
+            aux2 := FOperationsHashTree;
+            FOperationsHashTree := aux;
+            aux := aux2;
+          end;
+        end;
+      finally
+        aux.Free;
+      end;
       FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     End;
   Finally
@@ -2491,12 +2711,14 @@ end;
 
 procedure TPCOperationsComp.Lock;
 begin
-  FOperationsLock.Acquire;
+  // Callers borrow mutable operations and signature/cache state under this
+  // public lease, so it remains recursive write ownership on every path.
+  FOperationsLock.AcquireWriteLock;
 end;
 
 procedure TPCOperationsComp.Unlock;
 begin
-  FOperationsLock.Release;
+  FOperationsLock.ReleaseWriteLock;
 end;
 
 { TPCBankNotify }
@@ -2550,6 +2772,41 @@ Type TOperationHashTreeReg = Record
        account_without_fee : Integer;
      end;
      POperationsHashAccountsData = ^TOperationsHashAccountsData;
+
+     TOperationLookupItem = record
+       Position : Integer;
+       Sha : TRawBytes;
+       Reference : TOpReference;
+     end;
+
+     TOperationLookupComparer = class(TInterfacedObject, IComparer<TOperationLookupItem>)
+     private
+       FCompareSha : Boolean;
+     public
+       constructor Create(ACompareSha : Boolean);
+       function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight : TOperationLookupItem) : Integer;
+     end;
+
+constructor TOperationLookupComparer.Create(ACompareSha: Boolean);
+begin
+  inherited Create;
+  FCompareSha := ACompareSha;
+end;
+
+function TOperationLookupComparer.Compare(
+  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: TOperationLookupItem): Integer;
+begin
+  if FCompareSha then Result := TBaseType.BinStrComp(ALeft.Sha,ARight.Sha)
+  else if ALeft.Reference<ARight.Reference then Result := -1
+  else if ALeft.Reference>ARight.Reference then Result := 1
+  else Result := 0;
+  // RTL sorting need not be stable. An explicit original-position tie-break
+  // preserves the legacy lookup representative for every duplicate key.
+  if Result=0 then begin
+    if ALeft.Position<ARight.Position then Result := -1
+    else if ALeft.Position>ARight.Position then Result := 1;
+  end;
+end;
 
 function TOperationsHashTree.AddOperationToHashTree(op: TPCOperation) : Boolean;
 Var l : TList<Pointer>;
@@ -2607,6 +2864,132 @@ begin
   end;
 end;
 
+procedure TOperationsHashTree.MaterializeLookupIndexes;
+var LList : TList<Pointer>;
+  I : Integer;
+  LOrdered : TList<TOperationLookupItem>;
+  LComparer : IComparer<TOperationLookupItem>;
+  LItem : TOperationLookupItem;
+  LPreviousReference : TOpReference;
+  LPreviousSha : TRawBytes;
+begin
+  LList := FHashTreeOperations.LockList;
+  try
+    if Not FDeferLookupIndexes then Exit;
+    LOrdered := TList<TOperationLookupItem>.Create;
+    try
+      LOrdered.Capacity := LList.Count;
+      for I := 0 to LList.Count-1 do begin
+        LItem.Position := I;
+        LItem.Reference := POperationHashTreeReg(LList[I])^.Op.GetOpReference;
+        LItem.Sha := POperationHashTreeReg(LList[I])^.Op.Sha256;
+        LOrdered.Add(LItem);
+      end;
+      FListOrderedByOpReference.Clear;
+      FListOrderedBySha256.Clear;
+      FListOrderedByOpReference.Capacity := LList.Count;
+      FListOrderedBySha256.Capacity := LList.Count;
+      // Build each private index once instead of shifting a sorted array for
+      // every insertion. Operation order, replay and registry owners are untouched.
+      LComparer := TOperationLookupComparer.Create(False);
+      LOrdered.Sort(LComparer);
+      LPreviousReference := 0;
+      for I := 0 to LOrdered.Count-1 do begin
+        LItem := LOrdered[I];
+        if (I=0) Or (LItem.Reference<>LPreviousReference) then
+          FListOrderedByOpReference.Add(LItem.Position);
+        LPreviousReference := LItem.Reference;
+      end;
+      LComparer := TOperationLookupComparer.Create(True);
+      LOrdered.Sort(LComparer);
+      LPreviousSha := Nil;
+      for I := 0 to LOrdered.Count-1 do begin
+        LItem := LOrdered[I];
+        if (I=0) Or (TBaseType.BinStrComp(LItem.Sha,LPreviousSha)<>0) then
+          FListOrderedBySha256.Add(LItem.Position);
+        LPreviousSha := LItem.Sha;
+      end;
+      FDeferLookupIndexes := False;
+    finally
+      // Keep a real interface owner across Sort on both RTLs.
+      LComparer := Nil;
+      LOrdered.Free;
+    end;
+  finally
+    FHashTreeOperations.UnlockList;
+  end;
+end;
+
+function TOperationsHashTree.CanReuseLookupIndexes(AReplayed: TOperationsHashTree;
+  const AOriginalHash: TRawBytes): Boolean;
+var LOriginal,LReplayed : TList<Pointer>;
+  I,LPosition,LShaRepresentatives,LReferenceRepresentatives : Integer;
+  LOperation : TPCOperation;
+begin
+  Result := False;
+  LOriginal := FHashTreeOperations.LockList;
+  try
+    LReplayed := AReplayed.FHashTreeOperations.LockList;
+    try
+      if (LOriginal.Count<>LReplayed.Count) Or FDeferLookupIndexes then Exit;
+      if Not TBaseType.Equals(AOriginalHash,AReplayed.HashTree) then Exit;
+      // Delete can leave a missing representative when the tree contained
+      // duplicates. Check bounds before binary search and validate each key's
+      // first occurrence; count/hash equality alone cannot establish this.
+      for I := 0 to FListOrderedBySha256.Count-1 do
+        if (FListOrderedBySha256[I]<0) Or (FListOrderedBySha256[I]>=LOriginal.Count) then Exit;
+      for I := 0 to FListOrderedByOpReference.Count-1 do
+        if (FListOrderedByOpReference[I]<0) Or (FListOrderedByOpReference[I]>=LOriginal.Count) then Exit;
+      LShaRepresentatives := 0;
+      LReferenceRepresentatives := 0;
+      for I := 0 to LOriginal.Count-1 do begin
+        LOperation := POperationHashTreeReg(LOriginal[I])^.Op;
+        if LOperation<>POperationHashTreeReg(LReplayed[I])^.Op then Exit;
+        if Not FindOrderedBySha(LOriginal,LOperation.Sha256,LPosition) then Exit;
+        if FListOrderedBySha256[LPosition]>I then Exit;
+        if FListOrderedBySha256[LPosition]=I then Inc(LShaRepresentatives);
+        if Not FindOrderedByOpReference(LOriginal,LOperation.GetOpReference,LPosition) then Exit;
+        if FListOrderedByOpReference[LPosition]>I then Exit;
+        if FListOrderedByOpReference[LPosition]=I then Inc(LReferenceRepresentatives);
+      end;
+      Result := (LShaRepresentatives=FListOrderedBySha256.Count) And
+        (LReferenceRepresentatives=FListOrderedByOpReference.Count);
+    finally
+      AReplayed.FHashTreeOperations.UnlockList;
+    end;
+  finally
+    FHashTreeOperations.UnlockList;
+  end;
+end;
+
+procedure TOperationsHashTree.AdoptReplayedMetadata(AReplayed: TOperationsHashTree);
+var LOldAccountsData : TList<Pointer>;
+begin
+  FHashTreeOperations.LockList;
+  try
+    AReplayed.FHashTreeOperations.LockList;
+    try
+      // Keep signer-data readers under the tree's existing guard until ownership
+      // has moved. The scratch destructor can then release the retired metadata
+      // and extra operation references without replacing the original tree.
+      LOldAccountsData := FListOrderedByAccountsData;
+      FListOrderedByAccountsData := AReplayed.FListOrderedByAccountsData;
+      AReplayed.FListOrderedByAccountsData := LOldAccountsData;
+      FTotalAmount := AReplayed.FTotalAmount;
+      FTotalFee := AReplayed.FTotalFee;
+      FMax0feeOperationsBySigner := AReplayed.FMax0feeOperationsBySigner;
+      FHasOpRecoverOperations := AReplayed.FHasOpRecoverOperations;
+      FHashTree := AReplayed.FHashTree;
+      // Legacy sanitization installs a new tree with no changed-event subscriber.
+      FOnChanged := AReplayed.FOnChanged;
+    finally
+      AReplayed.FHashTreeOperations.UnlockList;
+    end;
+  finally
+    FHashTreeOperations.UnlockList;
+  end;
+end;
+
 procedure TOperationsHashTree.CopyFromHashTree(Sender: TOperationsHashTree);
 Var i : Integer;
   lme, lsender : TList<Pointer>;
@@ -2656,6 +3039,7 @@ begin
   FMax0feeOperationsBySigner := -1; // Unlimited by default
   FHashTreeOperations := TPCThreadList<Pointer>.Create('TOperationsHashTree_HashTreeOperations');
   FHasOpRecoverOperations := False;
+  FDeferLookupIndexes := False;
 end;
 
 procedure TOperationsHashTree.Delete(index: Integer);
@@ -2752,9 +3136,11 @@ Var l : TList<Pointer>;
   P : POperationHashTreeReg;
   tmpRaw : TRawBytes;
 begin
-  if Length(FHashTree)<>32 then begin
-    l := FHashTreeOperations.LockList;
-    Try
+  l := FHashTreeOperations.LockList;
+  Try
+    // Readers share the node's read lock; keep cache testing, construction and
+    // publication together under the tree's existing recursive list lock.
+    if Length(FHashTree)<>32 then begin
       TCrypto.DoSha256(Nil,FHashTree);
       for i := 0 to l.Count - 1 do begin
         P := l[i];
@@ -2763,11 +3149,11 @@ begin
         TBaseType.Concat(FHashTree,P^.Op.Sha256,tmpRaw);
         FHashTree := TCrypto.DoSha256(tmpRaw);
       end;
-    Finally
-      FHashTreeOperations.UnlockList;
     End;
+    Result := FHashTree;
+  Finally
+    FHashTreeOperations.UnlockList;
   end;
-  Result := FHashTree;
 end;
 
 function TOperationsHashTree.GetOperation(index: Integer): TPCOperation;
@@ -2915,14 +3301,15 @@ begin
     end;
     npos := list.Add(P);
     //
-    if Not FindOrderedByOpReference(list,op.GetOpReference,i) then begin
-      FListOrderedByOpReference.Insert(i, npos);
-    end; // TODO: Do not allow duplicate OpReferences?
+    if Not FDeferLookupIndexes then begin
+      if Not FindOrderedByOpReference(list,op.GetOpReference,i) then begin
+        FListOrderedByOpReference.Insert(i, npos);
+      end; // TODO: Do not allow duplicate OpReferences?
 
-    // Improvement: Will allow to add duplicate Operations, so add only first to orderedBySha
-    If Not FindOrderedBySha(list,op.Sha256,i) then begin
-      // Protection: Will add only once
-      FListOrderedBySha256.Insert(i, npos);
+      // Duplicate operations use their first occurrence in both lookup indexes.
+      If Not FindOrderedBySha(list,op.Sha256,i) then begin
+        FListOrderedBySha256.Insert(i, npos);
+      end;
     end;
     // Improvement TOperationsHashTree speed 2.1.6
     // Mantain an ordered Accounts list with data
@@ -3032,8 +3419,8 @@ end;
 function TOperationsHashTree.FindOrderedByOpReference(lockedThreadList: TList<Pointer>; const Value: TOpReference; var Index: Integer): Boolean;
 var L, H, I : Integer;
   iLockedThreadListPos : PtrInt;
-  C : Int64;
-  P : POperationHashTreeReg;
+  C : Integer;
+  LReference : TOpReference;
 begin
   Result := False;
   L := 0;
@@ -3042,7 +3429,12 @@ begin
   begin
     I := (L + H) shr 1;
     iLockedThreadListPos := PtrInt(FListOrderedByOpReference[I]);
-    C := Int64(POperationHashTreeReg(lockedThreadList[iLockedThreadListPos])^.Op.GetOpReference) - Int64(Value);
+    // References are UInt64 keys. Signed subtraction can overflow or produce
+    // a non-transitive order when their high bits differ.
+    LReference := POperationHashTreeReg(lockedThreadList[iLockedThreadListPos])^.Op.GetOpReference;
+    if LReference<Value then C := -1
+    else if LReference>Value then C := 1
+    else C := 0;
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
@@ -3060,7 +3452,7 @@ function TOperationsHashTree.LoadOperationsHashTreeFromStream(AStream: TStream;
   ALoadingFromStorage: Boolean; ASetOperationsToProtocolVersion,
   ALoadFromStorageVersion: Word;
   APreviousUpdatedBlocks: TAccountPreviousBlockInfo;
-  AAllow0FeeOperations: Boolean; var AOperationsCount, AProcessedCount : Integer; var AErrors: String): Boolean;
+  AAllow0FeeOperations: Boolean; var AOperationsCount, AProcessedCount : Integer; var AErrors: String; AProgressNotify : TProgressNotify): Boolean;
 Var c, i: Cardinal;
   LOpTypeWord : Word;
   LOpProtocolVersion : Word;
@@ -3068,6 +3460,17 @@ Var c, i: Cardinal;
   j: Integer;
   LOpClass: TPCOperationClass;
   LLastNE : TNotifyEvent;
+  LLastProgress : TTickCount;
+
+  procedure NotifyProgress(AForce : Boolean);
+  begin
+    if Assigned(AProgressNotify) and (AForce or
+      (TPlatform.GetElapsedMilliseconds(LLastProgress) >= 200)) then begin
+      LLastProgress := TPlatform.GetTickCount;
+      // Keep decoding/cancellation independent of presentation and localization.
+      AProgressNotify(Self,TProgressInfo.Create(psReadingOperations,i,c));
+    end;
+  end;
 begin
   Result := False;
   AErrors := '';
@@ -3081,6 +3484,11 @@ begin
   LLastNE := FOnChanged;
   FOnChanged:=Nil;
   try
+    // The callback also provides cooperative cancellation. Always restore the
+    // notification handler when a caller aborts a large saved-operation load.
+    i := 0;
+    LLastProgress := TPlatform.GetTickCount;
+    NotifyProgress(True);
     // c = operations count
     for i := 1 to c do begin
       if AStream.Size - AStream.Position < 4 then begin
@@ -3142,7 +3550,10 @@ begin
       Finally
         FreeAndNil(LOperation);
       end;
+      NotifyProgress(False);
     end;
+    i := c;
+    NotifyProgress(True);
   finally
     FOnChanged := LLastNE;
   end;
@@ -3151,10 +3562,10 @@ begin
   Result := True;
 end;
 
-function TOperationsHashTree.LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean;
+function TOperationsHashTree.LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String; AProgressNotify : TProgressNotify): Boolean;
 var Lopc,Lprc : Integer;
 begin
-  Result := LoadOperationsHashTreeFromStream(AStream,ALoadingFromStorage,ASetOperationsToProtocolVersion,ALoadFromStorageVersion,APreviousUpdatedBlocks,True,Lopc,Lprc,AErrors);
+  Result := LoadOperationsHashTreeFromStream(AStream,ALoadingFromStorage,ASetOperationsToProtocolVersion,ALoadFromStorageVersion,APreviousUpdatedBlocks,True,Lopc,Lprc,AErrors,AProgressNotify);
 end;
 
 procedure TOperationsHashTree.MarkVerifiedECDSASignatures(operationsHashTreeToMark: TOperationsHashTree);
@@ -3182,7 +3593,10 @@ begin
           if (iPosInMyList>=0) then begin
             inc(nFound);
             opInMyList := POperationHashTreeReg(myList[iPosInMyList])^.Op;
-            if (opInMyList.FHasValidSignature) then begin
+            // The same wire bytes/hash can have a different signing digest
+            // across protocol versions. A key-bound flag alone cannot bridge it.
+            if (opInMyList.ProtocolVersion=opToMark.ProtocolVersion) And
+              (opInMyList.FHasValidSignature) then begin
               if (opToMark.FHasValidSignature) then inc(nAlreadyMarked)
               else begin
                 opToMark.FHasValidSignature:=True;
@@ -3378,6 +3792,10 @@ end;
 function TStorage.DoGetAccountOperations(AAccount, AMaxDepth, AStartOperation,
   AMaxOperations, ASearchBackwardsStartingAtBlock: Integer;
   const AOperationsResumeList:TOperationsResumeList): Boolean;
+  procedure CheckCancelled;
+  begin
+    if (TThread.CurrentThread.ThreadID <> MainThreadID) and TThread.CheckTerminated then Abort;
+  end;
   // Optimization:
   // For better performance, will only include at "OperationsResume" values betweeen "startOperation" and "endOperation"
 
@@ -3403,14 +3821,17 @@ function TStorage.DoGetAccountOperations(AAccount, AMaxDepth, AStartOperation,
           And (block_number >= (AAccount DIV CT_AccountsPerBlock))
           And (AMaxOperations<>0)
           do begin
+          CheckCancelled;
           found_in_block := False;
           last_block_number := block_number;
           LAccounts.Clear;
           If not Bank.Storage.LoadBlockChainBlock(opc,block_number) then begin
             exit;
           end;
+          CheckCancelled;
           opc.OperationsHashTree.GetOperationsAffectingAccount(AAccount,LAccounts);
           for i := LAccounts.Count - 1 downto 0 do begin
+            CheckCancelled;
             op := opc.Operation[(LAccounts.Items[i])];
             If TPCOperation.OperationToOperationResume(block_number,Op,False,AAccount,OPR) then begin
               OPR.NOpInsideBlock := (LAccounts.Items[i]);
@@ -3482,6 +3903,7 @@ Var acc : TAccount;
   lastBalance : Int64;
 begin
   Result := False;
+  CheckCancelled;
   if AMaxDepth=0 then Exit;
   if AAccount>=Bank.SafeBox.AccountsCount then Exit;
   if AMaxOperations=0 then Exit;
@@ -3558,7 +3980,7 @@ begin
 end;
 
 procedure TStorage.DoLoadPendingBufferOperations(OperationsHashTree: TOperationsHashTree);
-Var fs : TFileStream;
+Var fs : TStream;
   errors : String;
   n : Integer;
   LCurrentProtocol : Word;
@@ -3568,7 +3990,7 @@ begin
   if fs.Size>0 then begin
     if Assigned(Bank) then LCurrentProtocol := Bank.SafeBox.CurrentProtocol
     else LCurrentProtocol := CT_BUILD_PROTOCOL;
-    If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,LCurrentProtocol,LCurrentProtocol, Nil,errors) then begin
+    If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,LCurrentProtocol,LCurrentProtocol, Nil,errors,FPendingLoadProgressNotify) then begin
       TLog.NewLog(ltInfo,ClassName,Format('DoLoadPendingBufferOperations loaded operations:%d',[OperationsHashTree.OperationsCount]));
     end else TLog.NewLog(ltError,ClassName,Format('DoLoadPendingBufferOperations ERROR (Protocol %d): loaded operations:%d errors:%s',[LCurrentProtocol,OperationsHashTree.OperationsCount,errors]));
   end;
@@ -3576,12 +3998,51 @@ end;
 
 procedure TStorage.DoSavePendingBufferOperations(
   OperationsHashTree: TOperationsHashTree);
-Var fs : TFileStream;
+const CT_PendingMoveWriteThrough = $00000008; // MOVEFILE_WRITE_THROUGH; absent in older FPC headers.
+Var LTemporary : TFileStream;
+  LBuffer : TMemoryStream;
+  LFileName,LTemporaryName : TFileName;
+  LID : TGUID;
+  LTemporaryOwned : Boolean;
 begin
-  fs := GetPendingBufferOperationsStream;
-  fs.Position:=0;
-  fs.Size:=0;
-  OperationsHashTree.SaveOperationsHashTreeToStream(fs,true);
+  // Keep the previous complete package until serialization, writing and flush
+  // have all succeeded. The temporary file shares its directory/volume so the
+  // final name replacement is atomic; a failed save never truncates live data.
+  LBuffer := TMemoryStream.Create;
+  LTemporary := Nil;
+  LTemporaryOwned := False;
+  try
+    if Not OperationsHashTree.SaveOperationsHashTreeToStream(LBuffer,true) then
+      raise EWriteError.Create('Cannot serialize pending operations');
+    LFileName := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'pendingbuffer.ops';
+    if CreateGUID(LID)<>0 then raise EWriteError.Create('Cannot create pending temporary file identity');
+    LTemporaryName := LFileName+'.'+GUIDToString(LID)+'.tmp';
+    LTemporary := TFileStream.Create(LTemporaryName,fmCreate+fmShareExclusive);
+    LTemporaryOwned := True;
+    LBuffer.Position := 0;
+    LTemporary.CopyFrom(LBuffer,LBuffer.Size);
+    {$IFDEF FPC}
+    if Not FileFlush(LTemporary.Handle) then RaiseLastOSError;
+    {$ELSE}
+    if Not FlushFileBuffers(LTemporary.Handle) then RaiseLastOSError;
+    {$ENDIF}
+    FreeAndNil(LTemporary);
+    // Only retire our cached handle after the temporary package has been flushed.
+    // If publication fails, the next getter reopens the previous valid package.
+    FreeAndNil(FPendingBufferOperationsStream);
+    {$IFDEF MSWINDOWS}
+    if Not MoveFileExW(PWideChar(UnicodeString(LTemporaryName)),
+      PWideChar(UnicodeString(LFileName)),MOVEFILE_REPLACE_EXISTING Or CT_PendingMoveWriteThrough) then
+      RaiseLastOSError;
+    {$ELSE}
+    if Not SysUtils.RenameFile(LTemporaryName,LFileName) then RaiseLastOSError;
+    {$ENDIF}
+    LTemporaryOwned := False;
+  finally
+    LTemporary.Free;
+    if LTemporaryOwned then SysUtils.DeleteFile(LTemporaryName);
+    LBuffer.Free;
+  end;
   {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('DoSavePendingBufferOperations operations:%d',[OperationsHashTree.OperationsCount]));{$ENDIF}
 end;
 
@@ -3631,7 +4092,7 @@ begin
   end else Result := DoGetBlockOperations(ABlock,AOpBlockStartIndex,AMaxOperations,AOperationBlock,AOperationsCount,AVolume,AOperationsResumeList);
 end;
 
-function TStorage.GetPendingBufferOperationsStream: TFileStream;
+function TStorage.GetPendingBufferOperationsStream: TStream;
 Var fs : TFileStream;
   fn : TFileName;
   fm : Word;
@@ -3642,8 +4103,14 @@ begin
     else fm := fmCreate+fmShareExclusive;
     Try
       FPendingBufferOperationsStream := TFileStream.Create(fn,fm);
+      // Pending packages contain many small serialized fields. Own the retained
+      // file through read-ahead, but query its mutable length directly. Atomic
+      // saves still close this owner before publishing the replacement file.
+      FPendingBufferOperationsStream := TBufferedStream.Create(FPendingBufferOperationsStream,64*1024,True,False,True);
     Except
       On E:Exception do begin
+        // A failed decorator construction leaves ownership with the raw file.
+        FreeAndNil(FPendingBufferOperationsStream);
         TLog.NewLog(ltError,ClassName,'Error opening PendingBufferOperationsStream '+fn+' ('+E.ClassName+'):'+ E.Message);
         Raise;
       end;
@@ -3657,9 +4124,19 @@ begin
   DoSavePendingBufferOperations(OperationsHashTree);
 end;
 
-procedure TStorage.LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
+procedure TStorage.LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree; AProgressNotify : TProgressNotify);
+var LPreviousProgress : TProgressNotify;
 begin
-  DoLoadPendingBufferOperations(OperationsHashTree);
+  // Keep the existing virtual dispatch contract for storage implementations.
+  // The pending file already has one stream/reader; scope its callback to this
+  // invocation so an aborted restore cannot retain a startup-task reference.
+  LPreviousProgress := FPendingLoadProgressNotify;
+  FPendingLoadProgressNotify := AProgressNotify;
+  try
+    DoLoadPendingBufferOperations(OperationsHashTree);
+  finally
+    FPendingLoadProgressNotify := LPreviousProgress;
+  end;
 end;
 
 function TStorage.LoadBlockChainBlock(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
@@ -3696,7 +4173,7 @@ function TStorage.MoveBlockChainBlocks(StartBlock: Cardinal; const DestOrphan: T
           End;
         end;
       until FindNext(sr) <> 0;
-      FindClose(sr);
+      SysUtils.FindClose(sr);
     end;
   End;
 Var
@@ -3752,8 +4229,16 @@ begin
   Try
     if ReadOnly then raise Exception.Create('Cannot save because is ReadOnly');
     Result := DoSaveBlockChain(Operations);
+    // A false storage result is a persistence failure too. Never let the bank
+    // clear accepted operations or acknowledge a block that was not saved.
+    if not Result then
+      raise EWriteError.Create('Storage did not save block '+IntToStr(Operations.OperationBlock.block));
   Except
     On E:Exception do begin
+      // A local persistence failure must not be reported only as peer isolation.
+      // Preserve a checkpoint-specific first cause already latched by SaveBank.
+      if TNode.NodeExists and (TNode.Node.Bank=Bank) then
+        TNode.Node.ReportStorageFailure(sfsBlockStream,TNode.GetPascalCoinDataFolder+PathDelim+'Data'+PathDelim+'BlockChainStream.blocks',E);
       TLog.NewLog(lterror,Classname,'Error saving block chain: '+E.Message);
       Raise;
     end;

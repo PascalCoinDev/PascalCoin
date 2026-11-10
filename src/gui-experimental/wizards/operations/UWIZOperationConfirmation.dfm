@@ -1,0 +1,68 @@
+﻿object WIZOperationConfirmation: TWIZOperationConfirmation
+  Left = 0
+  Height = 320
+  Top = 0
+  Width = 511
+  Caption = 'WIZOperationConfirmation'
+  ClientHeight = 320
+  ClientWidth = 511
+  Visible = False
+  object gpConfirmOperation: TGroupBox
+    Left = 10
+    Height = 299
+    Top = 8
+    Width = 490
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Confirm Transaction'
+    TabOrder = 0
+    object paGrid: TPanel
+      Left = 8
+      Height = 147
+      Top = 24
+      Width = 464
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      BevelOuter = bvNone
+      Caption = 'GRID PANEL'
+      TabOrder = 0
+    end
+    object mmoPayload: TMemo
+      Left = 8
+      Height = 82
+      Top = 192
+      Width = 464
+      Anchors = [akLeft, akRight, akBottom]
+      Enabled = False
+      ScrollBars = ssBoth
+      TabOrder = 1
+    end
+    object lblPayload: TLabel
+      Left = 8
+      Height = 15
+      Top = 172
+      Width = 42
+      Anchors = [akLeft, akBottom]
+      Caption = 'Payload'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+    end
+    object lblBeneficiaryAccount: TLabel
+      Left = 8
+      Height = 15
+      Top = 2
+      Width = 115
+      Caption = 'Beneficiary Account:'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+    end
+    object lblBenAcc: TLabel
+      Left = 130
+      Height = 15
+      Top = 2
+      Width = 53
+      Caption = 'lblBenAcc'
+      ParentColor = False
+    end
+  end
+end

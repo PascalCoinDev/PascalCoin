@@ -76,9 +76,11 @@ object FRMMainForm: TFRMMainForm
   end
   object sbStatusBar: TStatusBar
     Left = 0
-    Height = 18
-    Top = 582
+    Height = 30
+    Top = 570
     Width = 870
+    Align = alBottom
+    AutoSize = False
     Panels = <    
       item
         Alignment = taCenter
@@ -98,53 +100,50 @@ object FRMMainForm: TFRMMainForm
         Width = 30
       end>
     SimplePanel = False
-  end
-  object tbStatusToolBar: TToolBar
-    AnchorSideTop.Control = sbStatusBar
-    AnchorSideTop.Side = asrCenter
-    AnchorSideBottom.Control = sbStatusBar
-    AnchorSideBottom.Side = asrBottom
-    Left = 783
-    Height = 15
-    Top = 584
-    Width = 70
-    Align = alNone
-    Anchors = [akTop, akRight]
-    AutoSize = True
-    ButtonHeight = 15
-    ButtonWidth = 23
-    Caption = 'tbStatusToolBar'
-    EdgeBorders = []
-    EdgeInner = esNone
-    EdgeOuter = esNone
-    Images = ilSmallIcons
-    List = True
-    TabOrder = 0
-    Wrapable = False
-    object tbtnWalletLock: TToolButton
-      Left = 1
-      Hint = 'Show Private Keys'
-      Top = 0
-      Caption = 'Private Keys'
-      ImageIndex = 2
-      Marked = True
-      OnClick = tbtnWalletLockClick
-    end
-    object tbtnConnectivity: TToolButton
-      Left = 47
-      Hint = 'Network is active. Click to deactivate'
-      Top = 0
-      Caption = 'Net'
-      ImageIndex = 0
-      OnClick = tbtnConnectivityClick
-    end
-    object tbtnSync: TToolButton
-      Left = 24
-      Hint = 'Show &Syncronization'
-      Top = 0
-      Caption = '&Synchronization'
-      ImageIndex = 4
-      OnClick = tbtnSyncClick
+    OnResize = FormResize
+    object tbStatusToolBar: TToolBar
+      Left = 783
+      Height = 22
+      Top = 4
+      Width = 70
+      Align = alNone
+      Anchors = [akTop, akRight]
+      AutoSize = True
+      ButtonHeight = 22
+      ButtonWidth = 23
+      Caption = 'tbStatusToolBar'
+      EdgeBorders = []
+      EdgeInner = esNone
+      EdgeOuter = esNone
+      Images = ilSmallIcons
+      List = True
+      TabOrder = 0
+      Wrapable = False
+      OnResize = FormResize
+      object tbtnWalletLock: TToolButton
+        Left = 0
+        Hint = 'Show Private Keys'
+        Top = 0
+        Caption = 'Private Keys'
+        ImageIndex = 2
+        OnClick = tbtnWalletLockClick
+      end
+      object tbtnConnectivity: TToolButton
+        Left = 23
+        Hint = 'Network is active. Click to deactivate'
+        Top = 0
+        Caption = 'Net'
+        ImageIndex = 0
+        OnClick = tbtnConnectivityClick
+      end
+      object tbtnSync: TToolButton
+        Left = 46
+        Hint = 'Show &Syncronization'
+        Top = 0
+        Caption = '&Synchronization'
+        ImageIndex = 4
+        OnClick = tbtnSyncClick
+      end
     end
   end
   object meMainMenu: TMainMenu
@@ -162,6 +161,10 @@ object FRMMainForm: TFRMMainForm
       end
       object miN1: TMenuItem
         Caption = '-'
+      end
+      object miAdvancedOperation: TMenuItem
+        Caption = 'Advanced Operation...'
+        OnClick = miAdvancedOperationClick
       end
       object miOptions: TMenuItem
         Caption = 'Options'
@@ -197,6 +200,14 @@ object FRMMainForm: TFRMMainForm
       object miOperationsExplorer: TMenuItem
         Caption = 'Operations Explorer'
         OnClick = miOperationsExplorerClick
+      end
+      object miOperationsWorkbench: TMenuItem
+        Caption = 'RAW / Multioperation Workbench...'
+        OnClick = miOperationsWorkbenchClick
+      end
+      object miRPCCalls: TMenuItem
+        Caption = 'RPC Calls...'
+        OnClick = miRPCCallsClick
       end
       object miLogs: TMenuItem
         Caption = '&Logs'

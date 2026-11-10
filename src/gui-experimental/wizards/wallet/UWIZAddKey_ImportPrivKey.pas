@@ -13,7 +13,20 @@ unit UWIZAddKey_ImportPrivKey;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+{ Collects private-key import text and its password, then validates that the
+  key can be decoded.
+}
+
+{ Public types in this unit
+
+  Type                     | Purpose
+  -------------------------+--------------------------------------------------------------------------
+  TWIZAddKey_ImportPrivKey | Edits and validates an imported private key and password.
+}
 
 interface
 
@@ -32,36 +45,47 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message : AnsiString) : boolean; override;
+    procedure OnPrevious; override;
+    function Validate(out message : String) : boolean; override;
   end;
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
-  UCrypto,
+  SysUtils, UCrypto,
   UWallet;
 
 { TWIZAddKey_ImportPrivKey }
 
 procedure TWIZAddKey_ImportPrivKey.OnPresent;
 begin
-  txtPrivateKey.Clear;
-  txtPassword.Clear;
+  txtPrivateKey.Text := Model.KeyText;
+  txtPassword.Text := Model.Password;
   txtPrivateKey.SetFocus;
 end;
 
 procedure TWIZAddKey_ImportPrivKey.OnNext;
 begin
-  Model.KeyText := txtPrivateKey.Text;
+  Model.KeyText := Trim(txtPrivateKey.Text);
   Model.Password := txtPassword.Text;
 end;
 
-function TWIZAddKey_ImportPrivKey.Validate(out message : AnsiString) : boolean;
+procedure TWIZAddKey_ImportPrivKey.OnPrevious;
+begin
+  OnNext;
+end;
+
+function TWIZAddKey_ImportPrivKey.Validate(out message : String) : boolean;
 var
   privateKey : TECPrivateKey;
 begin
+  privateKey := nil;
   try
     Result := TWallet.TryDecryptPrivateKey(txtPrivateKey.Text, txtPassword.Text, privateKey, message);
   finally

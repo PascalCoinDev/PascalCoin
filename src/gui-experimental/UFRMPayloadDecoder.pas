@@ -16,14 +16,27 @@ unit UFRMPayloadDecoder;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode Delphi}
+{$ENDIF}
+
+{ Decodes operation payloads as text or bytes and attempts decryption with
+  wallet keys or a supplied password. }
+
+{ Public types in this unit
+
+  Type               | Purpose
+  -------------------+-------------------------------------------------------------------------
+  TFRMPayloadDecoder | Inspects and decrypts operation payload data.
+}
 
 interface
 
 {$I ../config.inc}
 
 uses
-  LCLIntf, LCLType, LMessages,
+  {$IFNDEF FPC}Winapi.Windows,{$ENDIF}
+  {$IFDEF FPC}LCLIntf, LCLType, LMessages,{$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UCommon.UI,
   UBlockChain, UCrypto, UWallet, Buttons, ComCtrls,UAppParams;
@@ -80,10 +93,20 @@ type
     FOpResume : TOperationResume;
     FSavedDecodeMethods : boolean;
     FSemaphor : Boolean;
+    FDetailsLayoutReady, FArrangingDetails: Boolean;
     { Private declarations }
     Procedure TryToDecode;
     Procedure SaveMethods;
     procedure SetOpResume(const Value: TOperationResume);
+    procedure LayoutDetails;
+  protected
+    procedure DoShow; override;
+    procedure Resize; override;
+    {$IFDEF FPC}
+    procedure ChangeScale(M, D: Integer); override;
+    {$ELSE}
+    procedure ChangeScale(M, D: Integer; isDpiChange: Boolean); override;
+    {$ENDIF}
   public
     { Public declarations }
     Procedure Init(Const AOperationResume : TOperationResume; WalletKeys : TWalletKeys; AppParams : TAppParams); overload;
@@ -94,10 +117,14 @@ type
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 Uses
-  UNode, UTime, UAccounts, UCommon, USettings, UBaseTypes,
+  Math, Types, UNode, UTime, UAccounts, UCommon, USettings, UBaseTypes,
   UPCEncryption, UFRMMemoText;
 
 { TFRMPayloadDecoder }
@@ -150,9 +177,9 @@ begin
       raise Exception.Create('Invalid OPHASH');
     end;
     Case TNode.Node.FindNOperation(nBlock,nAccount,nN_Operation,opr) of
-      invalid_params : raise Exception.Create(Format('Not a valid OpHash searching at Block:%d Account:%d N_Operation:%d',[nBlock,nAccount,nN_Operation]));
-      blockchain_block_not_found : raise Exception.Create('Your blockchain file does not contain all blocks to find');
-      found : ;
+      OpHash_invalid_params : raise Exception.Create(Format('Not a valid OpHash searching at Block:%d Account:%d N_Operation:%d',[nBlock,nAccount,nN_Operation]));
+      OpHash_block_not_found : raise Exception.Create('Your blockchain file does not contain all blocks to find');
+      OpHash_found : ;
     else raise Exception.Create('ERROR DEV 20171120-6');
     end;
     If (TPCOperation.EqualOperationHashes(opr.OperationHash,r)) Or
@@ -218,6 +245,162 @@ begin
   finally
     FSemaphor := false;
   end;
+  FDetailsLayoutReady := True;
+  LayoutDetails;
+end;
+
+procedure TFRMPayloadDecoder.DoShow;
+begin
+  inherited;
+  LayoutDetails;
+end;
+
+procedure TFRMPayloadDecoder.Resize;
+begin
+  inherited;
+  LayoutDetails;
+end;
+
+{$IFDEF FPC}
+procedure TFRMPayloadDecoder.ChangeScale(M, D: Integer);
+{$ELSE}
+procedure TFRMPayloadDecoder.ChangeScale(M, D: Integer; isDpiChange: Boolean);
+{$ENDIF}
+var
+  LWasArranging: Boolean;
+begin
+  LWasArranging := FArrangingDetails;
+  FArrangingDetails := True;
+  try
+    {$IFDEF FPC}
+    inherited ChangeScale(M, D);
+    {$ELSE}
+    inherited ChangeScale(M, D, isDpiChange);
+    {$ENDIF}
+  finally
+    FArrangingDetails := LWasArranging;
+  end;
+  // VCL scales inherited fonts after sizing its children. Layout from an
+  // intermediate Resize would retain bounds measured with the previous font.
+  LayoutDetails;
+end;
+
+procedure TFRMPayloadDecoder.LayoutDetails;
+var
+  LFontHeight, LMargin, LGap, LPairGap, LLeft, LRight, LTop, LRowHeight: Integer;
+  LInputHeight, LFindWidth, LHashWidth, LPageHeight, LButtonHeight, LHeight: Integer;
+
+  function S(AValue: Integer): Integer;
+  begin
+    Result := MulDiv(AValue, LFontHeight, 13);
+  end;
+
+  function TextWidth(ALabel: TLabel): Integer;
+  begin
+    Canvas.Font.Assign(ALabel.Font);
+    Result := Canvas.TextWidth(ALabel.Caption);
+  end;
+
+  function LabelHeight(ALabel: TLabel; AWidth: Integer): Integer;
+  var
+    LText: TRect;
+  begin
+    Canvas.Font.Assign(ALabel.Font);
+    LText := Types.Rect(0, 0, Max(1, AWidth), 0);
+    DrawText(Canvas.Handle, PChar(ALabel.Caption), Length(ALabel.Caption), LText, DT_CALCRECT or DT_WORDBREAK or DT_NOPREFIX);
+    Result := Max(Canvas.TextHeight('Wg'), LText.Bottom - LText.Top);
+  end;
+
+  procedure NextRow;
+  begin
+    if LRowHeight > 0 then
+      Inc(LTop, LRowHeight + LGap);
+    LLeft := LMargin;
+    LRowHeight := 0;
+  end;
+
+  procedure AddPair(ACaption, AValue: TLabel);
+  var
+    LCaptionWidth, LValueWidth, LCaptionHeight, LValueHeight, LPairWidth, LPairHeight: Integer;
+  begin
+    if not AValue.Visible then
+      Exit;
+    LCaptionWidth := 0;
+    if Assigned(ACaption) then
+      LCaptionWidth := TextWidth(ACaption) + LGap;
+    LValueWidth := Max(1, TextWidth(AValue));
+    LPairWidth := LCaptionWidth + LValueWidth;
+    if (LLeft > LMargin) and (LLeft + LPairWidth > LRight) then
+      NextRow;
+    LValueWidth := Min(LValueWidth, Max(1, LRight - LLeft - LCaptionWidth));
+    LValueHeight := LabelHeight(AValue, LValueWidth);
+    LCaptionHeight := 0;
+    if Assigned(ACaption) then
+      LCaptionHeight := LabelHeight(ACaption, Max(1, LCaptionWidth - LGap));
+    LPairHeight := Max(LCaptionHeight, LValueHeight);
+    if Assigned(ACaption) then begin
+      ACaption.AutoSize := False;
+      ACaption.WordWrap := True;
+      ACaption.SetBounds(LLeft, LTop + (LPairHeight - LCaptionHeight) div 2, Max(1, LCaptionWidth - LGap), LCaptionHeight);
+    end;
+    AValue.AutoSize := False;
+    AValue.WordWrap := True;
+    AValue.SetBounds(LLeft + LCaptionWidth, LTop + (LPairHeight - LValueHeight) div 2, LValueWidth, LValueHeight);
+    LLeft := LLeft + LCaptionWidth + LValueWidth + LPairGap;
+    LRowHeight := Max(LRowHeight, LPairHeight);
+  end;
+
+begin
+  if not FDetailsLayoutReady or FArrangingDetails or (csLoading in ComponentState) then
+    Exit;
+  FArrangingDetails := True;
+  DisableAlign;
+  try
+    Canvas.Font.Assign(Font);
+    LFontHeight := Max(1, Canvas.TextHeight('Wg'));
+    LMargin := S(20);
+    LGap := Max(4, S(8));
+    LPairGap := S(20);
+    LRight := Max(LMargin + 1, ClientWidth - LMargin);
+    LTop := S(20);
+    LInputHeight := Max(bbFind.Height, ebOphash.Height);
+    Canvas.Font.Assign(bbFind.Font);
+    LFindWidth := Max(S(52), Canvas.TextWidth(StringReplace(bbFind.Caption, '&', '', [rfReplaceAll])) + S(28));
+    LHashWidth := TextWidth(Label4);
+    Label4.AutoSize := False;
+    Label4.SetBounds(LMargin, LTop + (LInputHeight - LabelHeight(Label4, LHashWidth)) div 2, LHashWidth, LabelHeight(Label4, LHashWidth));
+    bbFind.SetBounds(LRight - LFindWidth, LTop, LFindWidth, LInputHeight);
+    ebOphash.SetBounds(LMargin + LHashWidth + LGap, LTop + (LInputHeight - ebOphash.Height) div 2, Max(1, bbFind.Left - LGap - LMargin - LHashWidth - LGap), ebOphash.Height);
+    Inc(LTop, LInputHeight + LGap);
+    LLeft := LMargin;
+    LRowHeight := 0;
+    // Measure complete caption/value pairs: block counters, translated dates
+    // and monetary values can outgrow their old fixed designer columns.
+    AddPair(Label1, lblBlock);
+    AddPair(Label6, lblDateTime);
+    AddPair(lblFeeCaption, lblFee);
+    AddPair(nil, lblReceiverInfo);
+    NextRow;
+    AddPair(lblSenderCaption, lblSender);
+    AddPair(lblAmountCaption, lblAmount);
+    AddPair(lblReceiverCaption, lblReceiver);
+    NextRow;
+    AddPair(Label2, lblOperationTxt);
+    NextRow;
+    LPageHeight := S(206);
+    LButtonHeight := Max(S(25), bbClose.Height);
+    LHeight := LTop + LGap + LPageHeight + S(16) + LButtonHeight + LMargin;
+    // Grow only when metadata needs more room; retain a larger window and
+    // give its extra space to the payload rather than undoing a resize.
+    if ClientHeight < Max(S(406), LHeight) then
+      ClientHeight := Max(S(406), LHeight);
+    LPageHeight := Max(LPageHeight, ClientHeight - LTop - LGap - S(16) - LButtonHeight - LMargin);
+    PageControl.SetBounds(LMargin, LTop + LGap, LRight - LMargin, LPageHeight);
+    bbClose.SetBounds(LRight - S(79), ClientHeight - LMargin - LButtonHeight, S(79), LButtonHeight);
+  finally
+    EnableAlign;
+    FArrangingDetails := False;
+  end;
 end;
 
 // Needed for classic compat
@@ -234,8 +417,7 @@ begin
   TryToDecode;
 end;
 
-procedure TFRMPayloadDecoder.memoDecodedKeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
+procedure TFRMPayloadDecoder.memoDecodedKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
   if key=VK_ESCAPE then Close;
 
@@ -341,6 +523,7 @@ begin
     TryToDecode;
   Finally
     FSemaphor := sem;
+    LayoutDetails;
   End;
 end;
 
@@ -363,7 +546,7 @@ procedure TFRMPayloadDecoder.TryToDecode;
 
   end;
 
-  Function  UsePassword(const raw : TRawBytes; var Decrypted : TRawBytes; var PasswordUsed : AnsiString) : Boolean;
+  Function  UsePassword(const raw : TRawBytes; var Decrypted : TRawBytes; var PasswordUsed : String) : Boolean;
   Var i : Integer;
   Begin
     Result := false;
@@ -382,7 +565,7 @@ procedure TFRMPayloadDecoder.TryToDecode;
 Var raw : TRawBytes;
   WalletKey : TWalletKey;
   Decrypted : TRawBytes;
-  PasswordUsed : AnsiString;
+  PasswordUsed : String;
   ok : boolean;
 begin
   ok := true;

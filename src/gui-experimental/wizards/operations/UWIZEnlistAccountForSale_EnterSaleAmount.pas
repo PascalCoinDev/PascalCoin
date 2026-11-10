@@ -17,8 +17,24 @@ unit UWIZEnlistAccountForSale_EnterSaleAmount;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
+
+{ Collects an account sale price and optional fee or payload settings.
+}
+
+{ Public types in this unit
+
+  Type                                     | Purpose
+  -----------------------------------------+--------------------------------------------------------------------------
+  TWIZEnlistAccountForSale_EnterSaleAmount | Validates the sale amount and adds optional operation steps.
+}
 
 interface
 
@@ -43,13 +59,17 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UAccounts,
@@ -63,7 +83,7 @@ uses
 
 procedure TWIZEnlistAccountForSale_EnterSaleAmount.UpdateUI();
 begin
-  edtAmt.Text := TAccountComp.FormatMoney(0);
+  edtAmt.Text := TAccountComp.FormatMoney(Model.EnlistAccountForSale.SalePrice);
 end;
 
 procedure TWIZEnlistAccountForSale_EnterSaleAmount.OnPresent;
@@ -97,7 +117,7 @@ begin
 
 end;
 
-function TWIZEnlistAccountForSale_EnterSaleAmount.Validate(out message: ansistring): boolean;
+function TWIZEnlistAccountForSale_EnterSaleAmount.Validate(out message: String): boolean;
 var
   LSaleAmount: int64;
 begin

@@ -13,7 +13,19 @@ unit UWIZAddKey_GenerateOrImport;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+{ Chooses whether to generate a private key or import an existing private key.
+}
+
+{ Public types in this unit
+
+  Type                        | Purpose
+  ----------------------------+--------------------------------------------------------------------------
+  TWIZAddKey_GenerateOrImport | Selects generation or import and inserts the matching key step.
+}
 
 interface
 
@@ -32,11 +44,16 @@ type
     rbPublicKey: TRadioButton;
   public
     procedure OnNext; override;
+    procedure OnPresent; override;
   end;
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UWIZAddKey_ImportPrivKey,
@@ -52,6 +69,12 @@ begin
     Model.Action := akaImportPrivateKey;
     UpdatePath(ptReplaceAllNext, [TWIZAddKey_ImportPrivKey, TWIZAddKey_EnterName])
   end;
+end;
+
+procedure TWIZAddKey_GenerateOrImport.OnPresent;
+begin
+  rbPublicKey.Checked := Model.Action = akaImportPrivateKey;
+  rbPrivateKey.Checked := not rbPublicKey.Checked;
 end;
 
 end.

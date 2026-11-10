@@ -17,6 +17,17 @@ unit UFRMWallet;
 
   }
 
+{ Combines account and operation grids with explorer, network, mining and
+  key-management controls in one wallet form. }
+
+{ Public types in this unit
+
+  Type             | Purpose
+  -----------------+-------------------------------------------------------------------------
+  TFRMWallet       | Combines wallet, explorer, networking and mining controls.
+  TMinerPrivateKey | Selects how the mining reward key is chosen.
+}
+
 interface
 
 {$I ../config.inc}
@@ -179,8 +190,7 @@ type
     procedure miAboutPascalCoinClick(Sender: TObject);
     procedure miNewOperationClick(Sender: TObject);
     procedure miPrivatekeysClick(Sender: TObject);
-    procedure dgAccountsColumnMoved(Sender: TObject; FromIndex,
-      ToIndex: Integer);
+    procedure dgAccountsColumnMoved(Sender: TObject; FromIndex, ToIndex: Integer);
     procedure dgAccountsFixedCellClick(Sender: TObject; ACol, ARow: Integer);
     procedure PageControlChange(Sender: TObject);
     procedure ebFilterOperationsAccountExit(Sender: TObject);
@@ -211,8 +221,7 @@ type
     procedure MiFindaccountClick(Sender: TObject);
     procedure bbAccountsRefreshClick(Sender: TObject);
     procedure ebFilterAccountByBalanceMinExit(Sender: TObject);
-    procedure ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
-      var Key: Char);
+    procedure ebFilterAccountByBalanceMinKeyPress(Sender: TObject; var Key: Char);
     procedure cbFilterAccountsClick(Sender: TObject);
     procedure MiFindOperationbyOpHashClick(Sender: TObject);
     procedure MiAccountInformationClick(Sender: TObject);
@@ -251,7 +260,7 @@ type
     Procedure OnNewAccount(Sender : TObject);
     Procedure OnReceivedHelloMessage(Sender : TObject);
     Procedure OnNetStatisticsChanged(Sender : TObject);
-    procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString);
+    procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : String);
     procedure OnWalletChanged(Sender : TObject);
     procedure OnNetConnectionsUpdated(Sender : TObject);
     procedure OnNetNodeServersUpdated(Sender : TObject);
@@ -293,7 +302,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UFolderHelper, UConst, UTime, UFileStorage,
+Uses UProgressDisplay, UFolderHelper, UConst, UTime, UFileStorage,
   UThread, UOpTransaction, UFRMPascalCoinWalletConfig,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText;
 
@@ -318,7 +327,7 @@ end;
 { TFRMWallet }
 
 procedure TFRMWallet.Activate;
-Var ips : AnsiString;
+Var ips : String;
   nsarr : TNodeServerAddressArray;
 begin
   inherited;
@@ -444,7 +453,7 @@ end;
 
 procedure TFRMWallet.bbSendAMessageClick(Sender: TObject);
 Var basem,m : String;
-  them, errors : AnsiString;
+  them, errors : String;
   i,n : Integer;
   nc : TNetConnection;
 begin
@@ -509,11 +518,17 @@ begin
 end;
 
 procedure TFRMWallet.CheckIsReady;
-Var isready : AnsiString;
+Var isready, LBankDiagnostic : String;
+  LProgress : TProgressInfo;
 begin
   if Not Assigned(FNode) then Abort;
 
   if Not FNode.IsReady(isready) then begin
+    // Keep domain readiness reasons; reconstruct only the active download text.
+    if FNode.Bank.IsReady(LBankDiagnostic) then
+      if FNode.NetServer.Active then
+        if TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then
+          isready := FormatProgressInfo(LProgress);
     Raise Exception.Create('You cannot do this operation now:'+#10+#10+isready);
   end;
 end;
@@ -537,7 +552,9 @@ begin
       strings.BeginUpdate;
       Try
         for i := 0 to l.Count - 1 do begin
-          NC := l[i];
+          // Keep the outer registry lock while copying the row. Membership
+          // alone includes retiring entries whose transport is already freed.
+          if not TNetData.NetData.GetConnection(i,NC) then Continue;
           If NC.Client.BytesReceived>0 then begin
             sClientApp := '['+IntToStr(NC.NetProtocolVersion.protocol_version)+'-'+IntToStr(NC.NetProtocolVersion.protocol_available)+'] '+NC.ClientAppVersion;
           end else begin
@@ -616,8 +633,7 @@ begin
   SaveAppParams;
 end;
 
-procedure TFRMWallet.dgAccountsFixedCellClick(Sender: TObject; ACol,
-  ARow: Integer);
+procedure TFRMWallet.dgAccountsFixedCellClick(Sender: TObject; ACol, ARow: Integer);
 begin
   SaveAppParams;
 end;
@@ -677,8 +693,7 @@ begin
   End;
 end;
 
-procedure TFRMWallet.ebBlockChainBlockStartKeyPress(Sender: TObject;
-  var Key: Char);
+procedure TFRMWallet.ebBlockChainBlockStartKeyPress(Sender: TObject; var Key: Char);
 begin
   if key=#13 then  ebBlockChainBlockStartExit(Nil);
 end;
@@ -688,8 +703,7 @@ begin
   DoUpdateAccountsFilter;
 end;
 
-procedure TFRMWallet.ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
-  var Key: Char);
+procedure TFRMWallet.ebFilterAccountByBalanceMinKeyPress(Sender: TObject; var Key: Char);
 begin
   if key=#13 then DoUpdateAccountsFilter;
 end;
@@ -710,8 +724,7 @@ begin
   End;
 end;
 
-procedure TFRMWallet.ebFilterOperationsAccountKeyPress(Sender: TObject;
-  var Key: Char);
+procedure TFRMWallet.ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);
 begin
   if key=#13 then  ebFilterOperationsAccountExit(Nil);
 end;
@@ -1046,7 +1059,7 @@ end;
 
 procedure TFRMWallet.LoadAppParams;
 Var ms : TMemoryStream;
-  s : AnsiString;
+  s : String;
   fvi : TFileVersionInfo;
 begin
   ms := TMemoryStream.Create;
@@ -1291,7 +1304,7 @@ begin
 end;
 
 procedure TFRMWallet.OnNetBlackListUpdated(Sender: TObject);
-Const CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
+Const CT_TRUE_FALSE : Array[Boolean] Of String = ('FALSE','TRUE');
 Var i,j,n : integer;
  P : PNodeServerAddress;
  l : TList;
@@ -1413,8 +1426,8 @@ begin
   end;
 end;
 
-procedure TFRMWallet.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : Cardinal; const sender,logtext: AnsiString);
-Var s : AnsiString;
+procedure TFRMWallet.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : Cardinal; const sender,logtext: String);
+Var s : String;
 begin
   if (logtype=ltdebug) And (Not cbShowDebugLogs.Checked) then exit;
   if ThreadID=MainThreadID then s := ' MAIN:' else s:=' TID:';
@@ -1461,7 +1474,7 @@ end;
 procedure TFRMWallet.OnReceivedHelloMessage(Sender: TObject);
 Var nsarr : TNodeServerAddressArray;
   i : Integer;
-  s : AnsiString;
+  s : String;
 begin
   //CheckMining;
   // Update node servers Peer Cache
@@ -1518,7 +1531,7 @@ end;
 
 procedure TFRMWallet.SaveAppParams;
 Var ms : TMemoryStream;
-  s : AnsiString;
+  s : String;
 begin
   ms := TMemoryStream.Create;
   Try
@@ -1836,7 +1849,7 @@ begin
 end;
 
 procedure TFRMWallet.UpdateConnectionStatus;
-var errors : AnsiString;
+var errors : String;
 begin
   UpdateNodeStatus;
   OnNetStatisticsChanged(Nil);
@@ -1853,7 +1866,8 @@ begin
 end;
 
 procedure TFRMWallet.UpdateNodeStatus;
-Var status : AnsiString;
+Var status, LBankDiagnostic : String;
+  LProgress : TProgressInfo;
 begin
   If Not Assigned(FNode) then begin
     lblNodeStatus.Font.Color := clRed;
@@ -1864,8 +1878,8 @@ begin
         lblNodeStatus.Font.Color := clGreen;
         if TNetData.NetData.IsDiscoveringServers then begin
           lblNodeStatus.Caption := 'Discovering servers';
-        end else if TNetData.NetData.IsGettingNewBlockChainFromClient then begin
-          lblNodeStatus.Caption := 'Obtaining new blockchain';
+        end else if TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then begin
+          lblNodeStatus.Caption := 'Obtaining new blockchain ' + FormatProgressInfo(LProgress);
         end else begin
           lblNodeStatus.Caption := 'Running';
         end;
@@ -1874,6 +1888,11 @@ begin
         lblNodeStatus.Caption := 'Alone in the world...';
       end;
     end else begin
+      // Recreate download text here; bank/server failures keep their own reason.
+      if FNode.Bank.IsReady(LBankDiagnostic) then
+        if FNode.NetServer.Active then
+          if TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then
+            status := FormatProgressInfo(LProgress);
       lblNodeStatus.Font.Color := clRed;
       lblNodeStatus.Caption := status;
     end;
@@ -1894,7 +1913,7 @@ end;
 procedure TFRMWallet.UpdatePrivateKeys;
 Var i,last_i : Integer;
   wk : TWalletKey;
-  s : AnsiString;
+  s : String;
 begin
   If (Not Assigned(FOrderedAccountsKeyList)) And (Assigned(FNode)) Then begin
     FOrderedAccountsKeyList := TOrderedAccountKeysList.Create(FNode.Bank.SafeBox,false);

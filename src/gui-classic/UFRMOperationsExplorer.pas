@@ -70,6 +70,7 @@ type
     miLoadFromBlockchain: TMenuItem;
     MiLoadOperationsFromBlockchainFile: TMenuItem;
     MiTools: TMenuItem;
+    MiRPCCalls: TMenuItem;
     mMenu: TMainMenu;
     mOperationInfo: TMemo;
     mOperationExport: TMemo;
@@ -106,6 +107,8 @@ type
     FOperationsHashTree : TOperationsHashTree;
     FSourceNode: TNode;
     FSourceWalletKeys: TWalletKeys;
+    FOffline: Boolean;
+    procedure SetOffline(AValue: Boolean);
     procedure OnOperationsHashTreeChanged(Sender : TObject);
     procedure SetSourceNode(AValue: TNode);
     procedure DoLoadFromStorageAssistant(AStorage : TStorage);
@@ -118,6 +121,12 @@ type
   public
     Property SourceNode : TNode read FSourceNode write SetSourceNode;
     Property SourceWalletKeys : TWalletKeys read FSourceWalletKeys write SetSourceWalletKeys;
+    // Offline consumers may prepare, sign and exchange RAW operations without
+    // exposing a network/RPC execution path. Classic callers default to online.
+    property Offline: Boolean read FOffline write SetOffline;
+    function TryImportRawOperations(const AHex: String; out AErrors: String): Boolean;
+    // The form owns this tree; consumers must not free it.
+    property Operations: TOperationsHashTree read FOperationsHashTree;
   end;
 
 implementation
@@ -132,7 +141,7 @@ Uses
 {$IFDEF TESTNET}
    UFRMRandomOperations,
 {$ENDIF}
-   UPCDataTypes, UFRMRPCCalls, UFRMMemoText;
+   UPCDataTypes, UFRMRPCCalls, UFRMMemoText, UMemory;
 
 
 { TFRMOperationsExplorer }
@@ -456,7 +465,9 @@ procedure TFRMOperationsExplorer.ActExecuteOperationUpdate(Sender: TObject);
 Var obj : TObject;
 begin
   obj := GetSelectedOperation;
-  TAction(Sender).Enabled:= ((Assigned(obj)) And (Assigned(FSourceNode)));
+  // The legacy resource also uses this updater for the local Sign action.
+  TAction(Sender).Enabled:= ((not FOffline) or (Sender = ActSign)) And
+    ((Assigned(obj)) And (Assigned(FSourceNode)));
 end;
 
 procedure TFRMOperationsExplorer.ActRemoveAccountFromMultioperationExecute(Sender: TObject);
@@ -497,6 +508,7 @@ procedure TFRMOperationsExplorer.ActExecuteOperationExecute(Sender: TObject);
 Var op : TPCOperation;
   errors : String;
 begin
+  if FOffline then Exit;
   If Not Assigned(FSourceNode) then Raise Exception.Create('No node to Execute');
   op := GetSelectedOperation;
   If Not Assigned(op) then exit;
@@ -528,32 +540,124 @@ begin
 end;
 
 procedure TFRMOperationsExplorer.MiImportOperationsFromTxtClick(Sender: TObject);
-Var i : Integer;
-  raw : TRawBytes;
-  auxS : String;
-  errors : String;
-  opht : TOperationsHashTree;
-  ms : TMemoryStream;
+var
+  auxS, errors: String;
 begin
   auxS := '';
   if Not InputMemoQuery('Paste a RAW hexadecimal operations:',False,auxS) then Exit;
+  if not TryImportRawOperations(auxS, errors) then
+    raise Exception.Create(errors);
+  if errors <> '' then
+    Application.MessageBox(PChar(errors), PChar(Caption), MB_OK + MB_ICONWARNING);
+end;
 
-  if Not TCrypto.HexaToRaw(auxS, raw) then Raise Exception.Create('Invalid hexadecimal RAW');
-
-  If Length(raw)=0 then Exit;
-  ms := TMemoryStream.Create;
-  opht := TOperationsHashTree.Create;
-  Try
-    ms.Write(raw[0],Length(raw));
-    ms.Position:=0;
-    If Not opht.LoadOperationsHashTreeFromStream(ms,false,TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,errors) then Raise Exception.Create(errors);
-    For i:=0 to opht.OperationsCount-1 do begin
-      FOperationsHashTree.AddOperationToHashTree(opht.GetOperation(i));
-    end;
-  finally
-    ms.Free;
-    opht.Free;
+function TFRMOperationsExplorer.TryImportRawOperations(const AHex: String; out AErrors: String): Boolean;
+var
+  LDisposables: TDisposables;
+  LRaw: TRawBytes;
+  LStream: TMemoryStream;
+  LImported, LCombined, LBackup: TOperationsHashTree;
+  LSigners: TList<Cardinal>;
+  LIncoming, LExisting: TPCOperation;
+  LProtocol: Word;
+  LNotify: TNotifyEvent;
+  i, j, k, LExistingIndex: Integer;
+begin
+  Result := False;
+  AErrors := '';
+  LNotify := nil;
+  if not TCrypto.HexaToRaw(Trim(AHex), LRaw) or (Length(LRaw) = 0) then
+  begin
+    AErrors := 'Enter a nonempty RAW hexadecimal operation package.';
+    Exit;
   end;
+  LProtocol := CT_PROTOCOL_MAX;
+  if Assigned(FSourceNode) then
+    LProtocol := FSourceNode.Bank.SafeBox.CurrentProtocol;
+  LStream := LDisposables.AddObject(TMemoryStream.Create) as TMemoryStream;
+  LImported := LDisposables.AddObject(TOperationsHashTree.Create) as TOperationsHashTree;
+  LCombined := LDisposables.AddObject(TOperationsHashTree.Create) as TOperationsHashTree;
+  LBackup := LDisposables.AddObject(TOperationsHashTree.Create) as TOperationsHashTree;
+  LSigners := LDisposables.AddObject(TList<Cardinal>.Create) as TList<Cardinal>;
+  try
+    LStream.WriteBuffer(LRaw[0], Length(LRaw));
+    LStream.Position := 0;
+    if not LImported.LoadOperationsHashTreeFromStream(LStream, False, LProtocol, LProtocol, nil, AErrors) then
+      Exit;
+    if (LStream.Position <> LStream.Size) or (LImported.OperationsCount = 0) then
+    begin
+      AErrors := 'The RAW operation package is empty or has trailing data.';
+      Exit;
+    end;
+    // CopyFromHashTree shares operation objects. Stage an independent decoded
+    // copy so importing signatures or a later conflict cannot mutate the UI's
+    // current package before the complete import has succeeded.
+    LStream.Clear;
+    FOperationsHashTree.SaveOperationsHashTreeToStream(LStream, False);
+    LStream.Position := 0;
+    if not LCombined.LoadOperationsHashTreeFromStream(LStream, False, LProtocol, LProtocol, nil, AErrors) then
+      Exit;
+    for i := 0 to LImported.OperationsCount - 1 do
+    begin
+      LIncoming := LImported.GetOperation(i);
+      LExistingIndex := LCombined.IndexOfOperation(LIncoming);
+      if LExistingIndex >= 0 then
+      begin
+        LExisting := LCombined.GetOperation(LExistingIndex);
+        if (LExisting is TOpMultiOperation) and (LIncoming is TOpMultiOperation) then
+          if TOpMultiOperation(LExisting).MergeMissingSignaturesFrom(TOpMultiOperation(LIncoming)) < 0 then
+          begin
+            AErrors := 'The returned signatures belong to a different multioperation.';
+            Exit;
+          end;
+        Continue;
+      end;
+      LSigners.Clear;
+      LIncoming.SignerAccounts(LSigners);
+      for j := 0 to LCombined.OperationsCount - 1 do
+      begin
+        LExisting := LCombined.GetOperation(j);
+        for k := 0 to LSigners.Count - 1 do
+          if LExisting.IsSignerAccount(LSigners[k]) and
+            (LExisting.GetAccountN_Operation(LSigners[k]) = LIncoming.GetAccountN_Operation(LSigners[k])) then
+          begin
+            AErrors := 'The RAW operation package reuses a signer operation counter.';
+            Exit;
+          end;
+      end;
+      if not LCombined.AddOperationToHashTree(LImported.GetOperation(i)) then
+      begin
+        AErrors := 'The RAW operation package conflicts with an existing operation.';
+        Exit;
+      end;
+    end;
+    LBackup.CopyFromHashTree(FOperationsHashTree);
+    LNotify := FOperationsHashTree.OnChanged;
+    FOperationsHashTree.OnChanged := nil;
+    try
+      try
+        FOperationsHashTree.CopyFromHashTree(LCombined);
+      except
+        FOperationsHashTree.CopyFromHashTree(LBackup);
+        raise;
+      end;
+    finally
+      FOperationsHashTree.OnChanged := LNotify;
+    end;
+    Result := True;
+  except
+    on E: Exception do
+      AErrors := E.Message;
+  end;
+  // Rendering is separate from importing. A callback failure must not claim
+  // that the successfully committed package was rejected or rolled back.
+  if Result and Assigned(LNotify) then
+    try
+      LNotify(FOperationsHashTree);
+    except
+      on E: Exception do
+        AErrors := 'The operation package was imported, but its display could not be refreshed: ' + E.Message;
+    end;
 end;
 
 procedure TFRMOperationsExplorer.miLoadFromBlockchainClick(Sender: TObject);
@@ -589,12 +693,21 @@ end;
 procedure TFRMOperationsExplorer.MiRPCCallsClick(Sender: TObject);
 Var FRM : TFRMRPCCalls;
 begin
+  if FOffline then Exit;
   FRM := TFRMRPCCalls.Create(Self);
   Try
     FRM.ShowModal;
   finally
     FRM.Free;
   end;
+end;
+
+procedure TFRMOperationsExplorer.SetOffline(AValue: Boolean);
+begin
+  FOffline := AValue;
+  if Assigned(MiRPCCalls) then
+    MiRPCCalls.Enabled := not FOffline;
+  ActExecuteOperationUpdate(ActExecuteOperation);
 end;
 
 procedure TFRMOperationsExplorer.OnOperationsHashTreeChanged(Sender: TObject);
@@ -712,7 +825,7 @@ begin
       ms.Free;
       opht.Free;
     end;
-    If op.OperationToOperationResume(FSourceNode.Bank.BlocksCount,op,True,op.SignerAccount,opr) then begin
+    If Assigned(FSourceNode) and op.OperationToOperationResume(FSourceNode.Bank.BlocksCount,op,True,op.SignerAccount,opr) then begin
       jsonObj := TPCJSONObject.Create;
       Try
         TPascalCoinJSONComp.FillOperationObject(opr,FSourceNode.Bank.BlocksCount,

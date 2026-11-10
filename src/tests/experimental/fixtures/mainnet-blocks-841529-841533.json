@@ -1,0 +1,16 @@
+{
+  "network": "PascalCoin mainnet",
+  "format": "Little-endian Cardinal count 5, followed by five unmodified TPCOperationsComp.SaveBlockToStream(False) network block serializations",
+  "bytes": 4465,
+  "sha256": "BA574C8A608115157FD8B89D8F8843D723D9B9265554C5BBB7EB11B50F5E6FDC",
+  "initialBlockCount": 841529,
+  "finalBlockCount": 841534,
+  "blocks": [
+    { "block": 841529, "bytes": 461, "sha256": "961537103B83D1676CBB0FF8D12B2CEE56FBF422747415EB867BE40E9D9947A1" },
+    { "block": 841530, "bytes": 1422, "sha256": "106DF45F617C1C3F8D8B1A912E7E8DBB3160ECBC7E61DB4DC5449C80F9E17EE3" },
+    { "block": 841531, "bytes": 555, "sha256": "0DDBBF3276454BC3E806710BF234603AE8D06FF9723B80CC87D6D10761A29C87" },
+    { "block": 841532, "bytes": 1468, "sha256": "3FA915A9FFDC6237DB9C8DF6C3BA3CD1C4F1BDCB705A79A6C69950877C9437C2" },
+    { "block": 841533, "bytes": 555, "sha256": "9A98E64BF9A96BFCCE732621143817520935F9BA0690D0CE0688007CDA1C91A8" }
+  ],
+  "scope": "Public block headers and operations only. No wallet keys or private account material. The test uses normal proof-of-work, operation and bank validation; no trusted-header bypass. These blocks require a separate matching owned chain fixture at height 841529."
+}

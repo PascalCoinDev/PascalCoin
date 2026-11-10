@@ -30,8 +30,8 @@ uses
 {$ELSE}
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
-  Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams, UThread, UPCDataTypes,
-  UWallet, UCrypto, UPoolMining, URPC, UBaseTypes, UPCOrderedLists, USettings,
+  Classes, ExtCtrls, Grids, UNode, UAccounts, UBlockChain, UAppParams, UThread, UPCDataTypes,
+  UWallet, UCrypto, UPoolMining, URPC, UBaseTypes, UPCOrderedLists, UOrderedList, USettings,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Type
@@ -51,6 +51,10 @@ Type
     MaxBalance : Int64;
     OrderedAccountsKeyList : TOrderedAccountKeysList;
     indexAccountsKeyList : Integer;
+    // Opt in to worker-side resolution of a captured key. Existing callers may
+    // keep using indexAccountsKeyList (-1 means all keys) without a UI change.
+    UseAccountKey : Boolean;
+    AccountKey : TAccountKey;
   end;
 
   TAccountsGridUpdateThread = Class(TPCThread)
@@ -59,6 +63,7 @@ Type
     FBalance : Int64;
     FIsProcessing : Boolean;
     FProcessedList : TOrderedCardinalList;
+    FBalanceOnly, FBalanceReady: Boolean;
   protected
     procedure SynchronizedOnTerminated;
     procedure BCExecute; override;
@@ -70,6 +75,11 @@ Type
 
   TAccountsGridDatasource = (acds_Node, acds_InternalList, acds_NodeFiltered);
 
+  TReadAccountEvent = function(Sender: TObject; AAccountNumber: Integer;
+    out AAccount: TAccount; out ANodeBlocksCount, ANodeAccountsCount: Integer): Boolean of object;
+  TReadAccountSummaryEvent = function(Sender: TObject; out AAccountsCount: Integer;
+    out ABalance: Int64): Boolean of object;
+
   TAccountsGrid = Class(TComponent)
   private
     FAccountsBalance : Int64;
@@ -77,17 +87,25 @@ Type
     FColumns : TAccountColumnArray;
     FDrawGrid : TDrawGrid;
     FNodeNotifyEvents : TNodeNotifyEvents;
-    FOnUpdated: TNotifyEvent;
+    FOnUpdated, FOnRefreshStateChanged: TNotifyEvent;
     FAllowMultiSelect: Boolean;
     FAccountsGridUpdateThread : TAccountsGridUpdateThread;
+    FRetiredAccountThreads: TList<TAccountsGridUpdateThread>;
+    FAccountRefreshTimer: TTimer;
+    FAccountRefreshPending, FJoiningAccountThreads, FShuttingDown: Boolean;
+    FWaitingForMempool: Boolean;
+    FUseConfirmedAccountsWhenPendingUnavailable: Boolean;
     FAccountsGridFilter: TAccountsGridFilter;
     FOnAccountsGridUpdatedData: TNotifyEvent;
     FAccountsGridDatasource: TAccountsGridDatasource;
+    FOnReadAccount: TReadAccountEvent;
+    FOnReadSummary: TReadAccountSummaryEvent;
     //
     FBufferLastAccountNumber : Integer;
     FBufferLastAccount : TAccount;
     FBufferNodeAccountsCount : Integer;
     FBufferNodeBlocksCount : Integer;
+    FBufferUsesConfirmedAccounts: Boolean;
     //
     procedure SetDrawGrid(const Value: TDrawGrid);
     Procedure InitGrid;
@@ -98,13 +116,16 @@ Type
     function GetNode: TNode;
     procedure SetAllowMultiSelect(const Value: Boolean);
     procedure TerminateAccountGridUpdateThread(AWaitUntilTerminated : Boolean);
+    procedure PruneRetiredAccountThreads(AWait: Boolean);
+    procedure PollAccountRefresh(Sender: TObject);
+    procedure NotifyRefreshStateChanged;
     procedure SetAccountsGridFilter(const Value: TAccountsGridFilter);
     function GetAccountsCount: Integer;
     procedure SetAccountsGridDatasource(const Value: TAccountsGridDatasource);
     procedure UpdateAccountsBalance;
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); Override;
-    procedure BufferGetAccount(AAccountNumber : Integer; var AAccount : TAccount; var ANodeBlocksCount, ANodeAccountsCount : Integer);
+    function BufferGetAccount(AAccountNumber : Integer; var AAccount : TAccount; var ANodeBlocksCount, ANodeAccountsCount : Integer): Boolean;
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
@@ -119,6 +140,9 @@ Type
     Property AccountsCount : Integer read GetAccountsCount;
     Function MoveRowToAccount(nAccount : Cardinal) : Boolean;
     Property OnUpdated : TNotifyEvent read FOnUpdated write FOnUpdated;
+    // Optional busy-to-idle completion, including cancelled/retired readers.
+    // This is readiness only; existing row-publication callbacks are unchanged.
+    property OnRefreshStateChanged: TNotifyEvent read FOnRefreshStateChanged write FOnRefreshStateChanged;
     Property AllowMultiSelect : Boolean read FAllowMultiSelect write SetAllowMultiSelect;
     Function SelectedAccounts(accounts : TOrderedCardinalList) : Integer;
     property AccountsGridFilter : TAccountsGridFilter read FAccountsGridFilter write SetAccountsGridFilter;
@@ -126,6 +150,15 @@ Type
     function IsUpdatingData : Boolean;
     property OnAccountsGridUpdatedData : TNotifyEvent read FOnAccountsGridUpdatedData write FOnAccountsGridUpdatedData;
     property AccountsGridDatasource : TAccountsGridDatasource read FAccountsGridDatasource write SetAccountsGridDatasource;
+    // Opt in to confirmed Safebox reads while pending reconciliation is deferred.
+    // Other consumers keep the existing suspended-query behavior by default.
+    property UseConfirmedAccountsWhenPendingUnavailable: Boolean
+      read FUseConfirmedAccountsWhenPendingUnavailable
+      write FUseConfirmedAccountsWhenPendingUnavailable;
+    // An optional snapshot reader may return False while data is unavailable.
+    // Painting then displays only the known account number, never a fake balance.
+    property OnReadAccount: TReadAccountEvent read FOnReadAccount write FOnReadAccount;
+    property OnReadSummary: TReadAccountSummaryEvent read FOnReadSummary write FOnReadSummary;
     function GetColumns : TAccountColumnArray;
     procedure SetColumns(const AColumns : TAccountColumnArray);
   End;
@@ -134,11 +167,20 @@ Type
 
   TOperationsGridUpdateThread = Class(TPCThread)
     FOperationsGrid : TOperationsGrid;
+    FNode: TNode;
+    FWalletKeys: TWalletKeys;
+    FPasswords: TList<String>;
+    FAccountNumber, FBlockStart, FBlockEnd: Int64;
+    FPendingOperations, FMustShowAlwaysAnAccount, FAsynchronous, FSucceeded: Boolean;
+    FGeneration: Int64;
+    FResults: TList<TOperationResume>;
+    FError: String;
     procedure DoUpdateOperationsGrid(const ANode : TNode; const AWalleTKeys : TWalletKeys; const APasswords : TList<String>; var AList : TList<TOperationResume>);
   protected
     procedure BCExecute; override;
   public
     constructor Create(AOperationsGrid : TOperationsGrid);
+    destructor Destroy; override;
   End;
 
   TOperationsGrid = Class(TComponent)
@@ -154,6 +196,13 @@ Type
     FOperationsGridUpdateThread : TOperationsGridUpdateThread;
     FWalletKeys: TWalletKeys;
     FPasswords: TList<String>;
+    FAsynchronousUpdates, FShuttingDown, FRefreshPending, FJoiningWorker: Boolean;
+    FAutoRefreshOnNodeEvents: Boolean;
+    FRefreshGeneration: Int64;
+    FRefreshTimer: TTimer;
+    procedure SetAsynchronousUpdates(AValue: Boolean);
+    procedure PollRefresh(Sender: TObject);
+    procedure StopRefresh;
     Procedure OnNodeNewOperation(Sender : TObject);
     Procedure OnNodeNewAccount(Sender : TObject);
     Procedure InitGrid;
@@ -187,6 +236,10 @@ Type
     Property BlockEnd : Int64 read FBlockEnd write SetBlockEnd;
     Procedure SetBlocks(bstart,bend : Int64);
     Property OperationsResume : TOperationsResumeList read FOperationsResume;
+    // Opt in before assigning Node. Node and wallet keys remain caller-owned
+    // and must outlive this component and its joined query worker.
+    property AsynchronousUpdates: Boolean read FAsynchronousUpdates write SetAsynchronousUpdates;
+    property AutoRefreshOnNodeEvents: Boolean read FAutoRefreshOnNodeEvents write FAutoRefreshOnNodeEvents;
   End;
 
   TBlockChainData = Record
@@ -279,7 +332,7 @@ Type
 Const
   CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetHs:0;HashRateHs:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:Nil;PoW:Nil;SafeBoxHash:Nil;
     TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0;TimeAverage5:0);
-  CT_TAccountsGridFilter_NUL : TAccountsGridFilter = (MinBalance:-1;MaxBalance:-1;OrderedAccountsKeyList:Nil;indexAccountsKeyList:-1);
+  CT_TAccountsGridFilter_NUL : TAccountsGridFilter = (MinBalance:-1;MaxBalance:-1;OrderedAccountsKeyList:Nil;indexAccountsKeyList:-1;UseAccountKey:False;AccountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));
 
 implementation
 
@@ -299,13 +352,49 @@ Var
   LAccount : TAccount;
   LNode : TNode;
   LAccountsList : TList<Int64>;
+
+  function ContinueReading: Boolean;
+  begin
+    // This worker reads confirmed Safebox records, never the deferred overlay.
+    Result := not Terminated and
+      (FAccountsGrid.UseConfirmedAccountsWhenPendingUnavailable or
+       LNode.PendingOperationsAvailable);
+    if not Result then Terminate;
+  end;
 begin
+  if Terminated then Exit;
   LApplyfilter := ((FAccountsGridFilter.MinBalance>0) Or ((FAccountsGridFilter.MaxBalance>=0) And (FAccountsGridFilter.MaxBalance<CT_MaxWalletAmount)));
   FBalance := 0;
   LNode := FAccountsGrid.Node;
+  if not Assigned(LNode) then Exit;
+  if not ContinueReading then begin
+    FIsProcessing := False;
+    Exit;
+  end;
   try
-    if (Assigned(FAccountsGridFilter.OrderedAccountsKeyList)) then begin
-      if (FAccountsGridFilter.indexAccountsKeyList<0) then i := 0
+    if FAccountsGridFilter.UseAccountKey and
+      (not Assigned(FAccountsGridFilter.OrderedAccountsKeyList)) then Exit;
+    if FBalanceOnly then begin
+      // The selected IDs are captured on the UI thread; only their balances
+      // are read here. This also supports selections larger than the row cache.
+      for i := 0 to FProcessedList.Count - 1 do begin
+        if not ContinueReading then Exit;
+        c := FProcessedList.Get(i);
+        if c >= LNode.Bank.SafeBox.AccountsCount then Continue;
+        LAccount := LNode.Bank.SafeBox.Account(c);
+        if Terminated then Exit;
+        FBalance := FBalance + LAccount.balance;
+      end;
+      FBalanceReady := True;
+    end else if (Assigned(FAccountsGridFilter.OrderedAccountsKeyList)) then begin
+      if FAccountsGridFilter.UseAccountKey then begin
+        // This lookup may wait behind a broad index traversal. It belongs to
+        // the owned worker, never to the key-selection handler on the UI.
+        i := FAccountsGridFilter.OrderedAccountsKeyList.IndexOfAccountKey(
+          FAccountsGridFilter.AccountKey);
+        if Terminated or (i < 0) then Exit;
+        FAccountsGridFilter.indexAccountsKeyList := i;
+      end else if (FAccountsGridFilter.indexAccountsKeyList<0) then i := 0
       else i := FAccountsGridFilter.indexAccountsKeyList;
 
       while (Not Terminated) and (i<FAccountsGridFilter.OrderedAccountsKeyList.Count)
@@ -313,11 +402,24 @@ begin
 
         j_min := 0;
 
-          while (j_min>=0) do begin
+          while (j_min>=0) and (not Terminated) do begin
 
           LNode.bank.SafeBox.StartThreadSafe;
           FAccountsGridFilter.OrderedAccountsKeyList.Lock; // Protection v4
           Try
+            if Terminated then Exit;
+            if FAccountsGridFilter.UseAccountKey then begin
+              // Keys can move within the index between chunks. Resolve the
+              // captured value again while this chunk's existing lock is held.
+              i := FAccountsGridFilter.OrderedAccountsKeyList.IndexOfAccountKey(
+                FAccountsGridFilter.AccountKey);
+              if i < 0 then begin
+                FProcessedList.Clear;
+                FBalance := 0;
+                Exit;
+              end;
+              FAccountsGridFilter.indexAccountsKeyList := i;
+            end;
             LAccountsNumbersList := FAccountsGridFilter.OrderedAccountsKeyList.AccountKeyList[i];
             if Assigned(LAccountsNumbersList) then begin
 
@@ -325,7 +427,9 @@ begin
               Try
                 LAccountsNumbersList.FillList(j_min,50000,LAccountsList);
                 for j := 0 to LAccountsList.Count - 1 do begin
+                  if not ContinueReading then Exit;
                   LAccount := LNode.Bank.SafeBox.Account(LAccountsList[j]);
+                  if Terminated then Exit;
 
                   if LApplyfilter then begin
                     if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
@@ -357,6 +461,7 @@ begin
     end else begin
         c := 0;
         while (c<LNode.Bank.SafeBox.AccountsCount) and (Not Terminated) do begin
+          if not ContinueReading then Exit;
           LAccount := LNode.Bank.SafeBox.Account(c);
           if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
             FProcessedList.Add(LAccount.account);
@@ -366,7 +471,7 @@ begin
         end;
       end;
   Finally
-    if Not Terminated then begin
+    if (Not Terminated) and ((not FBalanceOnly) or FBalanceReady) then begin
       Synchronize(SynchronizedOnTerminated);
     end;
     FisProcessing := False;
@@ -379,8 +484,13 @@ begin
   FreeOnTerminate := False;
   FAccountsGrid := AAccountsGrid;
   FAccountsGridFilter := AAccountsGridFilter;
+  if FAccountsGridFilter.UseAccountKey then
+    FAccountsGridFilter.AccountKey := AAccountsGridFilter.AccountKey.GetCopy;
   FisProcessing := True;
   FProcessedList := TOrderedCardinalList.Create;
+  FBalanceOnly := (AAccountsGrid.AccountsGridDatasource = acds_InternalList) and
+    Assigned(AAccountsGrid.FOnReadAccount);
+  if FBalanceOnly then FProcessedList.CopyFrom(AAccountsGrid.FAccountsList);
   Suspended := False;
 end;
 
@@ -392,18 +502,37 @@ end;
 
 procedure TAccountsGridUpdateThread.SynchronizedOnTerminated;
 var LacclTemp : TOrderedCardinalList;
+  LWasUpdating: Boolean;
 begin
+  LWasUpdating := FAccountsGrid.IsUpdatingData;
+  if Assigned(FAccountsGrid.Node) and
+    not FAccountsGrid.Node.PendingOperationsAvailable then begin
+    FAccountsGrid.FWaitingForMempool := True;
+    if not FAccountsGrid.UseConfirmedAccountsWhenPendingUnavailable then
+    begin
+      FIsProcessing := False;
+      Exit;
+    end;
+  end;
   if Not Terminated then begin
     FAccountsGrid.FAccountsBalance := FBalance;
-    LacclTemp := FAccountsGrid.LockAccountsList;
-    try
-      LacclTemp.CopyFrom( FProcessedList );
-    finally
-      FAccountsGrid.UnlockAccountsList;
+    if FBalanceOnly then begin
+      FisProcessing := False;
+      if Assigned(FAccountsGrid.FOnUpdated) then
+        FAccountsGrid.FOnUpdated(FAccountsGrid);
+    end else begin
+      LacclTemp := FAccountsGrid.LockAccountsList;
+      try
+        LacclTemp.CopyFrom( FProcessedList );
+      finally
+        FAccountsGrid.UnlockAccountsList;
+      end;
     end;
     FisProcessing := False;
     if Assigned(FAccountsGrid.FOnAccountsGridUpdatedData) then  FAccountsGrid.FOnAccountsGridUpdatedData(FAccountsGrid);
   end;
+  if LWasUpdating and not FAccountsGrid.IsUpdatingData then
+    FAccountsGrid.NotifyRefreshStateChanged;
 end;
 
 { TAccountsGrid }
@@ -423,19 +552,71 @@ begin
   end else Result := -1;
 end;
 
-procedure TAccountsGrid.BufferGetAccount(AAccountNumber: Integer;
-  var AAccount: TAccount; var ANodeBlocksCount, ANodeAccountsCount: Integer);
+function TAccountsGrid.BufferGetAccount(AAccountNumber: Integer;
+  var AAccount: TAccount; var ANodeBlocksCount, ANodeAccountsCount: Integer): Boolean;
+var
+  LUseConfirmed: Boolean;
+
+  procedure ReadConfirmedAccount;
+  begin
+    // Capture the account and its counters under the existing short Safebox
+    // lock. No pending-pool access is permitted during deferred reconciliation.
+    Node.Bank.SafeBox.StartThreadSafe;
+    try
+      FBufferNodeAccountsCount := Node.Bank.AccountsCount;
+      FBufferNodeBlocksCount := Node.Bank.BlocksCount;
+      if AAccountNumber >= FBufferNodeAccountsCount then
+        FBufferLastAccount := CT_Account_NUL
+      else
+        FBufferLastAccount := Node.Bank.SafeBox.Account(AAccountNumber);
+    finally
+      Node.Bank.SafeBox.EndThreadSave;
+    end;
+  end;
+
 begin
-  if FBufferLastAccountNumber<>AAccountNumber then begin
-    FBufferNodeAccountsCount := Node.Bank.AccountsCount;
-    if (AAccountNumber>=FBufferNodeAccountsCount) then FBufferLastAccount := CT_Account_NUL
-    else FBufferLastAccount := Node.GetMempoolAccount(AAccountNumber);
-    FBufferNodeBlocksCount := Node.Bank.BlocksCount;
+  if Assigned(FOnReadAccount) then
+    Exit(FOnReadAccount(Self, AAccountNumber, AAccount, ANodeBlocksCount, ANodeAccountsCount));
+  if not Assigned(Node) then
+    Exit(False);
+  LUseConfirmed := not Node.PendingOperationsAvailable;
+  if LUseConfirmed and not FUseConfirmedAccountsWhenPendingUnavailable then
+    Exit(False);
+  // Read mode is part of the one-row cache key. A confirmed result must not
+  // hide a coherent pending-inclusive result when reconciliation finishes.
+  if (FBufferLastAccountNumber <> AAccountNumber) or
+    (FBufferUsesConfirmedAccounts <> LUseConfirmed) then
+  begin
+    if LUseConfirmed then
+      ReadConfirmedAccount
+    else
+    begin
+      try
+        FBufferNodeAccountsCount := Node.Bank.AccountsCount;
+        if AAccountNumber >= FBufferNodeAccountsCount then
+          FBufferLastAccount := CT_Account_NUL
+        else
+          FBufferLastAccount := Node.GetMempoolAccount(AAccountNumber);
+        FBufferNodeBlocksCount := Node.Bank.BlocksCount;
+      except
+        on E: EPendingOperationsUnavailable do
+        begin
+          if not FUseConfirmedAccountsWhenPendingUnavailable then
+            Exit(False);
+          // Catch-up may begin after the availability check above. Fall back
+          // to confirmed data instead of exposing the now-incoherent overlay.
+          ReadConfirmedAccount;
+          LUseConfirmed := True;
+        end;
+      end;
+    end;
     FBufferLastAccountNumber := AAccountNumber;
+    FBufferUsesConfirmedAccounts := LUseConfirmed;
   end;
   AAccount := FBufferLastAccount;
   ANodeBlocksCount := FBufferNodeBlocksCount;
   ANodeAccountsCount := FBufferNodeAccountsCount;
+  Result := True;
 end;
 
 constructor TAccountsGrid.Create(AOwner: TComponent);
@@ -444,8 +625,16 @@ begin
   inherited;
   FAllowMultiSelect := false;
   FOnUpdated := Nil;
+  FOnRefreshStateChanged := nil;
+  FUseConfirmedAccountsWhenPendingUnavailable := False;
+  FBufferUsesConfirmedAccounts := False;
   FAccountsBalance := 0;
   FAccountsList := TOrderedCardinalList.Create;
+  FRetiredAccountThreads := TList<TAccountsGridUpdateThread>.Create;
+  FAccountRefreshTimer := TTimer.Create(Self);
+  FAccountRefreshTimer.Enabled := False;
+  FAccountRefreshTimer.Interval := 50;
+  FAccountRefreshTimer.OnTimer := PollAccountRefresh;
   FDrawGrid := Nil;
   SetLength(FColumns,7);
   FColumns[0].ColumnType := act_account_number;
@@ -464,6 +653,9 @@ begin
   FColumns[6].width := 20;
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
+  // Standalone account dialogs also need the final coherent block event;
+  // their refresh must not depend on the main wallet being their owner.
+  FNodeNotifyEvents.OnBlocksChanged := OnNodeNewOperation;
   FAccountsGridUpdateThread := Nil;
   FOnAccountsGridUpdatedData := Nil;
   FAccountsGridFilter := CT_TAccountsGridFilter_NUL;
@@ -473,18 +665,33 @@ end;
 
 destructor TAccountsGrid.Destroy;
 begin
+  FShuttingDown := True;
+  FOnReadAccount := nil;
+  FOnReadSummary := nil;
+  FOnUpdated := nil;
+  FOnRefreshStateChanged := nil;
+  FOnAccountsGridUpdatedData := nil;
+  FNodeNotifyEvents.OnOperationsChanged := nil;
+  FNodeNotifyEvents.OnBlocksChanged := nil;
+  FNodeNotifyEvents.OnKeyActivity := nil;
   TerminateAccountGridUpdateThread(True);
+  FRetiredAccountThreads.Free;
   FNodeNotifyEvents.Free;
   FAccountsList.Free;
   inherited;
 end;
 
 function TAccountsGrid.GetAccountsCount: Integer;
+var LBalance: Int64;
 begin
   if Not Assigned(Node) then Exit(0);
 
   case FAccountsGridDatasource of
-    acds_Node: Result := Node.Bank.AccountsCount;
+    acds_Node: begin
+      if Assigned(FOnReadSummary) then begin
+        if not FOnReadSummary(Self, Result, LBalance) then Result := 0;
+      end else Result := Node.Bank.AccountsCount;
+    end;
   else
     Result := FAccountsList.Count;
   end;
@@ -524,13 +731,14 @@ begin
 end;
 
 procedure TAccountsGrid.InitGridRowCount;
-var LRowCount : Integer;
+var LRowCount, LAccountsCount : Integer;
 begin
   if Not assigned(DrawGrid) then exit;
   if FAccountsGridDatasource=acds_Node then begin
     if Assigned(Node) then begin
-      if Node.Bank.AccountsCount<1 then LRowCount := 2
-      else LRowCount := Node.Bank.AccountsCount+1;
+      LAccountsCount := GetAccountsCount;
+      if LAccountsCount<1 then LRowCount := 2
+      else LRowCount := LAccountsCount+1;
     end else LRowCount := 2;
   end else begin
     if FAccountsList.Count<1 then LRowCount := 2
@@ -543,8 +751,9 @@ end;
 
 function TAccountsGrid.IsUpdatingData: Boolean;
 begin
-  if Assigned(FAccountsGridUpdateThread) then Result := FAccountsGridUpdateThread.IsProcessing
-  else Result := False;
+  Result := FAccountRefreshPending or (FRetiredAccountThreads.Count > 0);
+  if Assigned(FAccountsGridUpdateThread) then
+    Result := Result or FAccountsGridUpdateThread.IsProcessing;
 end;
 
 procedure TAccountsGrid.LoadFromStream(Stream: TStream);
@@ -681,7 +890,9 @@ Var C : TAccountColumn;
   account : TAccount;
   ndiff : Cardinal;
   LNodeBlocksCount,LNodeAccountsCount : Integer;
+  LHasAccount: Boolean;
 begin
+  if FShuttingDown or FJoiningAccountThreads then Exit;
   if Not Assigned(Node) then exit;
 
   if (ACol>=0) AND (ACol<length(FColumns)) then begin
@@ -698,14 +909,21 @@ begin
   end else begin
     n_acc := AccountNumber(ARow);
     if (n_acc>=0) then begin
-      BufferGetAccount(n_acc,account,LNodeBlocksCount,LNodeAccountsCount);
-      ndiff := LNodeBlocksCount - account.GetLastUpdatedBlock;
+      LHasAccount := BufferGetAccount(n_acc,account,LNodeBlocksCount,LNodeAccountsCount);
       if (gdSelected in State) then
         If (gdFocused in State) then DrawGrid.Canvas.Brush.Color := clGradientActiveCaption
         else DrawGrid.Canvas.Brush.Color := clGradientInactiveCaption
       else DrawGrid.Canvas.Brush.Color := clWindow;
       DrawGrid.Canvas.FillRect(Rect);
       InflateRect(Rect,-2,-1);
+      if not LHasAccount then begin
+        if C.ColumnType = act_account_number then begin
+          s := TAccountComp.AccountNumberToAccountTxtNumber(n_acc);
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
+        end;
+        Exit;
+      end;
+      ndiff := LNodeBlocksCount - account.GetLastUpdatedBlock;
       case C.ColumnType of
         act_account_number : Begin
           s := TAccountComp.AccountNumberToAccountTxtNumber(n_acc);
@@ -793,6 +1011,23 @@ end;
 
 procedure TAccountsGrid.OnNodeNewOperation(Sender: TObject);
 begin
+  if FShuttingDown or FJoiningAccountThreads then Exit;
+  if Assigned(Node) and not Node.PendingOperationsAvailable then
+  begin
+    FWaitingForMempool := True;
+    if not FUseConfirmedAccountsWhenPendingUnavailable then
+    begin
+      TerminateAccountGridUpdateThread(False);
+      Exit;
+    end;
+    // Repaint confirmed data during catch-up without cancelling a manual
+    // key-filter request. Final readiness still refreshes that request once.
+  end
+  else if FWaitingForMempool then
+  begin
+    FWaitingForMempool := False;
+    UpdateData;
+  end;
   FBufferLastAccountNumber := -1;
   If Assigned(FDrawGrid) then FDrawGrid.Invalidate;
 end;
@@ -846,6 +1081,8 @@ end;
 procedure TAccountsGrid.SetAccountsGridFilter(const Value: TAccountsGridFilter);
 begin
   FAccountsGridFilter := Value;
+  if FAccountsGridFilter.UseAccountKey then
+    FAccountsGridFilter.AccountKey := Value.AccountKey.GetCopy;
   UpdateData;
 end;
 
@@ -875,6 +1112,10 @@ end;
 procedure TAccountsGrid.SetNode(const Value: TNode);
 begin
   if GetNode=Value then exit;
+  // The old worker borrows the old node and key list. A node handoff must join
+  // every owned request before the caller can release either borrowed owner.
+  TerminateAccountGridUpdateThread(True);
+  FBufferLastAccountNumber := -1;
   FNodeNotifyEvents.Node := Value;
   UpdateData;
 end;
@@ -882,36 +1123,106 @@ end;
 procedure TAccountsGrid.TerminateAccountGridUpdateThread(AWaitUntilTerminated : Boolean);
 var LTmp : TAccountsGridUpdateThread;
 begin
-  LTmp := FAccountsGridUpdateThread;
-  FAccountsGridUpdateThread := Nil;
-  if Assigned(Ltmp) then begin
-    if Not LTmp.IsProcessing then AWaitUntilTerminated := True;
-    if Not AWaitUntilTerminated then begin
-      LTmp.FreeOnTerminate := True;
+  if AWaitUntilTerminated then begin
+    FJoiningAccountThreads := True;
+    FAccountRefreshPending := False;
+    FAccountRefreshTimer.Enabled := False;
+  end;
+  try
+    LTmp := FAccountsGridUpdateThread;
+    FAccountsGridUpdateThread := Nil;
+    if Assigned(LTmp) then begin
+      LTmp.Terminate;
+      // Cancellation does not transfer ownership to the worker. It still
+      // borrows this grid, its node and the requested key index until joined.
+      FRetiredAccountThreads.Add(LTmp);
     end;
-    LTmp.Terminate;
-    if AWaitUntilTerminated then begin
-      LTmp.WaitFor;
-      FreeAndNil(LTmp);
+    PruneRetiredAccountThreads(AWaitUntilTerminated);
+  finally
+    if AWaitUntilTerminated then FJoiningAccountThreads := False;
+  end;
+end;
+
+procedure TAccountsGrid.PruneRetiredAccountThreads(AWait: Boolean);
+var I: Integer; LWorker: TAccountsGridUpdateThread;
+begin
+  for I := FRetiredAccountThreads.Count - 1 downto 0 do begin
+    LWorker := FRetiredAccountThreads[I];
+    if AWait then LWorker.Terminate;
+    if AWait or LWorker.Finished then begin
+      LWorker.WaitFor;
+      FRetiredAccountThreads.Delete(I);
+      LWorker.Free;
     end;
   end;
 end;
 
+procedure TAccountsGrid.PollAccountRefresh(Sender: TObject);
+var LWasUpdating: Boolean;
+begin
+  if FShuttingDown or FJoiningAccountThreads then Exit;
+  LWasUpdating := IsUpdatingData;
+  PruneRetiredAccountThreads(False);
+  if Assigned(Node) and not Node.PendingOperationsAvailable then
+  begin
+    FWaitingForMempool := True;
+    if not FUseConfirmedAccountsWhenPendingUnavailable then
+    begin
+      FAccountRefreshTimer.Enabled := FRetiredAccountThreads.Count > 0;
+      Exit;
+    end;
+  end;
+  // At most one query is active or retiring. Repeated filter changes retain
+  // only their newest request while cancellation releases the old query.
+  if (FRetiredAccountThreads.Count = 0) and FAccountRefreshPending then begin
+    FAccountRefreshPending := False;
+    if Assigned(Node) and ((FAccountsGridDatasource = acds_NodeFiltered) or
+      ((FAccountsGridDatasource = acds_InternalList) and Assigned(FOnReadAccount) and
+       (FAccountsList.Count > 0))) then
+      FAccountsGridUpdateThread := TAccountsGridUpdateThread.Create(Self, AccountsGridFilter);
+  end;
+  FAccountRefreshTimer.Enabled := FAccountRefreshPending or (FRetiredAccountThreads.Count > 0);
+  // A cancelled filter can retire without publishing rows. Signal its final
+  // idle transition after committing timer state, so consumers need no poll.
+  if LWasUpdating and not IsUpdatingData then NotifyRefreshStateChanged;
+end;
+
+procedure TAccountsGrid.NotifyRefreshStateChanged;
+begin
+  if FShuttingDown or FJoiningAccountThreads then Exit;
+  if Assigned(FOnRefreshStateChanged) then FOnRefreshStateChanged(Self);
+end;
+
 procedure TAccountsGrid.UnlockAccountsList;
 begin
-  UpdateAccountsBalance;
-  InitGridRowCount;
+  if (FAccountsGridDatasource = acds_InternalList) and Assigned(FOnReadAccount) then
+    UpdateData
+  else begin
+    UpdateAccountsBalance;
+    InitGridRowCount;
+  end;
   if Assigned(FOnUpdated) then FOnUpdated(Self);
 end;
 
 procedure TAccountsGrid.UpdateAccountsBalance;
-var i : Integer;
+var i, LAccountsCount : Integer;
   LAcc : TAccount;
+  LBalance: Int64;
 begin
   if Assigned(Node) then begin
+    if not Node.PendingOperationsAvailable and
+      not FUseConfirmedAccountsWhenPendingUnavailable then
+      Exit;
     case FAccountsGridDatasource of
-      acds_Node: FAccountsBalance := Node.Bank.SafeBox.TotalBalance;
+      acds_Node: begin
+        if Assigned(FOnReadSummary) then begin
+          if FOnReadSummary(Self, LAccountsCount, LBalance) then FAccountsBalance := LBalance;
+        end else FAccountsBalance := Node.Bank.SafeBox.TotalBalance;
+      end;
       acds_InternalList: begin
+        // Snapshot-backed grids keep their last completed total until their
+        // owned worker publishes a complete replacement. No core reads on UI.
+        if Assigned(FOnReadAccount) then Exit;
         FAccountsBalance := 0;
         for i := 0 to FAccountsList.Count - 1 do begin
           LAcc := Node.Bank.SafeBox.Account( FAccountsList.Get(i) );
@@ -924,16 +1235,32 @@ end;
 
 procedure TAccountsGrid.UpdateData;
 begin
-  UpdateAccountsBalance;
-  TerminateAccountGridUpdateThread(False);
-  if Assigned(Node) then begin
-    case FAccountsGridDatasource of
-      acds_NodeFiltered: begin
-        FAccountsBalance := 0;
-        FAccountsGridUpdateThread := TAccountsGridUpdateThread.Create(Self,AccountsGridFilter);
-      end;
+  if FShuttingDown or FJoiningAccountThreads then
+    Exit;
+  // An explicit refresh or changed filter must invalidate even the same
+  // account number; its query context may have changed without a new block.
+  FBufferLastAccountNumber := -1;
+  if Assigned(Node) and not Node.PendingOperationsAvailable then
+  begin
+    FWaitingForMempool := True;
+    if not FUseConfirmedAccountsWhenPendingUnavailable then
+    begin
+      TerminateAccountGridUpdateThread(False);
+      Exit;
     end;
   end;
+  UpdateAccountsBalance;
+  TerminateAccountGridUpdateThread(False);
+  FAccountRefreshPending := Assigned(Node) and
+    ((FAccountsGridDatasource = acds_NodeFiltered) or
+     ((FAccountsGridDatasource = acds_InternalList) and Assigned(FOnReadAccount) and
+      (FAccountsList.Count > 0)));
+  if FAccountRefreshPending and (FAccountsGridDatasource = acds_NodeFiltered) then begin
+    FAccountsBalance := 0;
+  end;
+  if (FAccountsGridDatasource = acds_InternalList) and Assigned(FOnReadAccount) and
+    (FAccountsList.Count = 0) then FAccountsBalance := 0;
+  PollAccountRefresh(Self);
   InitGridRowCount;
   if Assigned(FOnAccountsGridUpdatedData) then FOnAccountsGridUpdatedData(Self);
 end;
@@ -941,30 +1268,64 @@ end;
 { TOperationsGridUpdateThread }
 
 procedure TOperationsGridUpdateThread.BCExecute;
-var list : TList<TOperationResume>;
-  i : Integer;
+var i: Integer;
 begin
-  list := TList<TOperationResume>.Create;
   try
-    DoUpdateOperationsGrid(FOperationsGrid.Node,FOperationsGrid.WalletKeys,FOperationsGrid.Passwords,list);
-    if (Not Terminated) then begin
+    DoUpdateOperationsGrid(FNode, FWalletKeys, FPasswords, FResults);
+    if Terminated then Exit;
+    FSucceeded := True;
+    if not FAsynchronous then begin
       FOperationsGrid.FOperationsResume.Clear;
-      for i := 0 to list.Count-1 do begin
-        FOperationsGrid.FOperationsResume.Add(list[i]);
+      for i := 0 to FResults.Count - 1 do begin
+        if Terminated then Exit;
+        FOperationsGrid.FOperationsResume.Add(FResults[i]);
       end;
       Queue(FOperationsGrid.InitGrid);
     end;
-  finally
-    list.Free;
+  except
+    on E: EPendingOperationsUnavailable do begin
+      // Catch-up began after this request was captured. Retain the old rows;
+      // the node's final coherent notification schedules a fresh request.
+    end;
+    on E: Exception do begin
+      if Terminated and (E is EAbort) then Exit;
+      FError := E.Message;
+      if not FAsynchronous then raise;
+    end;
   end;
 end;
 
 constructor TOperationsGridUpdateThread.Create(AOperationsGrid: TOperationsGrid);
+var i: Integer;
 begin
-  FOperationsGrid := AOperationsGrid;
-  inherited Create(True);
+  // Modern Delphi starts an unsuspended thread after the complete constructor
+  // returns. Starting it here would make AfterConstruction resume it twice.
+  inherited Create({$IFDEF FPC}True{$ELSE}False{$ENDIF});
   FreeOnTerminate := False;
-  Suspended := False;
+  FOperationsGrid := AOperationsGrid;
+  FNode := AOperationsGrid.Node;
+  FWalletKeys := AOperationsGrid.WalletKeys;
+  FAccountNumber := AOperationsGrid.FAccountNumber;
+  FBlockStart := AOperationsGrid.FBlockStart;
+  FBlockEnd := AOperationsGrid.FBlockEnd;
+  FPendingOperations := AOperationsGrid.FPendingOperations;
+  FMustShowAlwaysAnAccount := AOperationsGrid.FMustShowAlwaysAnAccount;
+  FAsynchronous := AOperationsGrid.FAsynchronousUpdates;
+  FGeneration := AOperationsGrid.FRefreshGeneration;
+  FResults := TList<TOperationResume>.Create;
+  FPasswords := TList<String>.Create;
+  for i := 0 to AOperationsGrid.Passwords.Count - 1 do
+    FPasswords.Add(AOperationsGrid.Passwords[i]);
+  {$IFDEF FPC}Start;{$ENDIF}
+end;
+
+destructor TOperationsGridUpdateThread.Destroy;
+begin
+  // The inherited thread destructor joins before releasing request snapshots.
+  inherited;
+  TThread.RemoveQueuedEvents(Self);
+  FPasswords.Free;
+  FResults.Free;
 end;
 
 procedure TOperationsGridUpdateThread.DoUpdateOperationsGrid(const ANode : TNode; const AWalleTKeys : TWalletKeys;
@@ -978,16 +1339,55 @@ Var list : TList<Cardinal>;
   LOperationsResume : TOperationsResumeList;
   LLockedMempool : TPCOperationsComp;
   LEPasa : TEPasa;
+  LAccounts: TOrderedList<Cardinal>;
+
+  function LockMempool: Boolean;
+  begin
+    Result := False;
+    if not ANode.PendingOperationsAvailable then begin
+      Terminate;
+      Exit;
+    end;
+    if FAsynchronous then begin
+      // The async reader must not serialize other readers through the node's write gate.
+      while not ANode.TryLockMempoolRead(0, LLockedMempool) do begin
+        if Terminated then Exit;
+        if not ANode.PendingOperationsAvailable then begin
+          Terminate;
+          Exit;
+        end;
+        Sleep(10);
+      end;
+      if Terminated then begin
+        ANode.UnlockMempoolRead;
+        Exit;
+      end;
+    end else LLockedMempool := ANode.LockMempoolRead;
+    Result := True;
+  end;
+
+  procedure AddPendingOperation(AOperationIndex, AResumeIndex: Integer);
+  begin
+    Op := LLockedMempool.OperationsHashTree.GetOperation(AOperationIndex);
+    if TPCOperation.OperationToOperationResume(0, Op, False, FAccountNumber, OPR) then begin
+      OPR.NOpInsideBlock := AResumeIndex;
+      OPR.Block := LLockedMempool.OperationBlock.block;
+      OPR.Balance := LLockedMempool.SafeBoxTransaction.Account(FAccountNumber).balance;
+      AList.Add(OPR);
+    end;
+  end;
+
 begin
-  if Not Assigned(ANode) then exit;
+  if (Not Assigned(ANode)) or Terminated then exit;
   AList.Clear;
   Try
-    if (FOperationsGrid.MustShowAlwaysAnAccount) And (FOperationsGrid.AccountNumber<0) then exit;
+    if (FMustShowAlwaysAnAccount) And (FAccountNumber<0) then exit;
 
-    if FOperationsGrid.FPendingOperations then begin
-      LLockedMempool := ANode.LockMempoolRead;
+    if FPendingOperations then begin
+      if not LockMempool then Exit;
       try
         for i := LLockedMempool.Count - 1 downto 0 do begin
+          if Terminated then Exit;
           Op := LLockedMempool.OperationsHashTree.GetOperation(i);
           If TPCOperation.OperationToOperationResume(0,Op,True,Op.SignerAccount,OPR) then begin
             OPR.NOpInsideBlock := i;
@@ -1000,18 +1400,18 @@ begin
         ANode.UnlockMempoolRead;
       end;
     end else begin
-      if FOperationsGrid.AccountNumber<0 then begin
+      if FAccountNumber<0 then begin
         opc := TPCOperationsComp.Create(Nil);
         try
           opc.bank := ANode.Bank;
-          If FOperationsGrid.FBlockEnd<0 then begin
+          If FBlockEnd<0 then begin
             If ANode.Bank.BlocksCount>0 then bend := ANode.Bank.BlocksCount-1
             else bend := 0;
-          end else bend := FOperationsGrid.FBlockEnd;
-          if FOperationsGrid.FBlockStart<0 then begin
+          end else bend := FBlockEnd;
+          if FBlockStart<0 then begin
             if (bend > 300) then bstart := bend - 300
             else bstart := 0;
-          end else bstart:= FOperationsGrid.FBlockStart;
+          end else bstart:= FBlockStart;
           If bstart<0 then bstart := 0;
           if bend>=ANode.Bank.BlocksCount then bend:=ANode.Bank.BlocksCount;
           while (bstart<=bend) and (Not Terminated) do begin
@@ -1030,6 +1430,7 @@ begin
               AList.Add(OPR);
               // Reverse operations inside a block
               for i := opc.Count - 1 downto 0 do begin
+                if Terminated then Exit;
                 if TPCOperation.OperationToOperationResume(bend,opc.Operation[i],True,opc.Operation[i].SignerAccount,opr) then begin
                   opr.NOpInsideBlock := i;
                   opr.Block := bend;
@@ -1047,16 +1448,28 @@ begin
       end else begin
         list := TList<Cardinal>.Create;
         Try
-          LLockedMempool := ANode.LockMempoolRead;
+          if not LockMempool then Exit;
           try
-            LLockedMempool.OperationsHashTree.GetOperationsAffectingAccount(FOperationsGrid.AccountNumber,list);
-            for i := list.Count - 1 downto 0 do begin
-              Op := LLockedMempool.OperationsHashTree.GetOperation((list[i]));
-              If TPCOperation.OperationToOperationResume(0,Op,False,FOperationsGrid.AccountNumber,OPR) then begin
-                OPR.NOpInsideBlock := i;
-                OPR.Block := LLockedMempool.OperationBlock.block;
-                OPR.Balance := LLockedMempool.SafeBoxTransaction.Account(FOperationsGrid.AccountNumber).balance;
-                AList.Add(OPR);
+            if FAsynchronous then begin
+              // The core helper scans the whole pending tree without a cancel
+              // callback. Use the same affected-account contract, checking each
+              // operation so a superseded request releases core locks promptly.
+              LAccounts := TOrderedList<Cardinal>.Create(False, TComparison_Cardinal);
+              try
+                for i := LLockedMempool.Count - 1 downto 0 do begin
+                  if Terminated then Exit;
+                  LAccounts.Clear;
+                  LLockedMempool.OperationsHashTree.GetOperation(i).AffectedAccounts(LAccounts);
+                  if LAccounts.IndexOf(FAccountNumber) >= 0 then AddPendingOperation(i, i);
+                end;
+              finally
+                LAccounts.Free;
+              end;
+            end else begin
+              LLockedMempool.OperationsHashTree.GetOperationsAffectingAccount(FAccountNumber,list);
+              for i := list.Count - 1 downto 0 do begin
+                if Terminated then Exit;
+                AddPendingOperation(list[i], i);
               end;
             end;
           finally
@@ -1065,12 +1478,17 @@ begin
         Finally
           list.Free;
         End;
-        ANode.Bank.Storage.GetAccountOperations(FOperationsGrid.AccountNumber,-1,0,5000,0,AList);
+        if Terminated then Exit;
+        ANode.Bank.Storage.GetAccountOperations(FAccountNumber,-1,0,5000,0,AList);
       end;
     end;
   Finally
     for i := 0 to AList.Count-1 do begin
+      if Terminated then Break;
       OPR := AList[i];
+      // Rewards and other records without a destination use -1. They have no
+      // recipient payload to decode, and must not narrow that sentinel to Cardinal.
+      if (OPR.DestAccount < 0) or (OPR.DestAccount > High(Cardinal)) then Continue;
       if TEPasaDecoder.TryDecodeEPASA(OPR.DestAccount,OPR.OriginalPayload,ANode,AWalleTKeys,APasswords,LEPasa) then begin
         OPR.DecodedEPasaPayload := LEPasa.ToString(True);
         AList[i] := OPR;
@@ -1083,6 +1501,8 @@ end;
 
 constructor TOperationsGrid.Create(AOwner: TComponent);
 begin
+  inherited;
+  FAutoRefreshOnNodeEvents := True;
   FPasswords := TList<String>.Create;
   FWalletKeys := Nil;
   FAccountNumber := 0;
@@ -1096,16 +1516,20 @@ begin
   FBlockEnd := -1;
   FPendingOperations := false;
   FOperationsGridUpdateThread := Nil;
-  inherited;
+  FRefreshTimer := TTimer.Create(Self);
+  FRefreshTimer.Enabled := False;
+  FRefreshTimer.Interval := 50;
+  FRefreshTimer.OnTimer := PollRefresh;
 end;
 
 destructor TOperationsGrid.Destroy;
 begin
-  If Assigned(FOperationsGridUpdateThread) then begin
-    FOperationsGridUpdateThread.Terminate;
-    FOperationsGridUpdateThread.WaitFor;
-    FreeAndNil(FOperationsGridUpdateThread);
-  end;
+  FShuttingDown := True;
+  FNodeNotifyEvents.OnOperationsChanged := nil;
+  FNodeNotifyEvents.OnBlocksChanged := nil;
+  FNodeNotifyEvents.OnKeyActivity := nil;
+  StopRefresh;
+  if Assigned(FDrawGrid) then FDrawGrid.OnDrawCell := nil;
   FOperationsResume.Free;
   FNodeNotifyEvents.Free;
   FPasswords.Free;
@@ -1119,6 +1543,7 @@ end;
 
 procedure TOperationsGrid.InitGrid;
 begin
+  if FShuttingDown then Exit;
   if Not Assigned(FDrawGrid) then exit;
   if FOperationsResume.Count>0 then FDrawGrid.RowCount := FOperationsResume.Count+1
   else FDrawGrid.RowCount := 2;
@@ -1261,6 +1686,15 @@ end;
 
 procedure TOperationsGrid.OnNodeNewAccount(Sender: TObject);
 begin
+  if FShuttingDown or FJoiningWorker or (not FAutoRefreshOnNodeEvents) then Exit;
+  if Assigned(Node) and not Node.PendingOperationsAvailable then begin
+    UpdateAccountOperations;
+    Exit;
+  end;
+  if FAsynchronousUpdates then begin
+    UpdateAccountOperations;
+    Exit;
+  end;
   If (AccountNumber<0) And (FBlockEnd<0) And (Not FPendingOperations) then UpdateAccountOperations;
 end;
 
@@ -1268,6 +1702,15 @@ procedure TOperationsGrid.OnNodeNewOperation(Sender: TObject);
 Var l : TList<Cardinal>;
   LLockedMempool : TPCOperationsComp;
 begin
+  if FShuttingDown or FJoiningWorker or (not FAutoRefreshOnNodeEvents) then Exit;
+  if Assigned(Node) and not Node.PendingOperationsAvailable then begin
+    UpdateAccountOperations;
+    Exit;
+  end;
+  if FAsynchronousUpdates then begin
+    UpdateAccountOperations;
+    Exit;
+  end;
   Try
     if (AccountNumber<0) then begin
       If (FPendingOperations) then UpdateAccountOperations;
@@ -1287,6 +1730,7 @@ begin
       End;
     end;
   Except
+    On E:EPendingOperationsUnavailable do UpdateAccountOperations;
     On E:Exception do begin
       E.message := 'Exception on updating OperationsGrid '+inttostr(AccountNumber)+': '+E.Message;
       Raise;
@@ -1344,11 +1788,7 @@ end;
 procedure TOperationsGrid.SetNode(const Value: TNode);
 begin
   if GetNode=Value then exit;
-  If Assigned(FOperationsGridUpdateThread) then begin
-    FOperationsGridUpdateThread.Terminate;
-    FOperationsGridUpdateThread.WaitFor;
-    FreeAndNil(FOperationsGridUpdateThread);
-  end;
+  if not FAsynchronousUpdates then StopRefresh;
   FNodeNotifyEvents.Node := Value;
   UpdateAccountOperations; // New Build 1.0.3
 end;
@@ -1390,14 +1830,98 @@ begin
   end;
 end;
 
+procedure TOperationsGrid.StopRefresh;
+var LWorker: TOperationsGridUpdateThread;
+begin
+  FJoiningWorker := True;
+  try
+    if Assigned(FRefreshTimer) then FRefreshTimer.Enabled := False;
+    FRefreshPending := False;
+    LWorker := FOperationsGridUpdateThread;
+    FOperationsGridUpdateThread := nil;
+    if Assigned(LWorker) then begin
+      LWorker.Terminate;
+      LWorker.WaitFor;
+      // Cancel only callbacks owned by this joined worker, including the
+      // classic queued InitGrid. Never remove unrelated main-thread work.
+      TThread.RemoveQueuedEvents(LWorker);
+      LWorker.Free;
+    end;
+  finally
+    FJoiningWorker := False;
+  end;
+end;
+
+procedure TOperationsGrid.SetAsynchronousUpdates(AValue: Boolean);
+begin
+  if FAsynchronousUpdates = AValue then Exit;
+  StopRefresh;
+  FAsynchronousUpdates := AValue;
+  UpdateAccountOperations;
+end;
+
+procedure TOperationsGrid.PollRefresh(Sender: TObject);
+var LWorker: TOperationsGridUpdateThread;
+begin
+  if FShuttingDown or FJoiningWorker or (not FAsynchronousUpdates) then Exit;
+  if Assigned(FOperationsGridUpdateThread) then begin
+    if not FOperationsGridUpdateThread.Finished then Exit;
+    LWorker := FOperationsGridUpdateThread;
+    FOperationsGridUpdateThread := nil;
+    try
+      LWorker.WaitFor;
+      // TPCThread marks Terminated after every completed Execute; success is
+      // captured before that finalization, and generation rejects stale jobs.
+      if LWorker.FSucceeded and (LWorker.FGeneration = FRefreshGeneration) and
+        ((not Assigned(Node)) or Node.PendingOperationsAvailable) then begin
+        FOperationsResume.Clear;
+        FOperationsResume.AddRange(LWorker.FResults);
+        InitGrid;
+      end else if (LWorker.FError <> '') and
+        (LWorker.FGeneration = FRefreshGeneration) then
+        TLog.NewLog(lterror, ClassName, 'Unable to refresh operations: ' + LWorker.FError);
+    finally
+      LWorker.Free;
+    end;
+  end;
+  if Assigned(Node) and not Node.PendingOperationsAvailable then begin
+    FRefreshPending := True;
+    FRefreshTimer.Enabled := Assigned(FOperationsGridUpdateThread);
+    Exit;
+  end;
+  if FRefreshPending then begin
+    FRefreshPending := False;
+    if Assigned(Node) then
+      FOperationsGridUpdateThread := TOperationsGridUpdateThread.Create(Self)
+    else begin
+      FOperationsResume.Clear;
+      InitGrid;
+    end;
+  end;
+  FRefreshTimer.Enabled := Assigned(FOperationsGridUpdateThread) or FRefreshPending;
+end;
+
 procedure TOperationsGrid.UpdateAccountOperations;
 begin
-  if Not Assigned(Node) then exit;
-  If Assigned(FOperationsGridUpdateThread) then begin
-    FOperationsGridUpdateThread.Terminate;
-    FOperationsGridUpdateThread.WaitFor;
-    FreeAndNil(FOperationsGridUpdateThread);
+  if FShuttingDown or FJoiningWorker then Exit;
+  if Assigned(Node) and not Node.PendingOperationsAvailable then begin
+    // Retain the latest account/filter intent without querying or polling the
+    // pending overlay. Final node notification resumes the normal path.
+    Inc(FRefreshGeneration);
+    FRefreshPending := True;
+    if Assigned(FOperationsGridUpdateThread) then FOperationsGridUpdateThread.Terminate;
+    FRefreshTimer.Enabled := FAsynchronousUpdates and Assigned(FOperationsGridUpdateThread);
+    Exit;
   end;
+  if FAsynchronousUpdates then begin
+    Inc(FRefreshGeneration);
+    FRefreshPending := True;
+    if Assigned(FOperationsGridUpdateThread) then FOperationsGridUpdateThread.Terminate;
+    FRefreshTimer.Enabled := True;
+    Exit;
+  end;
+  if Not Assigned(Node) then exit;
+  StopRefresh;
   FOperationsGridUpdateThread := TOperationsGridUpdateThread.Create(Self);
 end;
 

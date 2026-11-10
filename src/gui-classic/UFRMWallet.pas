@@ -41,6 +41,7 @@ uses
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
   CM_PC_NetConnectionUpdated = WM_USER + 2;
+  CM_PC_MinerBlockFound = WM_USER + 3;
 
 type
 
@@ -229,10 +230,15 @@ type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Test_ShowDiagnosticTool(Sender: TObject);
   private
+    FLogBatchLines, FLogEntryLines: TStringList;
+    FLogBatchActive, FLogBatchChanged, FLogBatchTerminated: Boolean;
     FLastNodesCacheUpdatedTS : TDateTime;
     FBackgroundPanel : TPanel;
     FBackgroundLabel : TLabel;
     FMinersBlocksFound: Integer;
+    procedure OnLogBatchBegin(Sender: TObject);
+    procedure OnLogBatchEnd(Sender: TObject);
+    procedure SplitLogLines(const AText: String; ALines: TStrings);
     procedure SetMinersBlocksFound(const Value: Integer);
     Procedure CheckIsReady;
     Procedure FinishedLoadingApp;
@@ -273,6 +279,7 @@ type
     FRPCServer : TRPCServer;
     FMustProcessWalletChanged : Boolean;
     FMustProcessNetConnectionUpdated : Boolean;
+    FWaitingForMempool, FPendingMiningConfiguration: Boolean;
     FThreadActivate : TObject;
     FLastAccountsGridInvalidateTC : TTickCount;
     Procedure OnNewAccount(Sender : TObject);
@@ -294,14 +301,16 @@ type
     Procedure UpdateOperations;
     Procedure UpdateConfigChanged(Sender:TObject);
     Procedure UpdateNodeStatus;
+    procedure OnNodeSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
     Procedure UpdateAvailableConnections;
     procedure Activate; override;
     Function ForceMining : Boolean; virtual;
-    Function GetAccountKeyForMiner : TAccountKey;
+    Function GetAccountKeyForMiner(AAfterMinedBlock: Boolean = False) : TAccountKey;
     Procedure DoUpdateAccounts;
     Function DoUpdateAccountsFilter : Boolean;
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
     procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated;
+    procedure CM_MinerBlockFound(var Msg: TMessage); message CM_PC_MinerBlockFound;
   public
     { Public declarations }
     Property WalletKeys : TWalletKeysExt read FWalletKeys;
@@ -319,7 +328,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
+Uses {$IFDEF FPC}WSControls,{$ENDIF} UProgressDisplay, UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
 {$IFDEF Use_OpenSSL}
   UOpenSSL,
 {$ENDIF}
@@ -346,7 +355,7 @@ Type
   private
     FLastTC : TTickCount;
     FLastMsg : String;
-    procedure OnProgressNotify(sender : TObject; const mesage : String; curPos, totalCount : Int64);
+    procedure OnProgressNotify(sender : TObject; const AProgress : TProgressInfo);
     procedure ThreadSafeNotify;
   protected
     procedure BCExecute; override;
@@ -354,14 +363,11 @@ Type
 
 { TThreadActivate }
 
-procedure TThreadActivate.OnProgressNotify(sender: TObject; const mesage: String; curPos, totalCount: Int64);
-var pct : String;
+procedure TThreadActivate.OnProgressNotify(sender: TObject; const AProgress: TProgressInfo);
 begin
   If TPlatform.GetElapsedMilliseconds(FLastTC)>500 then begin
     FLastTC := TPlatform.GetTickCount;
-    if (totalCount>0) then pct := Format('%.2f',[curPos*100/totalCount])+'%'
-    else pct := '';
-    FLastMsg:='Please wait until finished: '+mesage+' '+pct;
+    FLastMsg := 'Please wait until finished: ' + FormatProgressInfo(AProgress);
     Synchronize(ThreadSafeNotify);
   end;
 end;
@@ -384,14 +390,16 @@ begin
   FLastMsg := '';
   //
   {$IFDEF PRODUCTION}
-  OnProgressNotify(Self,'Reading Hardcoded RandomHash file',0,0);
+  FLastMsg := 'Please wait until finished: Reading Hardcoded RandomHash file';
+  Synchronize(ThreadSafeNotify);
   LRaw := TCrypto.HexaToRaw(CT_Hardcoded_RandomHash_Table_HASH);
   TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(
     ExtractFileDir(Application.ExeName)+PathDelim+CT_Hardcoded_RandomHash_Table_Filename,
     LRaw );
   {$ENDIF}
   FLastTC := 0;
-  OnProgressNotify(Self,'Initializing databases',0,0);
+  FLastMsg := 'Please wait until finished: Initializing databases';
+  Synchronize(ThreadSafeNotify);
   // Read Operations saved from disk
   TAbstractMemBlockchainStorage( TNode.Node.Bank.Storage ).AutoFlushCache := False;
   TNode.Node.InitSafeboxAndOperations($FFFFFFFF,OnProgressNotify); // New Build 2.1.4 to load pending operations buffer
@@ -602,11 +610,17 @@ begin
 end;
 
 procedure TFRMWallet.CheckIsReady;
-Var isready : String;
+Var isready, LBankDiagnostic : String;
+  LProgress : TProgressInfo;
 begin
   if Not Assigned(FNode) then Abort;
 
   if Not FNode.IsReady(isready) then begin
+    // Keep domain readiness reasons; reconstruct only the active download text.
+    if FNode.Bank.IsReady(LBankDiagnostic) then
+      if FNode.NetServer.Active then
+        if TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then
+          isready := FormatProgressInfo(LProgress);
     Raise Exception.Create('You cannot do this operation now:'+#10+#10+isready);
   end;
 end;
@@ -630,7 +644,9 @@ begin
       strings.BeginUpdate;
       Try
         for i := 0 to l.Count - 1 do begin
-          NC := l[i];
+          // Keep the outer registry lock while copying the row. Membership
+          // alone includes retiring entries whose transport is already freed.
+          if not TNetData.NetData.GetConnection(i,NC) then Continue;
           If NC.Client.BytesReceived>0 then begin
             sClientApp := '['+IntToStr(NC.NetProtocolVersion.protocol_version)+'-'+IntToStr(NC.NetProtocolVersion.protocol_available)+'] '+NC.ClientAppVersion;
           end else begin
@@ -875,13 +891,20 @@ begin
   FPoolMiningServer.Port := TSettings.JsonRpcMinerServerPort;
   FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
   FPoolMiningServer.MinerPayload := TEncoding.ANSI.GetBytes(TSettings.MinerName);
-  LLockedMempool := FNode.LockMempoolWrite;
-  try
-    LLockedMempool.AccountKey := GetAccountKeyForMiner;
-  finally
-    FNode.UnlockMempoolWrite;
-  end;
-  FPoolMiningServer.Active := TSettings.JsonRpcMinerServerActive;
+  if FNode.PendingOperationsAvailable then begin
+    try
+      LLockedMempool := FNode.LockMempoolWrite;
+      try
+        LLockedMempool.AccountKey := GetAccountKeyForMiner;
+      finally
+        FNode.UnlockMempoolWrite;
+      end;
+    except
+      on E: EPendingOperationsUnavailable do FPendingMiningConfiguration := True;
+    end;
+  end else FPendingMiningConfiguration := True;
+  FPoolMiningServer.Active := TSettings.JsonRpcMinerServerActive and
+    (FPoolMiningServer.MinerAccountKey.EC_OpenSSL_NID <> 0);
   FPoolMiningServer.OnMiningServerNewBlockFound := OnMiningServerNewBlockFound;
   FreeAndNil(FBackgroundLabel);
   FreeAndNil(FBackgroundPanel);
@@ -892,6 +915,10 @@ begin
   UpdatePrivateKeys;
   //
   LFoundAccounts := 0;
+  if not FNode.PendingOperationsAvailable then begin
+    FWaitingForMempool := True;
+    Exit;
+  end;
   FNode.Bank.SafeBox.StartThreadSafe;
   try
     Lpubkeys := TList<TAccountKey>.Create;
@@ -1334,7 +1361,18 @@ begin
   for i := 0 to StatusBar.Panels.Count - 1 do begin
     StatusBar.Panels[i].Text := '';
   end;
+  // GNUgettext's proxy form duplicates managed-record finalization. Follow
+  // Classic's explicit ownership and free these lists after its logger stops.
+  FLogBatchLines := TStringList.Create;
+  try
+    FLogEntryLines := TStringList.Create;
+  except
+    FreeAndNil(FLogBatchLines);
+    raise;
+  end;
   FLog := TLog.Create(Self);
+  FLog.OnNewLogBatchBegin := OnLogBatchBegin;
+  FLog.OnNewLogBatchEnd := OnLogBatchEnd;
   FLog.OnNewLog := OnNewLog;
   FLog.SaveTypes := [];
   If Not ForceDirectories(TNode.GetPascalCoinDataFolder) then raise Exception.Create('Cannot create dir: '+TNode.GetPascalCoinDataFolder);
@@ -1342,14 +1380,18 @@ begin
   TSettings.OnChanged.Add(UpdateConfigChanged);
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnBlocksChanged := OnNewAccount;
+  FNodeNotifyEvents.OnSynchronizationChanged := OnNodeSynchronizationChanged;
   FNodeNotifyEvents.OnNodeMessageEvent := OnNodeMessageEvent;
   FNodeNotifyEvents.OnKeyActivity := OnNodeKeysActivity;
   FAccountsGrid := TAccountsGrid.Create(Self);
+  // Classic key selection remains usable while pending adjustments are deferred.
+  FAccountsGrid.UseConfirmedAccountsWhenPendingUnavailable := True;
   FAccountsGrid.DrawGrid := dgAccounts;
   FAccountsGrid.AllowMultiSelect := True;
   FAccountsGrid.OnAccountsGridUpdatedData := OnAccountsGridUpdatedData;
   FAccountsGrid.AccountsGridDatasource := acds_Node;
   FSelectedAccountsGrid := TAccountsGrid.Create(Self);
+  FSelectedAccountsGrid.UseConfirmedAccountsWhenPendingUnavailable := True;
   FSelectedAccountsGrid.AccountsGridDatasource := acds_InternalList;
   FSelectedAccountsGrid.DrawGrid := dgSelectedAccounts;
   FSelectedAccountsGrid.OnUpdated := OnSelectedAccountsGridUpdated;
@@ -1486,6 +1528,9 @@ begin
   //
   step := 'Assigning nil events';
   FLog.OnNewLog :=Nil;
+  FLog.OnNewLogBatchBegin := Nil;
+  FLog.OnNewLogBatchEnd := Nil;
+  FNodeNotifyEvents.OnSynchronizationChanged := Nil;
   FNodeNotifyEvents.Node := Nil;
   FOperationsAccountGrid.Node := Nil;
   FOperationsExplorerGrid.Node := Nil;
@@ -1535,6 +1580,8 @@ begin
   End;
   TLog.NewLog(ltinfo,Classname,'Destroying form - END');
   FreeAndNil(FLog);
+  FreeAndNil(FLogEntryLines);
+  FreeAndNil(FLogBatchLines);
   Sleep(100);
 end;
 
@@ -1575,52 +1622,15 @@ begin
   end;
 end;
 
-function TFRMWallet.GetAccountKeyForMiner: TAccountKey;
-Var PK : TECPrivateKey;
-  i : Integer;
-  PublicK : TECDSA_Public;
+function TFRMWallet.GetAccountKeyForMiner(AAfterMinedBlock: Boolean): TAccountKey;
 begin
   Result := CT_TECDSA_Public_Nul;
   if Not Assigned(FWalletKeys) then exit;
-  case FMinerPrivateKeyType of
-    mpk_NewEachTime: PublicK := CT_TECDSA_Public_Nul;
-    mpk_Selected: begin
-      PublicK := TAccountComp.RawString2Accountkey(TSettings.MinerSelectedPublicKey);
-    end;
-  else
-    // Random
-    PublicK := CT_TECDSA_Public_Nul;
-    if FWalletKeys.Count>0 then begin
-      i := Random(FWalletKeys.Count);
-      if (Length(FWalletKeys.Key[i].CryptedKey)=0) then begin
-        // Not valid, search for first valid:
-        i:=0;
-        while (i<FWalletKeys.Count) And (Length(FWalletKeys.Key[i].CryptedKey)=0) do inc(i);
-        if i<FWalletKeys.Count then PublicK := FWalletKeys.Key[i].AccountKey;
-      end else PublicK := FWalletKeys.Key[i].AccountKey;
-    end;
+  if not FWalletKeys.TryGetMiningKey(TSettings.MinerPrivateKeyType,
+    TSettings.MinerSelectedPublicKey, Result, AAfterMinedBlock) then begin
+    if Assigned(FPoolMiningServer) then FPoolMiningServer.Active := false;
+    TLog.NewLog(ltinfo, ClassName, 'Mining is inactive: select or add a wallet private key for rewards.');
   end;
-  i := FWalletKeys.IndexOfAccountKey(PublicK);
-  if i>=0 then begin
-    if (Length(FWalletKeys.Key[i].CryptedKey)=0) then i:=-1;
-  end;
-  if i<0 then begin
-    PK := TECPrivateKey.Create;
-    try
-      PK.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
-      FWalletKeys.AddPrivateKey('New for miner '+DateTimeToStr(Now), PK);
-      PublicK := PK.PublicKey;
-      // Set to AppParams if not mpk_NewEachTime
-      if (FMinerPrivateKeyType<>mpk_NewEachTime) then begin
-        TSettings.MinerSelectedPublicKey := TAccountComp.AccountKey2RawString(PublicK);
-        FMinerPrivateKeyType:=mpk_Selected;
-        TSettings.MinerPrivateKeyType := mpk_Selected;
-      end;
-    finally
-      PK.Free;
-    end;
-  end;
-  Result := PublicK;
 end;
 
 procedure TFRMWallet.IPnodes1Click(Sender: TObject);
@@ -2078,7 +2088,18 @@ end;
 
 procedure TFRMWallet.OnMiningServerNewBlockFound(Sender: TObject);
 begin
-  FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
+  // Pool callbacks originate on a network thread; wallet keys belong to the UI.
+  PostMessage(Self.Handle, CM_PC_MinerBlockFound, 0, 0);
+end;
+
+procedure TFRMWallet.CM_MinerBlockFound(var Msg: TMessage);
+var LKey: TAccountKey;
+begin
+  if (csDestroying in ComponentState) or (not Assigned(FPoolMiningServer)) or
+    (not TSettings.JsonRpcMinerServerActive) then Exit;
+  LKey := GetAccountKeyForMiner(True);
+  if LKey.EC_OpenSSL_NID <> 0 then
+    FPoolMiningServer.MinerAccountKey := LKey;
 end;
 
 procedure TFRMWallet.OnNetBlackListUpdated(Sender: TObject);
@@ -2198,9 +2219,21 @@ end;
 procedure TFRMWallet.OnNewAccount(Sender: TObject);
 begin
   Try
-    UpdateAccounts(false);
+    if Assigned(FNode) and not FNode.PendingOperationsAvailable then begin
+      FWaitingForMempool := True;
+      UpdateBlockChainState;
+      Exit;
+    end;
+    if FPendingMiningConfiguration then begin
+      FPendingMiningConfiguration := False;
+      UpdateConfigChanged(Self);
+    end;
+    UpdateAccounts(FWaitingForMempool);
+    FWaitingForMempool := False;
+    UpdateOperations;
     UpdateBlockChainState;
   Except
+    On E:EPendingOperationsUnavailable do FWaitingForMempool := True;
     On E:Exception do begin
       E.Message := 'Exception at OnNewAccount '+E.ClassName+': '+E.Message;
       TLog.NewLog(lterror,ClassName,E.Message);
@@ -2209,22 +2242,112 @@ begin
   end;
 end;
 
+procedure TFRMWallet.OnLogBatchBegin(Sender: TObject);
+var LText: String;
+begin
+  // BeginUpdate suppresses painting, but native memo Add/Delete still shape
+  // every edit and can stall the UI. Build the batch away from the control.
+  FLogBatchChanged := False;
+  LText := memoLogs.Lines.Text;
+  FLogBatchTerminated := (LText='') or (Copy(LText,Length(LText)-Length(sLineBreak)+1,Length(sLineBreak))=sLineBreak);
+  SplitLogLines(LText,FLogBatchLines);
+  FLogBatchActive := True;
+end;
+
+procedure TFRMWallet.OnLogBatchEnd(Sender: TObject);
+var LText: String;
+begin
+  FLogBatchActive := False;
+  try
+    if FLogBatchChanged then begin
+      // Publish once. Lines.Text would normalize bare CR/LF that native Add
+      // preserves, so use the raw widget text and retain the append caret.
+      LText := FLogBatchLines.Text;
+      if not FLogBatchTerminated then SetLength(LText,Length(LText)-Length(sLineBreak));
+      {$IFDEF FPC}
+      memoLogs.HandleNeeded;
+      TWSWinControlClass(memoLogs.WidgetSetClass).SetText(memoLogs,LText);
+      memoLogs.Perform(CM_TEXTCHANGED,0,0);
+      {$ELSE}
+      memoLogs.Text := LText;
+      {$ENDIF}
+      memoLogs.SelStart := memoLogs.GetTextLen;
+      {$IFNDEF FPC}
+      // VCL EM_SETSEL moves the caret without scrolling; the replaced native
+      // Add did scroll, so keep following the newest line explicitly.
+      memoLogs.Perform(EM_SCROLLCARET,0,0);
+      {$ENDIF}
+    end;
+  finally
+    FLogBatchChanged := False;
+    FLogBatchLines.Clear;
+    FLogEntryLines.Clear;
+  end;
+end;
+
 procedure TFRMWallet.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : TThreadID; const sender,logtext: String);
 Var s : AnsiString;
+  LText: String;
+  LLines: TStrings;
 begin
   if (logtype=ltdebug) And (Not cbShowDebugLogs.Checked) then exit;
   if ThreadID=MainThreadID then s := ' MAIN:' else s:=' TID:';
-  if MemoLogs.Lines.Count>300 then begin
+  if FLogBatchActive then begin
+    LLines := FLogBatchLines;
+    FLogBatchChanged := True;
+  end else LLines := memoLogs.Lines;
+  if LLines.Count>300 then begin
     // Limit max lines in logs...
-    memoLogs.Lines.BeginUpdate;
+    LLines.BeginUpdate;
     try
-      while memoLogs.Lines.Count>250 do memoLogs.Lines.Delete(0);
+      while LLines.Count>250 do LLines.Delete(0);
     finally
-      memoLogs.Lines.EndUpdate;
+      LLines.EndUpdate;
     end;
   end;
-  memoLogs.Lines.Add(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(PtrInt(ThreadID),8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
+  LText := formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(PtrInt(ThreadID),8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext;
+  if FLogBatchActive then begin
+    // Match the native physical-line count before applying retention again.
+    {$IFDEF FPC}
+    LText := LText+sLineBreak;
+    {$ELSE}
+    // VCL preserves an unterminated user-edited tail when appending; LCL
+    // always appends a separator. Keep each original native rule unchanged.
+    if FLogBatchTerminated then LText := LText+sLineBreak;
+    {$ENDIF}
+    FLogBatchTerminated := Copy(LText,Length(LText)-Length(sLineBreak)+1,Length(sLineBreak))=sLineBreak;
+    SplitLogLines(LText,FLogEntryLines);
+    FLogBatchLines.AddStrings(FLogEntryLines);
+  end else LLines.Add(LText);
   //
+end;
+
+procedure TFRMWallet.SplitLogLines(const AText: String; ALines: TStrings);
+var I, LStart, LLength, LBreakLength: Integer;
+  LBreak: String;
+  LMatches: Boolean;
+begin
+  // Only full native separators count: Windows keeps a bare CR or LF as
+  // part of a line, and the retained text must preserve those log bytes.
+  ALines.Clear;
+  LBreak := sLineBreak;
+  LBreakLength := Length(LBreak);
+  LLength := Length(AText);
+  LStart := 1;
+  I := 1;
+  while I<=LLength do begin
+    LMatches := AText[I]=LBreak[1];
+    if LMatches and (LBreakLength>1) then begin
+      if I<LLength then LMatches := AText[I+1]=LBreak[2]
+      else LMatches := False;
+    end;
+    if LMatches then begin
+      ALines.Add(Copy(AText,LStart,I-LStart));
+      Inc(I,LBreakLength);
+      LStart := I;
+    end else Inc(I);
+  end;
+  if LStart<=LLength then ALines.Add(Copy(AText,LStart,LLength-LStart+1));
 end;
 
 procedure TFRMWallet.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: String);
@@ -2256,6 +2379,12 @@ end;
 
 procedure TFRMWallet.OnNodeKeysActivity(Sender: TObject);
 begin
+  if Assigned(FNode) and not FNode.PendingOperationsAvailable then begin
+    // Background activity must not restart a user-selected confirmed query on
+    // every catch-up block. The final coherent notification refreshes it once.
+    FWaitingForMempool := True;
+    Exit;
+  end;
   DoUpdateAccounts;
 end;
 
@@ -2419,6 +2548,11 @@ Var accl : TOrderedCardinalList;
 begin
   If Not Assigned(FWalletKeys) Then exit;
   if Not Assigned(FNode) then Exit;
+  if not FNode.PendingOperationsAvailable then begin
+    // Defer pending adjustments, not the user's selected key or confirmed rows.
+    // The final coherent notification refreshes the pending-inclusive view.
+    FWaitingForMempool := True;
+  end;
 
   if Not RefreshData then begin
     if TPlatform.GetElapsedMilliseconds(FLastAccountsGridInvalidateTC)>1000 then begin
@@ -2435,22 +2569,21 @@ begin
     LFilters := FAccountsGrid.AccountsGridFilter;
     LFilters.MinBalance := FMinAccountBalance;
     LFilters.MaxBalance := FMaxAccountBalance;
+    LFilters.UseAccountKey := False;
+    LFilters.AccountKey := CT_TECDSA_Public_Nul;
+    LFilters.indexAccountsKeyList := -1;
     if cbExploreMyAccounts.Checked then begin
-      //FNode.Bank.SafeBox.StartThreadSafe;
-      try
-        LFilters.OrderedAccountsKeyList := FWalletKeys.AccountsKeyList;
-        if cbMyPrivateKeys.ItemIndex>0 then begin
-          i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
-          if (i>=0) And (i<FWalletKeys.Count) then begin
-            LFilters.indexAccountsKeyList := FWalletKeys.AccountsKeyList.IndexOfAccountKey(FWalletKeys[i].AccountKey);
-          end;
-        end else LFilters.indexAccountsKeyList := -1;
-      finally
-        //FNode.Bank.SafeBox.EndThreadSave;
+      LFilters.OrderedAccountsKeyList := FWalletKeys.AccountsKeyList;
+      if cbMyPrivateKeys.ItemIndex>0 then begin
+        // Capture the key itself: background index changes must not turn this
+        // selection into another key, and index lookup must not block the UI.
+        LFilters.UseAccountKey := True;
+        i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
+        if (i>=0) And (i<FWalletKeys.Count) then
+          LFilters.AccountKey := FWalletKeys[i].AccountKey.GetCopy;
       end;
     end else begin
       LFilters.OrderedAccountsKeyList := Nil;
-      LFilters.indexAccountsKeyList := -1;
     end;
     FAccountsGrid.AccountsGridFilter := LFilters;
     FAccountsGrid.AccountsGridDatasource := acds_NodeFiltered;
@@ -2498,23 +2631,22 @@ Var isMining : boolean;
   i,mc : Integer;
   s : String;
   f, favg : real;
-  LLockedMempool : TPCOperationsComp;
+  LSynchronization: TNodeSynchronizationStatus;
 begin
   UpdateNodeStatus;
   mc := 0;
   if Assigned(FNode) then begin
-    if FNode.Bank.BlocksCount>0 then begin
-      lblCurrentBlock.Caption :=  Inttostr(FNode.Bank.BlocksCount)+' (0..'+Inttostr(FNode.Bank.BlocksCount-1)+')'; ;
+    // The typed record is safe during background commits and final replay.
+    // Status painting must not acquire the unavailable pending overlay.
+    LSynchronization := FNode.GetSynchronizationStatus;
+    if LSynchronization.LocalBlockCount>0 then begin
+      lblCurrentBlock.Caption := IntToStr(LSynchronization.LocalBlockCount)+' (0..'+IntToStr(LSynchronization.LocalBlockCount-1)+')';
     end else lblCurrentBlock.Caption :=  '(none)';
-    lblCurrentAccounts.Caption := Inttostr(FNode.Bank.AccountsCount);
-    lblCurrentBlockTime.Caption := UnixTimeToLocalElapsedTime(FNode.Bank.LastOperationBlock.timestamp);
-    LLockedMempool := FNode.LockMempoolRead;
-    try
-      lblOperationsPending.Caption := Inttostr(LLockedMempool.Count);
-      lblCurrentDifficulty.Caption := InttoHex(LLockedMempool.OperationBlock.compact_target,8);
-    finally
-      FNode.UnlockMempoolRead;
-    end;
+    lblCurrentAccounts.Caption := IntToStr(UInt64(LSynchronization.LocalBlockCount)*CT_AccountsPerBlock);
+    lblCurrentBlockTime.Caption := UnixTimeToLocalElapsedTime(LSynchronization.LastBlockTimestamp);
+    lblOperationsPending.Caption := IntToStr(LSynchronization.PendingOperationsCount);
+    lblCurrentDifficulty.Caption := IntToHex(LSynchronization.CompactTarget,8);
+    if LSynchronization.PendingOperationsAvailable then begin
     favg := FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage);
     f := (CT_NewLineSecondsAvg - favg) / CT_NewLineSecondsAvg;
     lblTimeAverage.Caption := 'Last '+Inttostr(CT_CalcNewTargetBlocksAverage)+': '+FormatFloat('0.0',favg)+' sec. (Optimal '+Inttostr(CT_NewLineSecondsAvg)+'s) Deviation '+FormatFloat('0.00%',f*100);
@@ -2529,6 +2661,7 @@ begin
         ((CT_CalcNewTargetBlocksAverage DIV 4)*3),FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(((CT_CalcNewTargetBlocksAverage DIV 4)*3))),
         CT_CalcNewTargetBlocksAverage DIV 2,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 2)),
         CT_CalcNewTargetBlocksAverage DIV 4,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 4))]);
+    end;
   end else begin
     isMining := false;
     lblCurrentBlock.Caption := '';
@@ -2577,12 +2710,19 @@ begin
     wa := FNode.NetServer.Active;
     FNode.NetServer.Port := TSettings.InternetServerPort;
     FNode.NetServer.Active := wa;
-    LLockedMempool := FNode.LockMempoolWrite;
-    try
-      LLockedMempool.BlockPayload := TEncoding.ANSI.GetBytes(TSettings.MinerName);
-    finally
-      FNode.UnlockMempoolWrite;
-    end;
+    if FNode.PendingOperationsAvailable then begin
+      try
+        LLockedMempool := FNode.LockMempoolWrite;
+        try
+          LLockedMempool.AccountKey := GetAccountKeyForMiner;
+          LLockedMempool.BlockPayload := TEncoding.ANSI.GetBytes(TSettings.MinerName);
+        finally
+          FNode.UnlockMempoolWrite;
+        end;
+      except
+        on E: EPendingOperationsUnavailable do FPendingMiningConfiguration := True;
+      end;
+    end else FPendingMiningConfiguration := True;
     FNode.NodeLogFilename := TNode.GetPascalCoinDataFolder+PathDelim+'blocks.log';
   end;
   if Assigned(FPoolMiningServer) then begin
@@ -2590,8 +2730,9 @@ begin
       FPoolMiningServer.Active := false;
       FPoolMiningServer.Port := TSettings.JsonRpcMinerServerPort;
     end;
-    FPoolMiningServer.Active := TSettings.JsonRpcMinerServerActive;
     FPoolMiningServer.UpdateAccountAndPayload(GetAccountKeyForMiner,TEncoding.ANSI.GetBytes(TSettings.MinerName));
+    FPoolMiningServer.Active := TSettings.JsonRpcMinerServerActive and
+      (FPoolMiningServer.MinerAccountKey.EC_OpenSSL_NID <> 0);
   end;
   if Assigned(FRPCServer) then begin
     FRPCServer.Active := TSettings.JsonRpcPortEnabled;
@@ -2620,10 +2761,24 @@ end;
 
 procedure TFRMWallet.UpdateConnectionStatus;
 var errors : String;
+  LSynchronization: TNodeSynchronizationStatus;
 begin
   UpdateNodeStatus;
   OnNetStatisticsChanged(Nil);
   if Assigned(FNode) then begin
+    LSynchronization := FNode.GetSynchronizationStatus;
+    if LSynchronization.StorageFailure.HasFailure then begin
+      StatusBar.Panels[2].Text := FormatStorageFailure(LSynchronization.StorageFailure);
+      Exit;
+    end;
+    if not LSynchronization.PendingOperationsAvailable then begin
+      StatusBar.Panels[2].Text := Format('Blocks: %d | Last account time:%s',[
+        LSynchronization.LocalBlockCount,FormatDateTime('dd/mm/yyyy hh:nn:ss',
+        UnivDateTime2LocalDateTime(UnixToUnivDateTime(LSynchronization.LastBlockTimestamp)))]);
+      if not LSynchronization.NetworkActive then
+        StatusBar.Panels[2].Text := StatusBar.Panels[2].Text+' | Network off';
+      Exit;
+    end;
     if FNode.IsBlockChainValid(errors) then begin
       StatusBar.Panels[2].Text := Format('Last account time:%s',
        [FormatDateTime('dd/mm/yyyy hh:nn:ss',UnivDateTime2LocalDateTime(UnixToUnivDateTime( FNode.Bank.LastOperationBlock.timestamp )))]);
@@ -2635,20 +2790,39 @@ begin
   end;
 end;
 
-procedure TFRMWallet.UpdateNodeStatus;
-Var status : String;
+procedure TFRMWallet.OnNodeSynchronizationChanged(Sender: TObject; const AStatus: TNodeSynchronizationStatus);
 begin
+  if (csDestroying in ComponentState) or not Assigned(FNode) then Exit;
+  // Failure visibility is event-driven. Keep classic's ordinary status/update
+  // behavior unchanged, while reporting storage faults before any timer tick.
+  if AStatus.StorageFailure.HasFailure then UpdateConnectionStatus;
+end;
+
+procedure TFRMWallet.UpdateNodeStatus;
+Var status, LBankDiagnostic : String;
+  LProgress : TProgressInfo;
+  LStatus: TNodeSynchronizationStatus;
+begin
+  LStatus := Default(TNodeSynchronizationStatus);
+  if Assigned(FNode) then LStatus := FNode.GetSynchronizationStatus;
   If Not Assigned(FNode) then begin
     lblNodeStatus.Font.Color := clRed;
     lblNodeStatus.Caption := 'Initializing...';
+  end else if LStatus.StorageFailure.HasFailure then begin
+    // A failed local write is restart-only, never synchronization or peer loss.
+    lblNodeStatus.Font.Color := clRed;
+    lblNodeStatus.Caption := FormatStorageFailure(LStatus.StorageFailure);
+  end else if not FNode.PendingOperationsAvailable then begin
+    lblNodeStatus.Font.Color := clGreen;
+    lblNodeStatus.Caption := 'Blockchain synchronization is active';
   end else begin
     If FNode.IsReady(status) then begin
       if TNetData.NetData.NetStatistics.ActiveConnections>0 then begin
         lblNodeStatus.Font.Color := clGreen;
         if TNetData.NetData.IsDiscoveringServers then begin
           lblNodeStatus.Caption := 'Discovering servers';
-        end else if TNetData.NetData.IsGettingNewBlockChainFromClient(status) then begin
-          lblNodeStatus.Caption := 'Obtaining new blockchain '+status;
+        end else if TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then begin
+          lblNodeStatus.Caption := 'Obtaining new blockchain ' + FormatProgressInfo(LProgress);
         end else begin
           lblNodeStatus.Caption := 'Running';
         end;
@@ -2657,6 +2831,11 @@ begin
         lblNodeStatus.Caption := 'Alone in the world...';
       end;
     end else begin
+      // Recreate download text here; bank/server failures keep their own reason.
+      if FNode.Bank.IsReady(LBankDiagnostic) then
+        if FNode.NetServer.Active then
+          if TNetData.NetData.IsGettingNewBlockChainFromClient(LProgress) then
+            status := FormatProgressInfo(LProgress);
       lblNodeStatus.Font.Color := clRed;
       lblNodeStatus.Caption := status;
     end;
@@ -2670,6 +2849,10 @@ end;
 procedure TFRMWallet.UpdateOperations;
 Var accn : Int64;
 begin
+  if Assigned(FNode) and not FNode.PendingOperationsAvailable then begin
+    FWaitingForMempool := True;
+    Exit;
+  end;
   accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
   FOperationsAccountGrid.AccountNumber := accn;
 end;

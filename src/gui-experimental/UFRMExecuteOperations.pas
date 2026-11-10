@@ -16,12 +16,23 @@ unit UFRMExecuteOperations;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+{ Defines the operation-execution dialog shell and its grid placeholder. }
+
+{ Public types in this unit
+
+  Type               | Purpose
+  -------------------+-------------------------------------------------------------------------
+  TExecuteOperations | Provides the operation-execution dialog shell.
+}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
+  Classes, SysUtils, {$IFDEF FPC}FileUtil,{$ENDIF} Forms, Controls, Graphics, Dialogs, ExtCtrls,
   StdCtrls, UCommon, UCommon.Data, UCommon.Collections, UCommon.UI, UVisualGrid, UCoreObjects, UCoreUtils;
 
 type
@@ -50,7 +61,11 @@ implementation
 //type
 //  TExecuteOperationResultDataSource : class(TDataSource<
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 { TExecuteOperations }
 

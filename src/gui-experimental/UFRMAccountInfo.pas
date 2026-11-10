@@ -13,6 +13,16 @@ unit UFRMAccountInfo;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{ Defines the account-information form layout for account number, balance and
+  public key. }
+
+{ Public types in this unit
+
+  Type            | Purpose
+  ----------------+-------------------------------------------------------------------------
+  TFRMAccountInfo | Provides the account-information form layout.
+}
+
 interface
 
 {$I ..\config.inc}
@@ -39,6 +49,10 @@ type
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 end.

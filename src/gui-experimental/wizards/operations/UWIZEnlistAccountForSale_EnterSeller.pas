@@ -17,8 +17,24 @@ unit UWIZEnlistAccountForSale_EnterSeller;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$IFDEF FPC}
 {$mode delphi}
+{$ENDIF}
+
+
+{$IFDEF FPC}
 {$modeswitch nestedprocvars}
+{$ENDIF}
+
+{ Selects the beneficiary account that will receive the account sale proceeds.
+}
+
+{ Public types in this unit
+
+  Type                                 | Purpose
+  -------------------------------------+--------------------------------------------------------------------------
+  TWIZEnlistAccountForSale_EnterSeller | Validates the sale beneficiary against the accounts being sold.
+}
 
 interface
 
@@ -42,13 +58,17 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
+    function Validate(out message: String): boolean; override;
   end;
 
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 uses
   UNode,
@@ -119,10 +139,10 @@ var
   LAccount: TAccount;
 begin
   TAccountComp.AccountTxtNumberToAccountNumber(edtBeneficiaryAcc.Text, LAccountNumber);
-  Model.SendPASC.DestinationAccount := TNode.Node.GetAccount(LAccountNumber);
+  Model.EnlistAccountForSale.SellerAccount := TNode.Node.GetAccount(LAccountNumber);
 end;
 
-function TWIZEnlistAccountForSale_EnterSeller.Validate(out message: ansistring): boolean;
+function TWIZEnlistAccountForSale_EnterSeller.Validate(out message: String): boolean;
 var
   LIdx: integer;
   LAccountNumber: cardinal;
