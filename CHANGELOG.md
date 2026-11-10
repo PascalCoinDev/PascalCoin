@@ -7,6 +7,15 @@
 - Implementation of PIP-0044 (Induplicatable NFT) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0044.md
 - Improvements on downloading Safebox (fresh installation)
 
+## Build 5.9.6
+- Keep the Experimental wallet's selected account and history stable when the same row is clicked again.
+- Preserve deliberate selection clears when changing account filters or views.
+- Label history as All Account Operations or Selected Account Operations.
+- Hide the entire Details button without a usable operation selection and restore it when available.
+- Add native Delphi/Lazarus checks for transfer scope, repeated clicks and clearing, plus Details visibility at 100%, 125% and 150% scaling.
+- Retain the 250 ms latest-selection refresh policy and existing synchronization behavior.
+- Align node, miner and executable versions at 5.9.6.
+
 ## Build 5.9.5
 - Ship the macOS wallets as universal apps that run natively on Apple silicon and Intel Macs. CI cross-compiles the Apple silicon builds and merges them with `lipo`.
 - Rename the macOS disk image to `PascalCoin-<version>-macOS.dmg`.
