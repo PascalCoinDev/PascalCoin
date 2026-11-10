@@ -71,6 +71,7 @@ type
     procedure CheckExplicitDetails(const AScale: String);
     procedure CheckUnavailable(const AScale: String);
     procedure CheckToolbarBounds(const AScale: String);
+    procedure CheckDetailsVisibility(AExpected: Boolean; const AStage: String);
     procedure PopupTick(Sender: TObject);
     function SelectedHash: String;
     function DetailsButton: TBitBtn;
@@ -240,6 +241,17 @@ begin
   Result := TAction(FWallet.FindComponent('OperationDetailsAction'));
 end;
 
+procedure TOperationDetailsChecks.CheckDetailsVisibility(AExpected: Boolean; const AStage: String);
+var
+  LButton: TBitBtn;
+begin
+  LButton := DetailsButton;
+  Require(DetailsAction.Visible = AExpected, AStage + ': shared Details action visibility is incorrect');
+  Require(LButton.Visible = AExpected, AStage + ': the complete Details button visibility is incorrect');
+  Require(LButton.Showing = AExpected, AStage + ': Details button native-parent visibility is incorrect');
+  Require(IsWindowVisible(LButton.Handle) = AExpected, AStage + ': native Details button window visibility is incorrect');
+end;
+
 function TOperationDetailsChecks.SelectedHash: String;
 var
   LRows: TArray<Variant>;
@@ -283,10 +295,18 @@ var
 begin
   LBefore := FWallet.DetailsCount;
   FWallet.OperationsGrid.ClearSelection(True);
+  CheckDetailsVisibility(False, AScale + ' cleared operation selection');
   ClickRow(0);
   LHash := SelectedHash;
   Require(DetailsButton.Enabled, 'Selecting a valid operation did not enable Details');
+  CheckDetailsVisibility(True, AScale + ' valid operation selection');
   Require(FWallet.DetailsCount = LBefore, 'An ordinary operation click opened Details');
+  ClickRow(0);
+  Require(Length(FWallet.OperationsGrid.SelectedRows) = 0, 'A repeated operation click did not deselect its row');
+  CheckDetailsVisibility(False, AScale + ' repeated-click operation deselection');
+  ClickRow(0);
+  Require(SelectedHash = LHash, 'Reselecting the operation changed its hash');
+  CheckDetailsVisibility(True, AScale + ' operation reselected');
   ClickRow(1);
   Require(SelectedHash <> LHash, 'Second native click did not select a distinct operation');
   Require(FWallet.DetailsCount = LBefore, 'Selecting a second operation opened Details');
@@ -365,6 +385,7 @@ begin
   FWallet.OperationsGrid.ClearSelection(True);
   ClickRow(0);
   LHash := SelectedHash;
+  CheckDetailsVisibility(True, AScale + ' explicit Details selection');
   LBefore := FWallet.DetailsCount;
   SendMessage(DetailsButton.Handle, BM_CLICK, 0, 0);
   Pump(25);
@@ -397,11 +418,13 @@ begin
   FWallet.OperationsGrid.ClearSelection(True);
   Require(not DetailsButton.Enabled and not DetailsAction.Enabled,
     'Details remains enabled with no operation selection');
+  CheckDetailsVisibility(False, AScale + ' unavailable without selection');
   FWallet.miOperationInfoClick(Self);
   Require(FWallet.DetailsCount = LBefore, 'Details opened without an operation selection');
   ClickRow(39);
   Require(not DetailsButton.Enabled and not FWallet.miOperationInfo.Enabled,
     'A row without a valid operation hash enabled Details');
+  CheckDetailsVisibility(False, AScale + ' invalid operation hash');
   FWallet.miOperationInfoClick(Self);
   Require(FWallet.DetailsCount = LBefore, 'Details opened for an invalid operation hash');
   FWallet.OperationsGrid.ClearSelection(True);
@@ -413,6 +436,7 @@ begin
     DetailsAction.Update;
     Require(not DetailsButton.Enabled and not FWallet.miOperationInfo.Enabled,
       'Loading did not disable both Details entry points');
+    CheckDetailsVisibility(False, AScale + ' manual synchronization loading');
     FWallet.miOperationInfoClick(Self);
     Require(FWallet.DetailsCount = LBefore, 'Details opened while the grid was loading');
   finally
@@ -420,12 +444,14 @@ begin
   end;
   DetailsAction.Update;
   Require(DetailsButton.Enabled, 'Details did not become available after loading ended');
+  CheckDetailsVisibility(True, AScale + ' manual loading completed');
   FModel.GateFetches := True;
   try
     FWallet.OperationsGrid.RefreshGrid;
     DetailsAction.Update;
     Require(not DetailsButton.Enabled and not FWallet.miOperationInfo.Enabled,
       'Quiet-period admission left stale operation Details enabled');
+    CheckDetailsVisibility(False, AScale + ' quiet-period admission');
     // The configured quiet-period throttle owns admission; pump its timer
     // before asserting the held worker state, without bypassing production.
     LAdmissionDeadline := GetTickCount64+2000;
@@ -434,6 +460,7 @@ begin
     DetailsAction.Update;
     Require(not DetailsButton.Enabled and not FWallet.miOperationInfo.Enabled,
       'A running page fetch did not disable both Details entry points');
+    CheckDetailsVisibility(False, AScale + ' held history fetch');
     FWallet.miOperationInfoClick(Self);
     Require(FWallet.DetailsCount = LBefore, 'Details opened while its page was fetching');
   finally
@@ -443,7 +470,8 @@ begin
   AwaitRows;
   DetailsAction.Update;
   Require(DetailsButton.Enabled, 'Details did not become available when its fetch completed');
-  Log('PASS ' + AScale + ': no selection, invalid hash, manual loading and active fetching disable Details and prevent dispatch');
+  CheckDetailsVisibility(True, AScale + ' history fetch completed');
+  Log('PASS ' + AScale + ': no selection, invalid hash, manual loading and active fetching hide Details and prevent dispatch; valid completion restores the whole button');
 end;
 
 procedure TOperationDetailsChecks.CheckToolbarBounds(const AScale: String);
@@ -561,6 +589,11 @@ var
     LScalePpi: Integer;
   begin
     AwaitRows;
+    if AScale = '100' then
+      CheckDetailsVisibility(False, 'Startup before any operation selection');
+    FWallet.OperationsGrid.ClearSelection(True);
+    DetailsAction.Update;
+    CheckDetailsVisibility(False, AScale + ' initial unselected toolbar');
     LScalePpi := StrToInt(AScale) * 96 div 100;
     CheckVisualGridFooter(FWallet.AccountsGrid, LScalePpi, FLog);
     CheckVisualGridFooter(FWallet.OperationsGrid, LScalePpi, FLog);

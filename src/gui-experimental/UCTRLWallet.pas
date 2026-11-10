@@ -382,6 +382,7 @@ begin
   FOperationDetailsAction.Caption := 'Details';
   FOperationDetailsAction.Hint := 'Details for the selected operation';
   FOperationDetailsAction.Enabled := False;
+  FOperationDetailsAction.Visible := False;
   FOperationDetailsAction.OnExecute := miOperationInfoClick;
   FOperationDetailsAction.OnUpdate := UpdateOperationDetailsAction;
   miOperationInfo.Action := FOperationDetailsAction;
@@ -933,9 +934,13 @@ end;
 procedure TCTRLWallet.UpdateOperationDetailsAction(Sender: TObject);
 var
   LOperationHash: String;
+  LAvailable: Boolean;
 begin
-  if Assigned(FOperationDetailsAction) then
-    FOperationDetailsAction.Enabled := TryGetSelectedOperationHash(LOperationHash);
+  if not Assigned(FOperationDetailsAction) then Exit;
+  LAvailable := TryGetSelectedOperationHash(LOperationHash);
+  FOperationDetailsAction.Enabled := LAvailable;
+  // Hide the entire contextual control when no usable operation is selected.
+  FOperationDetailsAction.Visible := LAvailable;
 end;
 
 procedure TCTRLWallet.OnOperationsGridFinishedUpdating(Sender: TObject);

@@ -95,7 +95,8 @@ its case group:
 Combine these with `PASCAL_WALLET_TOOLS_ONLY=1`:
 
 - `PASCAL_WALLET_OPERATION_INPUT_ONLY=1` checks which input opens operation
-  details, the wallet footers at 100%, 125% and 150%, and the
+  details, that the whole Details button hides without a usable selection and
+  reappears for a valid operation, the wallet footers at 100%, 125% and 150%, and the
   [operation-information layout](UWalletOperationInfoLayoutChecks.pas). Build
   with `-O2`, as the script does.
 - `PASCAL_WALLET_HISTORY_DEPTH_ONLY=1` checks that the Recent Operations picker
