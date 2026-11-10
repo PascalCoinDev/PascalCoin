@@ -24,6 +24,14 @@ uses Windows, Messages, Classes, SysUtils, Types, Variants, Generics.Collections
   UCommon.UI, UVisualGrid;
 
 type
+  TSelectionSnapshot = record
+    SelectedAccounts, SourceAccounts, RowAccounts: TArray<Cardinal>;
+    RowAmounts: TArray<Int64>;
+    RowHashes: TArray<String>;
+    UseWalletAccounts: Boolean;
+    Caption: String;
+  end;
+
   TConsecutiveSelectionObserver = class
   private
     FMain: TMockMainForm;
@@ -39,7 +47,8 @@ type
     procedure FinishedUpdating(Sender: TObject);
     procedure CheckCard;
     procedure Pump(AMilliseconds: Cardinal);
-    procedure NativeClick(ARow: Integer);
+    procedure NativeClick(ARow: Integer; ARequireSelection: Boolean = True);
+    procedure CheckRepeatedSelection;
     procedure CheckRapidBurst;
   public
     constructor Create(AMain: TMockMainForm);
@@ -156,7 +165,7 @@ begin
   until GetTickCount64 >= LUntil;
 end;
 
-procedure TConsecutiveSelectionObserver.NativeClick(ARow: Integer);
+procedure TConsecutiveSelectionObserver.NativeClick(ARow: Integer; ARequireSelection: Boolean);
 var
   LCell: TRect;
   LPoint: LPARAM;
@@ -168,13 +177,181 @@ begin
   SendMessage(FMain.MockWallet.AccountsGrid.InternalDrawGrid.Handle, WM_MOUSEMOVE, 0, LPoint);
   SendMessage(FMain.MockWallet.AccountsGrid.InternalDrawGrid.Handle, WM_LBUTTONDOWN, MK_LBUTTON, LPoint);
   SendMessage(FMain.MockWallet.AccountsGrid.InternalDrawGrid.Handle, WM_LBUTTONUP, 0, LPoint);
-  LSelected := FMain.MockWallet.AccountsGrid.SelectedRows;
-  Require((Length(LSelected) = 1) and (Cardinal(LSelected[0].__KEY) = Cardinal(ARow)),
-    'Actual native click did not select precisely its intended account');
+  if ARequireSelection then
+  begin
+    LSelected := FMain.MockWallet.AccountsGrid.SelectedRows;
+    Require((Length(LSelected) = 1) and (Cardinal(LSelected[0].__KEY) = Cardinal(ARow)),
+      'Actual native click did not select precisely its intended account');
+  end;
+end;
+
+procedure TConsecutiveSelectionObserver.CheckRepeatedSelection;
+var
+  LOriginalData: TMockWalletSnapshot;
+  LOriginalPageMode: TVisualGridPageMode;
+  LOriginalTransferPair: Boolean;
+  LInitial, LFirst, LSecond, LFilterChanged, LReceiver, LCleared: TSelectionSnapshot;
+  I: Integer;
+
+  procedure SettleGrids;
+  var
+    LUntil: UInt64;
+  begin
+    // A repeated click may correctly leave the query unchanged. Observe both
+    // that path and a fresh request through the existing 250 ms admission.
+    Pump(325);
+    LUntil := GetTickCount64 + 8000;
+    while (FMain.MockWallet.AccountsGrid.IsUpdating or
+      FMain.MockWallet.OperationsGrid.IsUpdating or
+      FMain.MockWallet.AccountsGrid.RefreshThrottle.Waiting or
+      FMain.MockWallet.OperationsGrid.RefreshThrottle.Waiting) and
+      (GetTickCount64 < LUntil) do
+      Pump(5);
+    Require(not FMain.MockWallet.AccountsGrid.IsUpdating and
+      not FMain.MockWallet.OperationsGrid.IsUpdating and
+      not FMain.MockWallet.AccountsGrid.RefreshThrottle.Waiting and
+      not FMain.MockWallet.OperationsGrid.RefreshThrottle.Waiting,
+      'The repeated-selection grids did not settle');
+  end;
+
+  function CaptureState(const AStage: String): TSelectionSnapshot;
+  var
+    J: Integer;
+    LSelectedText, LSourceText: String;
+    LSelection: TVisualGridSelection;
+    LGrid: TVisualGrid;
+  begin
+    Result := Default(TSelectionSnapshot);
+    Result.SelectedAccounts := FMain.MockWallet.SelectedAccounts;
+    Result.SourceAccounts := FMain.MockWallet.OperationsSource.Accounts;
+    Result.UseWalletAccounts := FMain.MockWallet.OperationsSource.UseWalletAccounts;
+    LGrid := FMain.MockWallet.OperationsGrid;
+    Result.Caption := LGrid.Caption.Text;
+    SetLength(Result.RowAccounts, LGrid.RowCount);
+    SetLength(Result.RowAmounts, LGrid.RowCount);
+    SetLength(Result.RowHashes, LGrid.RowCount);
+    LSelectedText := '';
+    LSourceText := '';
+    for J := 0 to High(Result.SelectedAccounts) do
+      LSelectedText := LSelectedText + UIntToStr(Result.SelectedAccounts[J]) + ',';
+    for J := 0 to High(Result.SourceAccounts) do
+      LSourceText := LSourceText + UIntToStr(Result.SourceAccounts[J]) + ',';
+    LSelection := FMain.MockWallet.AccountsGrid.Selection;
+    FLog.Add(Format('REPEATED_SELECTION stage=%s selected=[%s] source=[%s] use_wallet=%s caption="%s" page=%d focused_row=%d selected_rows=%d history_rows=%d',
+      [AStage, LSelectedText, LSourceText, BoolToStr(Result.UseWalletAccounts, True),
+       Result.Caption, LSelection.Page, LSelection.Row, LSelection.RowCount, LGrid.RowCount]));
+    for J := 0 to LGrid.RowCount - 1 do
+    begin
+      Result.RowAccounts[J] := Cardinal(LGrid.Rows[J].AccountNumber);
+      Result.RowAmounts[J] := Int64(LGrid.Rows[J].Amount);
+      Result.RowHashes[J] := VarToStr(LGrid.Rows[J].OPHASH);
+      FLog.Add(Format('REPEATED_ROW stage=%s index=%d account=%d amount=%d ophash=%s',
+        [AStage, J, Result.RowAccounts[J], Result.RowAmounts[J], Result.RowHashes[J]]));
+    end;
+  end;
+
+  procedure RequireSingleAccount(const AState: TSelectionSnapshot; AAccount: Cardinal; AAmount: Int64; const AStage: String);
+  begin
+    Require((Length(AState.SelectedAccounts) = 1) and
+      (AState.SelectedAccounts[0] = AAccount), AStage + ' did not retain the selected account');
+    Require(not AState.UseWalletAccounts and (Length(AState.SourceAccounts) = 1) and
+      (AState.SourceAccounts[0] = AAccount), AStage + ' widened the operations query to the wallet');
+    Require((Length(AState.RowAccounts) = 1) and (AState.RowAccounts[0] = AAccount) and
+      (AState.RowAmounts[0] = AAmount), AStage + ' published the wrong account-relative transfer');
+    Require(AState.Caption = 'Selected Account Operations', AStage + ' has an incorrect selected-account caption');
+  end;
+
+  procedure RequireAllAccounts(const AState: TSelectionSnapshot; const AStage: String);
+  var
+    J, LDebit, LCredit: Integer;
+  begin
+    Require((Length(AState.SelectedAccounts) = 0) and AState.UseWalletAccounts,
+      AStage + ' did not select wallet-wide history');
+    Require((Length(AState.SourceAccounts) = 2) and
+      (((AState.SourceAccounts[0] = 0) and (AState.SourceAccounts[1] = 1)) or
+       ((AState.SourceAccounts[0] = 1) and (AState.SourceAccounts[1] = 0))),
+      AStage + ' did not restrict wallet membership to the two owned accounts');
+    Require(AState.Caption = 'All Account Operations', AStage + ' does not label wallet-wide history');
+    Require(Length(AState.RowAccounts) = 2, AStage + ' did not show both sides of the owned transfer');
+    LDebit := 0;
+    LCredit := 0;
+    for J := 0 to High(AState.RowAccounts) do
+    begin
+      if (AState.RowAccounts[J] = 0) and (AState.RowAmounts[J] = -10000) then
+        Inc(LDebit);
+      if (AState.RowAccounts[J] = 1) and (AState.RowAmounts[J] = 10000) then
+        Inc(LCredit);
+    end;
+    Require((LDebit = 1) and (LCredit = 1) and (AState.RowHashes[0] = AState.RowHashes[1]),
+      AStage + ' did not preserve the matching debit/credit operation identity');
+  end;
+
+begin
+  FIndex := 0;
+  LOriginalData := FMain.Model.Snapshot;
+  LOriginalPageMode := FMain.MockWallet.AccountsGrid.PageMode;
+  LOriginalTransferPair := FMain.MockWallet.OperationsSource.TransferPairEnabled;
+  try
+    FMain.Model.SetData(LOriginalData.Revision + 1, 2);
+    FMain.MockWallet.OperationsSource.TransferPairEnabled := True;
+    FMain.MockWallet.AccountsSource.InvalidateSnapshot;
+    FMain.MockWallet.OperationsSource.InvalidateWalletAccounts;
+    FMain.MockWallet.AccountsGrid.PageMode := vpmSingle;
+    FMain.MockWallet.AccountsGrid.ClearSelection(True);
+    FMain.MockWallet.AccountsGrid.RefreshGrid;
+    FMain.MockWallet.OperationsGrid.RefreshGrid;
+    SettleGrids;
+    LInitial := CaptureState('initial-whole-wallet');
+    NativeClick(0, False);
+    SettleGrids;
+    LFirst := CaptureState('first-sender-click');
+    NativeClick(0, False);
+    SettleGrids;
+    LSecond := CaptureState('second-sender-click');
+    // Capture both clicks before asserting, so a failing baseline records the
+    // real selection, caption and provider result rather than only a timeout.
+    RequireSingleAccount(LFirst, 0, -10000, 'First sender click');
+    RequireSingleAccount(LSecond, 0, -10000, 'Second sender click');
+    for I := 0 to High(LFirst.RowHashes) do
+      Require(LFirst.RowHashes[I] = LSecond.RowHashes[I], 'Repeated sender click changed the transfer identity');
+    RequireAllAccounts(LInitial, 'Initial wallet history');
+    Require(FMain.MockWallet.cbAccounts.Items.Count > 1, 'The actual Show All account filter is unavailable');
+    FMain.MockWallet.cbAccounts.ItemIndex := 0;
+    FMain.MockWallet.cbAccountsChange(FMain.MockWallet.cbAccounts);
+    SettleGrids;
+    LFilterChanged := CaptureState('show-all-filter-change');
+    RequireAllAccounts(LFilterChanged, 'Show All account filter change');
+    NativeClick(1);
+    SettleGrids;
+    LReceiver := CaptureState('receiver-click');
+    RequireSingleAccount(LReceiver, 1, 10000, 'Receiver click');
+    // dtNone prevents accidental toggles; its explicit override remains a
+    // legitimate way to return the wallet to the complete account history.
+    FMain.MockWallet.AccountsGrid.ClearSelection(True);
+    SettleGrids;
+    LCleared := CaptureState('explicit-clear');
+    RequireAllAccounts(LCleared, 'Explicitly cleared history');
+    FLog.Add('PASS same-account native repeat preserves selected debit; receiver credit and explicit All Account Operations history agree');
+  finally
+    FMain.MockWallet.OperationsSource.TransferPairEnabled := LOriginalTransferPair;
+    FMain.Model.SetData(LOriginalData.Revision, LOriginalData.RowCount);
+    FMain.MockWallet.AccountsSource.InvalidateSnapshot;
+    FMain.MockWallet.OperationsSource.InvalidateWalletAccounts;
+    FMain.MockWallet.AccountsGrid.ClearSelection(True);
+    FMain.MockWallet.AccountsGrid.PageMode := LOriginalPageMode;
+    FMain.MockWallet.AccountsGrid.RefreshGrid;
+    FMain.MockWallet.OperationsGrid.RefreshGrid;
+  end;
 end;
 
 procedure TConsecutiveSelectionObserver.CheckRapidBurst;
-var I: Integer; LUntil: UInt64; LPanel: TPanel; LMetrics: TMockFetchMetrics;
+const
+  ClickRows: array[0..7] of Integer = (0, 0, 1, 1, 0, 0, 1, 1);
+var
+  I, LPreviousAccount: Integer;
+  LUntil: UInt64;
+  LPanel: TPanel;
+  LMetrics: TMockFetchMetrics;
 begin
   FIndex := 21;
   FPublications := 0;
@@ -189,10 +366,15 @@ begin
   Require(Assigned(LPanel),'Real operations loading panel is absent');
   Require(FMain.MockWallet.OperationsGrid.RefreshThrottle.Mode=temNotifyOnEventBurstFinished,
     'Actual wallet operations grid is not using its existing burst-finished throttle');
-  for I := 0 to 5 do begin
-    FExpectedAccount := I mod 2;
-    FInputTick := GetTickCount64;
+  LPreviousAccount := -1;
+  for I := 0 to High(ClickRows) do begin
+    FExpectedAccount := ClickRows[I];
+    // An unchanged native selection need not issue a second notification.
+    // Measure the quiet period from the last actual selection change.
+    if FExpectedAccount <> LPreviousAccount then
+      FInputTick := GetTickCount64;
     NativeClick(FExpectedAccount);
+    LPreviousAccount := FExpectedAccount;
     Pump(80);
     Require(FMain.Model.Metrics(mdkOperations).FetchCount=FBaselineFetches,
       'Operations provider was queried before account selection became quiet');
@@ -214,7 +396,7 @@ begin
     'Latest operations fetch did not follow the configured quiet interval');
   Require((FCardHideTick<>0) and not FCardReopened,
     'Completed latest-account publication retained or reopened its loading card');
-  FLog.Add(Format('PASS scroll burst: six native selections, one latest query after %dms, loading hidden after %dms',
+  FLog.Add(Format('PASS scroll burst: eight native clicks including repeats, one latest query after %dms, loading hidden after %dms',
     [FAdmissionTick-FInputTick,FCardHideTick-FInputTick]));
 end;
 
@@ -271,6 +453,7 @@ begin
   FMain.Model.DelayMilliseconds := 0;
   FMain.MockWallet.OperationsSource.OperationsPerAccount := 268;
   try
+    CheckRepeatedSelection;
     // Initial setup alone may settle to quiet. No per-click loop waits for it.
     LUntil := GetTickCount64 + 10000;
     while (FMain.MockWallet.AccountsGrid.IsUpdating or

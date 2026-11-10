@@ -238,7 +238,9 @@ begin
   FAccountsGrid.SortMode := smSingleColumn;
   FAccountsGrid.FetchDataInThread := true;
   FAccountsGrid.AutoPageSize := True;
-  FAccountsGrid.DeselectionType := dtDefault;
+  // Repeated account clicks keep the history scope; explicit clears still
+  // return to wallet-wide history through OnAccountsSelected.
+  FAccountsGrid.DeselectionType := dtNone;
   FAccountsGrid.SelectionType := stMultiRow;
   FAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging, vgoAutoHideSearchPanel];
   with FAccountsGrid.AddColumn('Account') do
@@ -724,12 +726,12 @@ begin
   FOperationsGrid.CancelActiveFetch;
   case FOperationsMode of
     womAllAccounts: begin
-      FOperationsGrid.Caption.Text := '';
+      FOperationsGrid.Caption.Text := 'All Account Operations';
       FOperationsDataSource.UseWalletAccounts := true;
     end;
     womSelectedAccounts:
     begin
-      FOperationsGrid.Caption.Text := 'Selected Accounts';
+      FOperationsGrid.Caption.Text := 'Selected Account Operations';
       FOperationsDataSource.UseWalletAccounts := false;
       FOperationsDataSource.Accounts := SelectedAccounts;
     end else
@@ -774,7 +776,7 @@ begin
           paAccounts.AddControlDockCenter(FAccountsGrid);
         end;
         // Refresh grid
-        FAccountsGrid.ClearSelection();
+        FAccountsGrid.ClearSelection(True);
         RefreshAccountsGrid;
       end;
       wamFirstAccount: begin
@@ -911,7 +913,8 @@ end;
 
 procedure TCTRLWallet.OnAccountsSelected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
 begin
-  if ASelection.Page >= 0 then
+  // A native selection can have a valid page but no selected row ranges.
+  if (ASelection.Page >= 0) and (ASelection.RowCount > 0) then
     if FOperationsMode <> womSelectedAccounts then
       OperationsMode := womSelectedAccounts
     else
@@ -943,7 +946,7 @@ end;
 procedure TCTRLWallet.cbAccountsChange(Sender: TObject);
 begin
   if cbAccounts.ItemIndex < 0 then exit;
-  FAccountsGrid.ClearSelection();
+  FAccountsGrid.ClearSelection(True);
   if cbAccounts.ItemIndex = cbAccounts.Items.Count - 1 then
     AccountsMode := wamFirstAccount
   else if FAccountsMode = wamFirstAccount then

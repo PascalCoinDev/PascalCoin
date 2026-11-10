@@ -109,6 +109,7 @@ type
     FLastFetchBlockDepth: Cardinal;
     FRawRevision: Integer;
     FOperationsPerAccount: Integer;
+    FTransferPairEnabled: Boolean;
   protected
     function FetchWalletAccounts: TArray<Cardinal>; override;
     function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
@@ -118,6 +119,7 @@ type
     procedure FetchAll(const AContainer: TList<TOperationResume>); override;
     property LastFetchBlockDepth: Cardinal read FLastFetchBlockDepth;
     property OperationsPerAccount: Integer read FOperationsPerAccount write FOperationsPerAccount;
+    property TransferPairEnabled: Boolean read FTransferPairEnabled write FTransferPairEnabled;
   end;
 
   TMockWallet = class(TCTRLWallet)
@@ -552,6 +554,33 @@ begin
     if TThread.CheckTerminated or FModel.ShuttingDown then raise EAbort.Create('Mock history canceled');
     LAccount := LAccounts[I];
     if LAccount >= Cardinal(LSnapshot.RowCount) then Continue;
+    if FTransferPairEnabled then
+    begin
+      // One transfer has a separate account-relative debit and credit. Keep
+      // source membership and the wallet's actual filtering path unchanged.
+      if LAccount > 1 then
+        Continue;
+      LOperation := Default(TOperationResume);
+      LOperation.valid := True;
+      LOperation.Block := 1000000 + LSnapshot.Revision;
+      LOperation.NOpInsideBlock := 0;
+      LOperation.OpType := 1;
+      LOperation.time := DateTimeToUnix(Now, False) - 60;
+      LOperation.AffectedAccount := LAccount;
+      LOperation.SignerAccount := 0;
+      LOperation.DestAccount := 1;
+      LOperation.Amount := -10000;
+      LOperation.OperationTxt := 'Send 1.0000 to account 1';
+      if LAccount = 1 then
+      begin
+        LOperation.Amount := 10000;
+        LOperation.OperationTxt := 'Receive 1.0000 from account 0';
+      end;
+      LOperation.Balance := 10000 + LAccount;
+      LOperation.OperationHash.FromString('mock-transfer-' + IntToStr(LSnapshot.Revision));
+      AContainer.Add(LOperation);
+      Continue;
+    end;
     // Dense history remains a provider fixture; selection and paging use the
     // production adapters. Other scenarios retain one operation per account.
     for J := 0 to FOperationsPerAccount - 1 do begin

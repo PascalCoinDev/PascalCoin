@@ -55,9 +55,13 @@ its case group:
 
 - `PASCAL_WALLET_KEY_NOTIFICATIONS_ONLY=1` checks wallet-key notifications from
   a worker thread.
-- `PASCAL_WALLET_CONSECUTIVE_SELECTION_ONLY=1` makes 20 alternating account
-  clicks and a six-click burst. Each of the 20 must show its account's history
-  within one second.
+- `PASCAL_WALLET_CONSECUTIVE_SELECTION_ONLY=1` checks a transfer between two
+  owned fixture accounts: repeated sender clicks keep the same debit, selecting
+  the receiver shows its credit, and explicitly clearing selection shows both
+  rows under **All Account Operations**. The real Show All dropdown handler must also
+  clear the old selection and restore wallet-wide history. It then makes 20 alternating clicks and an
+  eight-click burst including repeats. Each independent selection must publish
+  within one second; the burst admits only the latest account after 250 ms of quiet.
 - `PASCAL_WALLET_SELECTION_COMPLETION_ONLY=1` selects two accounts in a row, each
   with 268 generated operations.
 - `PASCAL_WALLET_REFRESH_LIFECYCLE_ONLY=1` checks refresh timing, held fetches
